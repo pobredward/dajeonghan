@@ -1,0 +1,27 @@
+# Firebase
+GoogleService-Info.plist
+google-services.json
+
+# iOS
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+DerivedData/
+.DS_Store
+
+# Android
+local.properties
+*.keystore
+*.jks
+
+# Environment variables
+.env
+.env.local
+
+# Dependencies
+node_modules/
+Pods/
+
+# Build outputs
+build/
+dist/
