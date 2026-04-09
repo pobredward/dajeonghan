@@ -1,14 +1,72 @@
-# 09. Firebase 설정
+# Step 10. Firebase 설정
 
-## 목표
-Firebase 서비스를 프로덕션 환경에 맞게 설정합니다.
+> **🎯 목표**: Firebase 서비스를 프로덕션 환경에 맞게 설정하고 보안 규칙 구축
 
-## 주요 서비스
-- **Authentication**: 익명 인증 + 계정 연결
-- **Firestore**: 오프라인 우선 데이터베이스
-- **Security Rules**: 사용자별 데이터 보호
-- **Cloud Functions**: 다이제스트 스케줄러 (2단계)
-- **Cloud Storage**: 이미지 저장 (2단계)
+## 📌 단계 정보
+
+**순서**: Step 10/13  
+**Phase**: Phase 4 - 인프라 (Infrastructure)  
+**의존성**: Step 09 완료 권장  
+**예상 소요 시간**: 1일  
+**난이도**: ⭐⭐⭐
+
+### 이전 단계 요구사항
+- ✅ Step 09 완료: UI/UX (전체 앱 플로우 테스트 가능)
+- ✅ Step 01~08 완료: 모든 기능 (Security Rules 작성 위해)
+
+### 다음 단계
+- **Step 11**: 개인정보 및 법적 준수
+
+### 이 단계가 필요한 이유
+- 프로덕션 배포 전 필수
+- 데이터 보안
+- 멀티 디바이스 동기화
+
+---
+
+## 📋 완료 기준
+
+이 단계를 완료하면:
+- ✅ Firestore Security Rules 프로덕션 배포
+- ✅ Firestore 인덱스 생성 완료
+- ✅ 익명 인증 + 계정 연결 작동
+- ✅ 오프라인 지속성 활성화
+- ✅ Firebase Emulator로 로컬 테스트 가능
+
+**예상 소요 시간**: 1일
+
+---
+
+## 🔥 핵심 개념
+
+### Firebase의 역할
+
+다정한은 Firebase를 "서버리스 백엔드"로 사용합니다:
+
+```
+[다정한 앱]
+    ↓
+[Firebase SDK]
+    ↓
+┌─────────────────────┐
+│  Firebase Services  │
+├─────────────────────┤
+│ • Authentication    │ ← 사용자 인증
+│ • Firestore         │ ← 데이터 저장
+│ • Cloud Functions   │ ← 서버 로직 (2단계)
+│ • Cloud Messaging   │ ← 푸시 알림 (2단계)
+└─────────────────────┘
+```
+
+### 주요 서비스
+
+1. **Authentication**: 익명 인증 → 나중에 이메일 연결
+2. **Firestore**: 오프라인 우선 NoSQL 데이터베이스
+3. **Security Rules**: 사용자별 데이터 접근 제어
+4. **Cloud Functions**: 다이제스트 스케줄러 (2단계)
+5. **Cloud Storage**: 이미지 저장 (2단계)
+
+---
 
 ## Firestore Security Rules
 
@@ -402,7 +460,7 @@ export class FirestoreService {
 
 ```json
 {
-  "name": "liveloop-functions",
+  "name": "dajeonghan-functions",
   "version": "1.0.0",
   "engines": {
     "node": "18"

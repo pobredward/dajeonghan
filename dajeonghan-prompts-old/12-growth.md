@@ -1,20 +1,57 @@
 # 12. 성장 전략 및 수익화
 
-## 목표
-장기적 성장과 지속 가능한 수익 모델을 설계합니다.
+> **🎯 목표**: 장기적 사용자 성장과 지속 가능한 수익 모델 설계
 
-## 핵심 지표
+## 📋 완료 기준
 
-### North Star Metric
-- **주간 활성 사용자(WAU)**: 주 3회 이상 앱 사용
-- **습관화 율**: 66일(2개월) 연속 사용 비율
+이 단계를 완료하면:
+- ✅ 습관화 스트릭 시스템 구현 (66일)
+- ✅ 주간 리포트 생성 로직 완성
+- ✅ 템플릿 공유 기능 작동
+- ✅ 프리미엄 기능 게이트 설정
+- ✅ Firebase Analytics 이벤트 로깅
 
-### 보조 지표
-- 온보딩 완료율 (목표: 70%)
-- D1 리텐션 (목표: 40%)
-- D7 리텐션 (목표: 25%)
-- D30 리텐션 (목표: 15%)
-- 테스크 완료율 (목표: 60%)
+**예상 소요 시간**: 0.5-1일
+
+---
+
+## 📈 핵심 개념
+
+### North Star Metric (최우선 지표)
+
+**주간 활성 사용자 (WAU)** = 주 3회 이상 앱 사용
+
+**왜 WAU인가?**
+- DAU는 너무 높은 기준 (생활 관리 앱 특성상)
+- MAU는 너무 느슨한 기준 (한 달에 한 번?)
+- WAU = 습관 형성의 최적 지표
+
+### 핵심 지표 체계
+
+```
+North Star Metric: WAU (주 3회 이상 사용)
+         ↓
+┌─────────────────────────────┐
+│    보조 지표 (Pirate Metrics) │
+├─────────────────────────────┤
+│ Acquisition  │ 온보딩 완료율  │ 70%
+│ Activation   │ D1 리텐션     │ 40%
+│ Retention    │ D7 리텐션     │ 25%
+│ Revenue      │ 프리미엄 전환  │ 5%
+│ Referral     │ 템플릿 공유   │ 100회
+└─────────────────────────────┘
+```
+
+### 습관 형성: 66일 법칙
+
+**연구 결과**: 새로운 습관이 자동화되기까지 평균 66일 소요
+
+다정한의 전략:
+- ✅ **연속 일수 표시**: 스트릭 시스템
+- ✅ **마일스톤 보상**: 3일, 7일, 14일, 30일, 66일
+- ✅ **주간 리포트**: 매주 월요일 성과 요약
+
+---
 
 ## 습관화 전략
 
@@ -196,7 +233,7 @@ const styles = StyleSheet.create({
 ```json
 {
   "expo": {
-    "scheme": "liveloop",
+    "scheme": "dajeonghan",
     "android": {
       "intentFilters": [
         {
@@ -204,7 +241,7 @@ const styles = StyleSheet.create({
           "data": [
             {
               "scheme": "https",
-              "host": "liveloop.app",
+              "host": "dajeonghan.app",
               "pathPrefix": "/template"
             }
           ],
@@ -213,7 +250,7 @@ const styles = StyleSheet.create({
       ]
     },
     "ios": {
-      "associatedDomains": ["applinks:liveloop.app"]
+      "associatedDomains": ["applinks:dajeonghan.app"]
     }
   }
 }
@@ -275,7 +312,7 @@ export class TemplateSharingService {
    * 공유 텍스트 생성
    */
   static generateShareText(templateName: string): string {
-    return `리브루프에서 "${templateName}" 템플릿을 공유합니다! 생활 관리가 쉬워져요 ✨`;
+    return `다정한에서 "${templateName}" 템플릿을 공유합니다! 생활 관리가 쉬워져요 ✨`;
   }
 }
 ```
@@ -463,8 +500,8 @@ npm install react-native-iap
 import * as RNIap from 'react-native-iap';
 
 const PRODUCT_IDS = {
-  ios: ['liveloop_premium_monthly', 'liveloop_premium_yearly'],
-  android: ['liveloop_premium_monthly', 'liveloop_premium_yearly']
+  ios: ['dajeonghan_premium_monthly', 'dajeonghan_premium_yearly'],
+  android: ['dajeonghan_premium_monthly', 'dajeonghan_premium_yearly']
 };
 
 export class PurchaseService {
@@ -517,7 +554,7 @@ export class PurchaseService {
    */
   private static async verifyPurchase(purchase: any): Promise<boolean> {
     // Cloud Functions에 영수증 검증 요청
-    // const response = await fetch('https://us-central1-liveloop.cloudfunctions.net/verifyPurchase', {
+    // const response = await fetch('https://us-central1-dajeonghan.cloudfunctions.net/verifyPurchase', {
     //   method: 'POST',
     //   body: JSON.stringify(purchase)
     // });
