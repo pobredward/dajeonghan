@@ -1048,8 +1048,7 @@ eas credentials
 - [ ] Firebase 설정 파일 경로 추가
 - [ ] 딥링크 scheme 설정: `dajeonghan`
 - [ ] extra 필드에 환경 변수 추가
-- [ ] plugins에 expo-build-properties 추가 확인
-- [ ] iOS useFrameworks: "static" 설정 확인
+- [ ] plugins 빈 배열 확인 (필요시 나중에 추가)
 
 #### Git
 - [ ] 현재 상태 확인 (`git status`)
