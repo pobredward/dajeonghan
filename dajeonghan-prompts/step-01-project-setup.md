@@ -12,35 +12,35 @@
 
 ## 🔧 권장 기술 스택 버전 (2026년 4월 기준)
 
-이 프로젝트는 **Expo SDK 55**를 기반으로 시작합니다.
+이 프로젝트는 **Expo SDK 54**를 기반으로 시작합니다.
 
 ### 코어 프레임워크
-- **Expo SDK**: `55.0.0` (최신 안정 버전)
-- **React Native**: `0.83.2` (SDK 55에 포함)
-- **React**: `19.2.0` (SDK 55에 포함)
-- **TypeScript**: `^5.7.0` (최신 안정 버전)
-- **Node.js**: `20.19.x` 이상 권장
+- **Expo SDK**: `~54.0.0` (안정 버전, 프로덕션 검증 완료)
+- **React Native**: `0.81.5` (SDK 54에 포함)
+- **React**: `19.1.0` (SDK 54에 포함)
+- **TypeScript**: `~5.9.2` (안정 버전)
+- **Node.js**: `18.x` 이상 권장 (20.x 호환)
 
 ### 주요 라이브러리
-- **Firebase JS SDK**: `^12.12.0` (최신 버전, AI Logic 지원)
-- **React Navigation**: `^7.x` (최신 안정 버전)
-  - `@react-navigation/native`: `^7.0.0`
-  - `@react-navigation/bottom-tabs`: `^7.0.0`
-  - `@react-navigation/stack`: `^7.0.0`
-- **date-fns**: `^4.1.0` (날짜 처리)
-- **React Native Reanimated**: `^4.2.1` (SDK 55 기본 포함)
-- **React Native Gesture Handler**: `^2.30.0`
+- **Firebase JS SDK**: `^11.0.0` (안정 버전)
+- **React Navigation**: `^6.x` (안정 버전)
+  - `@react-navigation/native`: `^6.1.0`
+  - `@react-navigation/bottom-tabs`: `^6.6.0`
+  - `@react-navigation/stack`: `^6.4.0`
+- **date-fns**: `^3.6.0` (날짜 처리)
+- **React Native Reanimated**: `~3.16.0` (SDK 54 기본 포함)
+- **React Native Gesture Handler**: `~2.20.0`
 
 ### 주요 특징
-- ✅ **New Architecture 필수**: SDK 55부터 Legacy Architecture 지원 종료
-- ✅ **Hermes v1 옵션**: 성능 향상 (선택사항, 기본 Hermes로도 충분)
+- ✅ **New Architecture 옵션**: 선택적 활성화 가능
+- ✅ **안정적인 Expo Go 지원**: 프로덕션 검증 완료
 - ✅ **개선된 프로젝트 구조**: `/src` 폴더 기반 구조 권장
 - ✅ **React 19 지원**: 최신 React 기능 사용 가능
 
-### SDK 55 전환 시 주의사항
-- Expo Go는 전환기 (TestFlight/CLI를 통해 SDK 55 버전 사용 필요)
-- 일부 오래된 라이브러리는 New Architecture 호환성 확인 필요
-- 마이그레이션보다는 새 프로젝트 시작 시점에 적용 권장 ✅
+### SDK 54의 장점
+- Expo Go 완벽 호환 (추가 설정 불필요)
+- 대부분의 서드파티 라이브러리 안정적 지원
+- 프로덕션 환경에서 검증된 버전
 
 ### 이전 단계 요구사항
 - 없음 (시작 단계입니다)
@@ -125,16 +125,16 @@
 
 ## 1. 환경 확인
 
-### Node.js 및 도구 확인
+### 환경 확인
 
 ```bash
-# 1. Node.js 버전 확인 (20.19.x 이상 권장 - Expo SDK 55 요구사항)
+# 1. Node.js 버전 확인 (18.x 이상 권장 - Expo SDK 54 요구사항)
 node --version
-# 출력 예: v20.19.0 또는 그 이상
+# 출력 예: v18.x.x 또는 v20.x.x
 
 # 2. npm 버전 확인
 npm --version
-# 출력 예: 10.x.x 이상
+# 출력 예: 9.x.x 이상
 
 # 3. Git 확인
 git --version
@@ -148,9 +148,9 @@ npx expo --version
 ```
 
 **버전 요구사항**:
-- ✅ Node.js: `20.19.x` 이상 (Expo SDK 55 필수)
-- ✅ npm: `10.x` 이상 권장
-- ✅ EAS CLI: `5.9.0` 이상
+- ✅ Node.js: `18.x` 이상 (Expo SDK 54 권장)
+- ✅ npm: `9.x` 이상 권장
+- ✅ EAS CLI: `5.x` 이상
 
 ---
 
@@ -158,10 +158,10 @@ npx expo --version
 
 ### 새 프로젝트 생성 (필요한 경우)
 
-기존 프로젝트가 없거나 SDK 55로 새로 시작하는 경우:
+기존 프로젝트가 없거나 SDK 54로 새로 시작하는 경우:
 
 ```bash
-# Expo SDK 55 프로젝트 생성
+# Expo SDK 54 프로젝트 생성
 npx create-expo-app@latest dajeonghan --template blank
 
 # 또는 TypeScript 템플릿으로 시작
@@ -221,8 +221,8 @@ mkdir -p src/templates
 ### 3-2. Firebase 패키지 설치
 
 ```bash
-# Firebase SDK 설치 (버전 12.x - 최신 안정 버전)
-npm install firebase@^12.12.0
+# Firebase SDK 설치 (버전 11.x - 안정 버전)
+npm install firebase@^11.0.0
 
 # AsyncStorage (Firebase Auth persistence용)
 npx expo install @react-native-async-storage/async-storage
@@ -232,10 +232,10 @@ npx expo install expo-application expo-constants
 ```
 
 **설치되는 버전**:
-- `firebase`: `^12.12.0` (AI Logic, Firestore Pipelines 지원)
-- `@react-native-async-storage/async-storage`: Expo SDK 55 호환 버전 자동 선택
-- `expo-application`: SDK 55 호환
-- `expo-constants`: SDK 55 호환
+- `firebase`: `^11.0.0` (안정 버전, 프로덕션 검증)
+- `@react-native-async-storage/async-storage`: Expo SDK 54 호환 버전 자동 선택
+- `expo-application`: SDK 54 호환
+- `expo-constants`: SDK 54 호환
 
 ### 3-3. Firebase 설정 파일 생성
 
@@ -514,16 +514,7 @@ npx expo start -c
       "appleTeamId": "3V8G7Y74HY",
       "kakaoNativeAppKey": "d4ae3ad0839632cbaa36546e1b88bcc5"
     },
-    "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ]
-    ]
+    "plugins": []
   }
 }
 ```
@@ -534,11 +525,11 @@ npx expo start -c
 - ✅ `googleServicesFile`: Firebase 설정 파일 경로
 - ✅ `scheme`: `dajeonghan` (딥링크용, Step 12/14에서 사용)
 - ✅ `extra`: 추가 환경 변수 (카카오 앱 키 등)
-- ✅ `plugins`: `expo-build-properties`로 New Architecture 지원 (iOS useFrameworks: static 필수)
+- ✅ `plugins`: 빈 배열 (필요시 나중에 추가)
 
 **⚠️ 주의**: 
-- `expo-build-properties`를 먼저 설치해야 합니다: `npx expo install expo-build-properties`
-- iOS에서 `useFrameworks: "static"`은 Firebase와 다른 네이티브 모듈 호환성에 필요합니다
+- `expo-build-properties`는 SDK 54에서는 선택사항입니다
+- iOS에서 Firebase 네이티브 모듈이 필요한 경우에만 추가
 
 ---
 
@@ -546,7 +537,7 @@ npx expo start -c
 
 ### 5-0. package.json 권장 버전 참고
 
-아래는 Expo SDK 55 기반 프로젝트의 권장 `package.json` 구조입니다:
+아래는 Expo SDK 54 기반 프로젝트의 권장 `package.json` 구조입니다:
 
 ```json
 {
@@ -560,43 +551,41 @@ npx expo start -c
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~55.0.0",
-    "expo-status-bar": "~2.0.0",
-    "react": "19.2.0",
-    "react-native": "0.83.2",
-    "firebase": "^12.12.0",
-    "@react-native-async-storage/async-storage": "2.1.0",
-    "@react-navigation/native": "^7.0.0",
-    "@react-navigation/bottom-tabs": "^7.0.0",
-    "@react-navigation/stack": "^7.0.0",
-    "react-native-screens": "~4.6.0",
-    "react-native-safe-area-context": "4.17.0",
-    "react-native-gesture-handler": "~2.30.0",
-    "react-native-reanimated": "~4.2.1",
-    "date-fns": "^4.1.0",
-    "expo-notifications": "~0.30.0",
-    "expo-auth-session": "~6.2.0",
-    "expo-web-browser": "~14.2.0",
-    "expo-crypto": "~14.2.0",
-    "expo-application": "~6.2.0",
-    "expo-constants": "~17.2.0",
-    "expo-build-properties": "~1.2.0",
-    "uuid": "^11.0.0"
+    "expo": "~54.0.0",
+    "expo-status-bar": "~3.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "firebase": "^11.0.0",
+    "@react-native-async-storage/async-storage": "2.0.0",
+    "@react-navigation/native": "^6.1.0",
+    "@react-navigation/bottom-tabs": "^6.6.0",
+    "@react-navigation/stack": "^6.4.0",
+    "react-native-screens": "~4.3.0",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-gesture-handler": "~2.20.0",
+    "react-native-reanimated": "~3.16.0",
+    "date-fns": "^3.6.0",
+    "expo-notifications": "~0.29.0",
+    "expo-auth-session": "~6.0.0",
+    "expo-web-browser": "~14.0.0",
+    "expo-crypto": "~14.0.0",
+    "expo-application": "~6.0.0",
+    "expo-constants": "~17.0.0",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "~19.0.0",
-    "@types/react-native": "~0.83.0",
+    "@types/react": "~19.1.0",
     "@types/uuid": "^10.0.0",
-    "typescript": "^5.7.0",
+    "typescript": "~5.9.2",
     "babel-plugin-module-resolver": "^5.0.0"
   }
 }
 ```
 
 **버전 규칙**:
-- `~`: 패치 버전만 업데이트 (예: `~55.0.0` → `55.0.x`)
-- `^`: 마이너 버전까지 업데이트 (예: `^12.12.0` → `12.x.x`)
+- `~`: 패치 버전만 업데이트 (예: `~54.0.0` → `54.0.x`)
+- `^`: 마이너 버전까지 업데이트 (예: `^11.0.0` → `11.x.x`)
 - Expo 관련 패키지는 `npx expo install`로 자동 버전 매칭
 
 ### 5-1. 의존성 확인
@@ -609,43 +598,43 @@ npm list --depth=0
 ### 5-2. 추가 필수 패키지 설치
 
 ```bash
-# React Navigation (v7 - Expo SDK 55 호환)
-npm install @react-navigation/native@^7.0.0
-npm install @react-navigation/bottom-tabs@^7.0.0
-npm install @react-navigation/stack@^7.0.0
+# React Navigation (v6 - Expo SDK 54 호환)
+npm install @react-navigation/native@^6.1.0
+npm install @react-navigation/bottom-tabs@^6.6.0
+npm install @react-navigation/stack@^6.4.0
 
-# React Navigation 의존성 (Expo SDK 55 버전)
+# React Navigation 의존성 (Expo SDK 54 버전)
 npx expo install react-native-screens react-native-safe-area-context
-npx expo install react-native-gesture-handler@~2.30.0
-npx expo install react-native-reanimated@~4.2.1
+npx expo install react-native-gesture-handler@~2.20.0
+npx expo install react-native-reanimated@~3.16.0
 
-# 날짜 처리 (최신 버전)
-npm install date-fns@^4.1.0
+# 날짜 처리
+npm install date-fns@^3.6.0
 
-# 알림 (Expo SDK 55 호환)
+# 알림 (Expo SDK 54 호환)
 npx expo install expo-notifications
 
-# 소셜 로그인 (Expo SDK 55 호환)
+# 소셜 로그인 (Expo SDK 54 호환)
 npx expo install expo-auth-session expo-web-browser expo-crypto
 
 # UUID 생성
-npm install uuid@^11.0.0
+npm install uuid@^10.0.0
 npm install --save-dev @types/uuid
 
 # TypeScript 타입 정의
-npm install --save-dev @types/react @types/react-native
-npm install --save-dev typescript@^5.7.0
+npm install --save-dev @types/react
+npm install --save-dev typescript@~5.9.2
 
-# Expo Build Properties (New Architecture 지원)
-npx expo install expo-build-properties
+# Babel module resolver
+npm install --save-dev babel-plugin-module-resolver
 ```
 
 **주요 버전 요약**:
-- React Navigation v7: Expo SDK 55 완전 호환
-- React Native Reanimated v4: New Architecture 필수
-- date-fns v4: 최신 안정 버전
-- Firebase v12: AI Logic 및 최신 기능 지원
-- TypeScript v5.7: 최신 타입 기능 지원
+- React Navigation v6: Expo SDK 54 완전 호환
+- React Native Reanimated v3: 안정적인 성능
+- date-fns v3: 안정 버전
+- Firebase v11: 프로덕션 검증된 안정 버전
+- TypeScript v5.9: 안정 타입 기능 지원
 
 ### 5-3. 설치 확인
 
@@ -655,14 +644,14 @@ npm list --depth=0
 ```
 
 **확인 항목**:
-- ✅ `firebase@^12.12.0` (최신 AI Logic 지원)
-- ✅ `@react-navigation/native@^7.0.0` (New Architecture 호환)
-- ✅ `react-native-reanimated@~4.2.1` (SDK 55 기본 포함)
-- ✅ `date-fns@^4.1.0` (최신 날짜 처리)
-- ✅ `expo-notifications` (Expo SDK 55 버전)
+- ✅ `firebase@^11.0.0` (안정적인 프로덕션 버전)
+- ✅ `@react-navigation/native@^6.1.0` (안정 버전)
+- ✅ `react-native-reanimated@~3.16.0` (SDK 54 호환)
+- ✅ `date-fns@^3.6.0` (안정 버전)
+- ✅ `expo-notifications` (Expo SDK 54 버전)
 - ✅ `@react-native-async-storage/async-storage` (Auth persistence)
 - ✅ `expo-auth-session` (소셜 로그인용)
-- ✅ `typescript@^5.7.0` (최신 타입 지원)
+- ✅ `typescript@~5.9.2` (안정 타입 지원)
 
 **최종 프로젝트 구조**:
 ```
@@ -1079,37 +1068,35 @@ eas credentials
 
 ### Q1: Node.js 버전 오류
 
-**증상**: `Expo SDK 55 requires Node.js 20.19.x or higher`
+**증상**: `Expo SDK 54 requires Node.js 18.x or higher`
 
 **해결**:
 ```bash
 # Node.js 버전 확인
 node --version
 
-# 20.19.x 미만인 경우, nvm으로 업그레이드
-nvm install 20.19.0
-nvm use 20.19.0
+# 18.x 미만인 경우, nvm으로 업그레이드
+nvm install 18
+nvm use 18
 
 # 또는 Node.js 공식 사이트에서 다운로드
 # https://nodejs.org/
 ```
 
-### Q2: Expo Go SDK 55 사용
+### Q2: Expo Go SDK 54 사용
 
-**증상**: Expo Go 앱이 SDK 54로 표시됨
+**증상**: Expo Go 앱 버전 확인 필요
 
 **해결**:
-- **iOS**: TestFlight에서 Expo Go SDK 55 베타 설치
-- **Android**: Expo CLI로 직접 설치
-  ```bash
-  # Android에서 SDK 55 Expo Go 설치
-  npx expo install --client
-  ```
-- **대안**: 개발 빌드 사용 (권장)
-  ```bash
-  npx expo install expo-dev-client
-  eas build --profile development --platform ios
-  ```
+- **iOS/Android**: App Store/Play Store에서 최신 Expo Go 설치
+- SDK 54는 Expo Go에서 완벽하게 지원됩니다
+- 별도 설정 불필요
+
+**대안**: 개발 빌드 사용 (선택사항)
+```bash
+npx expo install expo-dev-client
+eas build --profile development --platform ios
+```
 
 ### Q3: Reanimated 오류
 
@@ -1215,18 +1202,22 @@ ls -la | grep google-services
 
 ### Q8: New Architecture 관련 오류
 
-**증상**: `The new architecture is required for SDK 55`
+**증상**: New Architecture 관련 경고
 
 **해결**:
-SDK 55는 New Architecture가 필수입니다. `app.json`에서 `newArchEnabled` 설정을 제거하세요 (더 이상 필요 없음).
+SDK 54는 New Architecture가 선택사항입니다. 기본 설정으로 진행하면 됩니다.
 
+필요시 활성화:
 ```json
 {
   "expo": {
     "plugins": [
       ["expo-build-properties", {
         "ios": {
-          "useFrameworks": "static"
+          "newArchEnabled": true
+        },
+        "android": {
+          "newArchEnabled": true
         }
       }]
     ]
@@ -1234,7 +1225,7 @@ SDK 55는 New Architecture가 필수입니다. `app.json`에서 `newArchEnabled`
 }
 ```
 
-필요한 패키지 설치:
+필요한 패키지:
 ```bash
 npx expo install expo-build-properties
 ```
@@ -1318,12 +1309,12 @@ rm src/test-imports.ts
 ### 현재 상태 요약
 
 ```
-✅ 기술 스택: Expo SDK 55 (React Native 0.83, React 19.2)
-✅ New Architecture: 필수 적용 (Legacy 지원 종료)
-✅ Firebase SDK: 12.12.0 (최신 AI Logic 지원)
-✅ React Navigation: v7 (New Architecture 완전 호환)
-✅ TypeScript: 5.7.x (최신 타입 기능)
-✅ Node.js: 20.19.x (Expo SDK 55 요구사항)
+✅ 기술 스택: Expo SDK 54 (React Native 0.81, React 19.1)
+✅ New Architecture: 선택적 활성화 가능
+✅ Firebase SDK: 11.0.0 (안정 프로덕션 버전)
+✅ React Navigation: v6 (완전 안정 버전)
+✅ TypeScript: 5.9.x (안정 타입 기능)
+✅ Node.js: 18.x 이상 (20.x 호환)
 ✅ Google Cloud 프로젝트: dajeonghan (593802522640)
 ✅ Firebase 프로젝트: dajeonghan
 ✅ Firebase Config: 올바른 projectId/authDomain 설정
@@ -1338,7 +1329,7 @@ rm src/test-imports.ts
 ✅ 프로젝트 폴더 구조 생성 (14개 디렉토리)
 ✅ TypeScript 설정 완료 (path aliases)
 ✅ Babel 설정 완료 (Reanimated plugin)
-✅ expo-build-properties 설정 (New Architecture)
+✅ Expo Go 완벽 지원
 ```
 
 ### 다음 단계
