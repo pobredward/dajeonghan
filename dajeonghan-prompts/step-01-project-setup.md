@@ -10,6 +10,38 @@
 **예상 소요 시간**: 1-2시간 (사전 작업 완료됨)  
 **난이도**: ⭐⭐
 
+## 🔧 권장 기술 스택 버전 (2026년 4월 기준)
+
+이 프로젝트는 **Expo SDK 55**를 기반으로 시작합니다.
+
+### 코어 프레임워크
+- **Expo SDK**: `55.0.0` (최신 안정 버전)
+- **React Native**: `0.83.2` (SDK 55에 포함)
+- **React**: `19.2.0` (SDK 55에 포함)
+- **TypeScript**: `^5.7.0` (최신 안정 버전)
+- **Node.js**: `20.19.x` 이상 권장
+
+### 주요 라이브러리
+- **Firebase JS SDK**: `^12.12.0` (최신 버전, AI Logic 지원)
+- **React Navigation**: `^7.x` (최신 안정 버전)
+  - `@react-navigation/native`: `^7.0.0`
+  - `@react-navigation/bottom-tabs`: `^7.0.0`
+  - `@react-navigation/stack`: `^7.0.0`
+- **date-fns**: `^4.1.0` (날짜 처리)
+- **React Native Reanimated**: `^4.2.1` (SDK 55 기본 포함)
+- **React Native Gesture Handler**: `^2.30.0`
+
+### 주요 특징
+- ✅ **New Architecture 필수**: SDK 55부터 Legacy Architecture 지원 종료
+- ✅ **Hermes v1 옵션**: 성능 향상 (선택사항, 기본 Hermes로도 충분)
+- ✅ **개선된 프로젝트 구조**: `/src` 폴더 기반 구조 권장
+- ✅ **React 19 지원**: 최신 React 기능 사용 가능
+
+### SDK 55 전환 시 주의사항
+- Expo Go는 전환기 (TestFlight/CLI를 통해 SDK 55 버전 사용 필요)
+- 일부 오래된 라이브러리는 New Architecture 호환성 확인 필요
+- 마이그레이션보다는 새 프로젝트 시작 시점에 적용 권장 ✅
+
 ### 이전 단계 요구사항
 - 없음 (시작 단계입니다)
 
@@ -96,11 +128,13 @@
 ### Node.js 및 도구 확인
 
 ```bash
-# 1. Node.js 버전 확인 (18.x LTS 권장)
+# 1. Node.js 버전 확인 (20.19.x 이상 권장 - Expo SDK 55 요구사항)
 node --version
+# 출력 예: v20.19.0 또는 그 이상
 
 # 2. npm 버전 확인
 npm --version
+# 출력 예: 10.x.x 이상
 
 # 3. Git 확인
 git --version
@@ -108,11 +142,34 @@ git --version
 # 4. EAS CLI 설치 (없으면)
 npm install -g eas-cli
 eas --version
+
+# 5. Expo CLI 최신 버전 확인
+npx expo --version
 ```
+
+**버전 요구사항**:
+- ✅ Node.js: `20.19.x` 이상 (Expo SDK 55 필수)
+- ✅ npm: `10.x` 이상 권장
+- ✅ EAS CLI: `5.9.0` 이상
 
 ---
 
 ## 2. 프로젝트 폴더 확인
+
+### 새 프로젝트 생성 (필요한 경우)
+
+기존 프로젝트가 없거나 SDK 55로 새로 시작하는 경우:
+
+```bash
+# Expo SDK 55 프로젝트 생성
+npx create-expo-app@latest dajeonghan --template blank
+
+# 또는 TypeScript 템플릿으로 시작
+npx create-expo-app@latest dajeonghan --template blank-typescript
+
+# 프로젝트 폴더로 이동
+cd dajeonghan
+```
 
 ### 현재 프로젝트 구조
 
@@ -142,20 +199,7 @@ npm install
 
 ## 3. Firebase SDK 연동
 
-### 3-1. Firebase 패키지 설치
-
-```bash
-# Firebase SDK 설치
-npm install firebase
-
-# AsyncStorage (Firebase Auth persistence용)
-npm install @react-native-async-storage/async-storage
-
-# Expo 관련
-npm install expo-application expo-constants
-```
-
-### 3-2. 프로젝트 구조 생성
+### 3-1. 프로젝트 구조 먼저 생성
 
 ```bash
 # src 폴더 및 하위 구조 생성
@@ -167,7 +211,31 @@ mkdir -p src/screens
 mkdir -p src/hooks
 mkdir -p src/utils
 mkdir -p src/constants
+mkdir -p src/core/engines
+mkdir -p src/modules/cleaning
+mkdir -p src/modules/fridge
+mkdir -p src/modules/medicine
+mkdir -p src/templates
 ```
+
+### 3-2. Firebase 패키지 설치
+
+```bash
+# Firebase SDK 설치 (버전 12.x - 최신 안정 버전)
+npm install firebase@^12.12.0
+
+# AsyncStorage (Firebase Auth persistence용)
+npx expo install @react-native-async-storage/async-storage
+
+# Expo 관련 패키지
+npx expo install expo-application expo-constants
+```
+
+**설치되는 버전**:
+- `firebase`: `^12.12.0` (AI Logic, Firestore Pipelines 지원)
+- `@react-native-async-storage/async-storage`: Expo SDK 55 호환 버전 자동 선택
+- `expo-application`: SDK 55 호환
+- `expo-constants`: SDK 55 호환
 
 ### 3-3. Firebase 설정 파일 생성
 
@@ -190,9 +258,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 const firebaseConfig = {
   apiKey: "AIzaSyBAqHSREpEhXUMkuJnZ2bKSHwjaBp6ebrs",
-  authDomain: "smis-mentor.firebaseapp.com",
-  projectId: "smis-mentor",
-  storageBucket: "smis-mentor.firebasestorage.app",
+  authDomain: "dajeonghan.firebaseapp.com",
+  projectId: "dajeonghan",
+  storageBucket: "dajeonghan.firebasestorage.app",
   messagingSenderId: "382190683951",
   appId: "1:382190683951:web:14c575b5995c7e0264c3da",
   measurementId: "G-MLJ4X6W3X0"
@@ -246,6 +314,10 @@ if (isDevelopment) {
   });
 }
 ```
+
+**⚠️ 중요**: 
+- `projectId`, `authDomain`, `storageBucket`이 모두 **"dajeonghan"**으로 일치해야 합니다
+- Firebase Console에서 직접 확인한 값을 사용하세요
 
 ### 3-4. Firebase 연결 테스트
 
@@ -373,7 +445,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-### 3-5. 앱 실행 및 테스트
+### 3-4. Firebase 연결 테스트
 
 ```bash
 # 캐시 클리어 후 실행
@@ -462,10 +534,70 @@ npx expo start -c
 - ✅ `googleServicesFile`: Firebase 설정 파일 경로
 - ✅ `scheme`: `dajeonghan` (딥링크용, Step 12/14에서 사용)
 - ✅ `extra`: 추가 환경 변수 (카카오 앱 키 등)
+- ✅ `plugins`: `expo-build-properties`로 New Architecture 지원 (iOS useFrameworks: static 필수)
+
+**⚠️ 주의**: 
+- `expo-build-properties`를 먼저 설치해야 합니다: `npx expo install expo-build-properties`
+- iOS에서 `useFrameworks: "static"`은 Firebase와 다른 네이티브 모듈 호환성에 필요합니다
 
 ---
 
 ## 5. 필수 패키지 설치
+
+### 5-0. package.json 권장 버전 참고
+
+아래는 Expo SDK 55 기반 프로젝트의 권장 `package.json` 구조입니다:
+
+```json
+{
+  "name": "dajeonghan",
+  "version": "1.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~55.0.0",
+    "expo-status-bar": "~2.0.0",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "firebase": "^12.12.0",
+    "@react-native-async-storage/async-storage": "2.1.0",
+    "@react-navigation/native": "^7.0.0",
+    "@react-navigation/bottom-tabs": "^7.0.0",
+    "@react-navigation/stack": "^7.0.0",
+    "react-native-screens": "~4.6.0",
+    "react-native-safe-area-context": "4.17.0",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-reanimated": "~4.2.1",
+    "date-fns": "^4.1.0",
+    "expo-notifications": "~0.30.0",
+    "expo-auth-session": "~6.2.0",
+    "expo-web-browser": "~14.2.0",
+    "expo-crypto": "~14.2.0",
+    "expo-application": "~6.2.0",
+    "expo-constants": "~17.2.0",
+    "expo-build-properties": "~1.2.0",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@types/react": "~19.0.0",
+    "@types/react-native": "~0.83.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.7.0",
+    "babel-plugin-module-resolver": "^5.0.0"
+  }
+}
+```
+
+**버전 규칙**:
+- `~`: 패치 버전만 업데이트 (예: `~55.0.0` → `55.0.x`)
+- `^`: 마이너 버전까지 업데이트 (예: `^12.12.0` → `12.x.x`)
+- Expo 관련 패키지는 `npx expo install`로 자동 버전 매칭
 
 ### 5-1. 의존성 확인
 
@@ -477,28 +609,43 @@ npm list --depth=0
 ### 5-2. 추가 필수 패키지 설치
 
 ```bash
-# 네비게이션
-npm install @react-navigation/native
-npm install @react-navigation/bottom-tabs
-npm install @react-navigation/stack
+# React Navigation (v7 - Expo SDK 55 호환)
+npm install @react-navigation/native@^7.0.0
+npm install @react-navigation/bottom-tabs@^7.0.0
+npm install @react-navigation/stack@^7.0.0
+
+# React Navigation 의존성 (Expo SDK 55 버전)
 npx expo install react-native-screens react-native-safe-area-context
+npx expo install react-native-gesture-handler@~2.30.0
+npx expo install react-native-reanimated@~4.2.1
 
-# 날짜 처리
-npm install date-fns
+# 날짜 처리 (최신 버전)
+npm install date-fns@^4.1.0
 
-# 알림
+# 알림 (Expo SDK 55 호환)
 npx expo install expo-notifications
 
-# 소셜 로그인 (카카오, 네이버)
+# 소셜 로그인 (Expo SDK 55 호환)
 npx expo install expo-auth-session expo-web-browser expo-crypto
 
 # UUID 생성
-npm install uuid
+npm install uuid@^11.0.0
 npm install --save-dev @types/uuid
 
-# 개발 도구
+# TypeScript 타입 정의
 npm install --save-dev @types/react @types/react-native
+npm install --save-dev typescript@^5.7.0
+
+# Expo Build Properties (New Architecture 지원)
+npx expo install expo-build-properties
 ```
+
+**주요 버전 요약**:
+- React Navigation v7: Expo SDK 55 완전 호환
+- React Native Reanimated v4: New Architecture 필수
+- date-fns v4: 최신 안정 버전
+- Firebase v12: AI Logic 및 최신 기능 지원
+- TypeScript v5.7: 최신 타입 기능 지원
 
 ### 5-3. 설치 확인
 
@@ -508,37 +655,16 @@ npm list --depth=0
 ```
 
 **확인 항목**:
-- ✅ `firebase`
-- ✅ `@react-navigation/native`
-- ✅ `date-fns`
-- ✅ `expo-notifications`
-- ✅ `@react-native-async-storage/async-storage`
+- ✅ `firebase@^12.12.0` (최신 AI Logic 지원)
+- ✅ `@react-navigation/native@^7.0.0` (New Architecture 호환)
+- ✅ `react-native-reanimated@~4.2.1` (SDK 55 기본 포함)
+- ✅ `date-fns@^4.1.0` (최신 날짜 처리)
+- ✅ `expo-notifications` (Expo SDK 55 버전)
+- ✅ `@react-native-async-storage/async-storage` (Auth persistence)
 - ✅ `expo-auth-session` (소셜 로그인용)
+- ✅ `typescript@^5.7.0` (최신 타입 지원)
 
----
-
-## 6. 프로젝트 폴더 구조 생성
-
-### 6-1. 기본 폴더 구조
-
-```bash
-# src 폴더 및 하위 구조 생성
-mkdir -p src/config
-mkdir -p src/types
-mkdir -p src/services
-mkdir -p src/components
-mkdir -p src/screens
-mkdir -p src/hooks
-mkdir -p src/utils
-mkdir -p src/constants
-mkdir -p src/core/engines
-mkdir -p src/modules/cleaning
-mkdir -p src/modules/fridge
-mkdir -p src/modules/medicine
-mkdir -p src/templates
-```
-
-**최종 구조**:
+**최종 프로젝트 구조**:
 ```
 dajeonghan/
 ├── GoogleService-Info.plist          (iOS Firebase)
@@ -547,14 +673,18 @@ dajeonghan/
 ├── app.json
 ├── package.json
 ├── tsconfig.json
+├── babel.config.js
+├── eas.json
 ├── App.tsx
 ├── assets/
 │   ├── icon.png
 │   ├── splash.png
 │   └── adaptive-icon.png
 └── src/
-    ├── config/                       (Firebase 설정)
-    │   └── firebase.ts
+    ├── config/                       (Firebase, 소셜 로그인 설정)
+    │   ├── firebase.ts
+    │   ├── kakao.ts
+    │   └── naver.ts
     ├── types/                        (TypeScript 타입 - Step 02)
     ├── core/                         (공통 엔진 - Step 03)
     │   └── engines/
@@ -573,9 +703,9 @@ dajeonghan/
 
 ---
 
-## 7. TypeScript 설정
+## 6. TypeScript 설정
 
-### 7-1. tsconfig.json 확인
+### 6-1. tsconfig.json 확인
 
 기존 `tsconfig.json` 파일에 path alias 추가:
 
@@ -584,6 +714,8 @@ dajeonghan/
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -609,7 +741,12 @@ dajeonghan/
 }
 ```
 
-### 7-2. Babel 설정
+**TypeScript 5.7 주요 설정**:
+- `target: "ES2022"`: React Native 0.83과 Hermes 호환
+- `strict: true`: 엄격한 타입 체크
+- `lib: ["ES2022"]`: 최신 JavaScript 기능 사용
+
+### 6-2. Babel 설정
 
 `babel.config.js`:
 
@@ -637,7 +774,8 @@ module.exports = function(api) {
             '@/modules': './src/modules'
           }
         }
-      ]
+      ],
+      'react-native-reanimated/plugin' // ⚠️ 반드시 마지막에 추가
     ]
   };
 };
@@ -648,11 +786,13 @@ module.exports = function(api) {
 npm install --save-dev babel-plugin-module-resolver
 ```
 
+**중요**: `react-native-reanimated/plugin`은 반드시 plugins 배열의 **마지막**에 위치해야 합니다 (Expo SDK 55 / Reanimated v4 요구사항).
+
 ---
 
-## 8. 소셜 로그인 설정 파일
+## 7. 소셜 로그인 설정 파일
 
-### 8-1. 카카오 로그인 설정
+### 7-1. 카카오 로그인 설정
 
 `src/config/kakao.ts`:
 
@@ -670,7 +810,7 @@ export const KAKAO_CONFIG = {
 };
 ```
 
-### 8-2. 네이버 로그인 설정
+### 7-2. 네이버 로그인 설정
 
 `src/config/naver.ts`:
 
@@ -689,9 +829,9 @@ export const NAVER_CONFIG = {
 
 ---
 
-## 9. 환경 변수 설정 (선택적)
+## 8. 환경 변수 설정 (선택적)
 
-### 9-1. .env 파일 생성 (개발용)
+### 8-1. .env 파일 생성 (개발용)
 
 ```.env
 # Firebase (이미 코드에 하드코딩되어 있으므로 선택사항)
@@ -709,7 +849,7 @@ APPLE_TEAM_ID=3V8G7Y74HY
 APPLE_ID=6761916450
 ```
 
-### 9-2. .gitignore 확인
+### 8-2. .gitignore 확인
 
 ```.gitignore
 # Expo
@@ -742,15 +882,15 @@ Thumbs.db
 
 ---
 
-## 10. Git 커밋
+## 9. Git 커밋
 
-### 10-1. 현재 상태 확인
+### 9-1. 현재 상태 확인
 
 ```bash
 git status
 ```
 
-### 10-2. 변경사항 커밋
+### 9-2. 변경사항 커밋
 
 ```bash
 # 모든 파일 스테이징
@@ -772,16 +912,16 @@ git push
 
 ---
 
-## 11. EAS 프로젝트 초기화
+## 10. EAS 프로젝트 초기화
 
-### 11-1. EAS 로그인
+### 10-1. EAS 로그인
 
 ```bash
 # EAS에 로그인 (Expo 계정)
 eas login
 ```
 
-### 11-2. EAS 프로젝트 설정
+### 10-2. EAS 프로젝트 설정
 
 ```bash
 # EAS Build 설정 초기화
@@ -793,7 +933,7 @@ eas credentials
 # 출력에서 Project ID 복사
 ```
 
-### 11-3. app.json에 EAS Project ID 추가
+### 10-3. app.json에 EAS Project ID 추가
 
 ```json
 {
@@ -807,7 +947,7 @@ eas credentials
 }
 ```
 
-### 11-4. eas.json 생성
+### 10-4. eas.json 생성
 
 ```json
 {
@@ -845,16 +985,21 @@ eas credentials
         "appleTeamId": "3V8G7Y74HY"
       },
       "android": {
-        "serviceAccountKeyPath": "./google-services.json"
+        "track": "production"
       }
     }
   }
 }
 ```
 
+**⚠️ 중요**: 
+- Android의 `serviceAccountKeyPath`는 별도의 Google Play Service Account JSON 키 파일이 필요합니다
+- `google-services.json`은 Firebase 설정 파일이며, Play Store 업로드용이 아닙니다
+- Service Account 키는 [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts)에서 생성해야 합니다
+
 ---
 
-## 12. 최종 체크리스트
+## 11. 최종 체크리스트
 
 ### ✅ 사전 작업 (이미 완료됨)
 - [x] Google Cloud 프로젝트 생성
@@ -871,9 +1016,11 @@ eas credentials
 ### 📋 Step 01 작업 항목
 
 #### 환경 설정
-- [ ] Node.js 18.x 이상 확인
-- [ ] EAS CLI 설치 확인
+- [ ] Node.js 20.19.x 이상 확인 (Expo SDK 55 요구사항)
+- [ ] npm 10.x 이상 확인
+- [ ] EAS CLI 5.9.0 이상 설치 확인
 - [ ] Git 설치 확인
+- [ ] TypeScript 5.7.x 설치 확인
 
 #### 프로젝트 파일
 - [ ] 프로젝트 폴더로 이동 (`~/Desktop/dev/dajeonghan`)
@@ -890,24 +1037,30 @@ eas credentials
 - [ ] 화면에 "Firebase 상태: ✅ 연결됨" 표시
 
 #### 패키지 설치
-- [ ] Firebase SDK 설치
-- [ ] 네비게이션 패키지 설치
-- [ ] 날짜 처리 패키지 설치
-- [ ] 알림 패키지 설치
+- [ ] Firebase SDK 12.x 설치
+- [ ] React Navigation v7 패키지 설치
+- [ ] React Native Reanimated v4 설치 (SDK 55 기본 포함)
+- [ ] date-fns v4 설치
+- [ ] 알림 패키지 설치 (expo-notifications)
 - [ ] 소셜 로그인 패키지 설치
+- [ ] expo-build-properties 설치 (New Architecture 지원)
 - [ ] `npm install` 오류 없음
+- [ ] `npx expo install --check` 호환성 확인
 
 #### 프로젝트 구조
 - [ ] `src/` 폴더 생성
 - [ ] 하위 폴더 구조 완성 (config, types, services 등)
 - [ ] TypeScript path aliases 설정 (`@/`)
-- [ ] Babel 설정 (module-resolver)
+- [ ] Babel 설정 (module-resolver + reanimated/plugin)
+- [ ] `babel.config.js`에 Reanimated plugin 마지막에 추가 확인
 
 #### app.json 설정
 - [ ] 번들 ID 확인: `com.onmindlab.dajeonghan`
 - [ ] Firebase 설정 파일 경로 추가
 - [ ] 딥링크 scheme 설정: `dajeonghan`
 - [ ] extra 필드에 환경 변수 추가
+- [ ] plugins에 expo-build-properties 추가 확인
+- [ ] iOS useFrameworks: "static" 설정 확인
 
 #### Git
 - [ ] 현재 상태 확인 (`git status`)
@@ -922,26 +1075,100 @@ eas credentials
 
 ---
 
-## 13. 문제 해결
+## 12. 문제 해결
 
-### Q1: Firebase 연결 실패
+### Q1: Node.js 버전 오류
+
+**증상**: `Expo SDK 55 requires Node.js 20.19.x or higher`
+
+**해결**:
+```bash
+# Node.js 버전 확인
+node --version
+
+# 20.19.x 미만인 경우, nvm으로 업그레이드
+nvm install 20.19.0
+nvm use 20.19.0
+
+# 또는 Node.js 공식 사이트에서 다운로드
+# https://nodejs.org/
+```
+
+### Q2: Expo Go SDK 55 사용
+
+**증상**: Expo Go 앱이 SDK 54로 표시됨
+
+**해결**:
+- **iOS**: TestFlight에서 Expo Go SDK 55 베타 설치
+- **Android**: Expo CLI로 직접 설치
+  ```bash
+  # Android에서 SDK 55 Expo Go 설치
+  npx expo install --client
+  ```
+- **대안**: 개발 빌드 사용 (권장)
+  ```bash
+  npx expo install expo-dev-client
+  eas build --profile development --platform ios
+  ```
+
+### Q3: Reanimated 오류
+
+**증상**: `Reanimated plugin must be listed last in the Babel plugins`
+
+**해결**:
+`babel.config.js`에서 `react-native-reanimated/plugin`이 **반드시 마지막**에 있는지 확인:
+```javascript
+module.exports = {
+  presets: ['babel-preset-expo'],
+  plugins: [
+    ['module-resolver', { /* ... */ }],
+    'react-native-reanimated/plugin' // ⚠️ 마지막!
+  ]
+};
+```
+
+그 후 캐시 클리어:
+```bash
+npx expo start -c
+```
+
+### Q4: Firebase 연결 실패
 
 **증상**: `❌ Firebase 연결 실패` 표시
 
 **원인 및 해결**:
 1. **firebase.ts의 config 확인**
-   - `projectId` 오타 확인
-   - `apiKey` 정확한지 확인
+   - `projectId`: **"dajeonghan"** (정확히 일치해야 함)
+   - `authDomain`: **"dajeonghan.firebaseapp.com"**
+   - `storageBucket`: **"dajeonghan.firebasestorage.app"**
+   - `apiKey`: Firebase Console에서 복사한 값과 일치하는지 확인
 
-2. **Firebase Console 확인**
-   - Firestore Database가 생성되어 있는지
-   - 위치: `asia-northeast3` (서울)
+2. **Firebase Console에서 직접 확인**
+   - Firebase Console > 프로젝트 설정 > 일반 탭
+   - "내 앱" 섹션에서 웹 앱 선택
+   - Firebase SDK 스니펫에서 config 값 복사
+   - Firestore Database가 생성되어 있는지 확인
+   - 데이터베이스 위치: `asia-northeast3` (서울)
 
 3. **네트워크 확인**
    - 인터넷 연결 확인
    - 방화벽/VPN 설정 확인
+   - 회사/학교 네트워크의 경우 Firebase 도메인 차단 여부 확인
 
-### Q2: TypeScript path alias 작동 안 함
+**올바른 설정 예시**:
+```typescript
+const firebaseConfig = {
+  apiKey: "AIzaSyBAqHSREpEhXUMkuJnZ2bKSHwjaBp6ebrs",
+  authDomain: "dajeonghan.firebaseapp.com",
+  projectId: "dajeonghan",
+  storageBucket: "dajeonghan.firebasestorage.app",
+  messagingSenderId: "382190683951",
+  appId: "1:382190683951:web:14c575b5995c7e0264c3da",
+  measurementId: "G-MLJ4X6W3X0"
+};
+```
+
+### Q5: TypeScript path alias 작동 안 함
 
 **증상**: `Cannot find module '@/config/firebase'`
 
@@ -957,7 +1184,7 @@ npm install --save-dev babel-plugin-module-resolver
 npx expo start -c
 ```
 
-### Q3: EAS CLI 명령어 오류
+### Q6: EAS CLI 명령어 오류
 
 **증상**: `command not found: eas`
 
@@ -972,7 +1199,7 @@ npm install -g eas-cli
 # 터미널 재시작
 ```
 
-### Q4: iOS/Android 빌드 파일 인식 안 됨
+### Q7: iOS/Android 빌드 파일 인식 안 됨
 
 **증상**: Firebase 설정 파일을 찾을 수 없음
 
@@ -986,11 +1213,37 @@ ls -la | grep google-services
 # app.json의 googleServicesFile 경로 확인
 ```
 
+### Q8: New Architecture 관련 오류
+
+**증상**: `The new architecture is required for SDK 55`
+
+**해결**:
+SDK 55는 New Architecture가 필수입니다. `app.json`에서 `newArchEnabled` 설정을 제거하세요 (더 이상 필요 없음).
+
+```json
+{
+  "expo": {
+    "plugins": [
+      ["expo-build-properties", {
+        "ios": {
+          "useFrameworks": "static"
+        }
+      }]
+    ]
+  }
+}
+```
+
+필요한 패키지 설치:
+```bash
+npx expo install expo-build-properties
+```
+
 ---
 
-## 14. 검증 테스트
+## 13. 검증 테스트
 
-### 14-1. 앱 실행 테스트
+### 13-1. 앱 실행 테스트
 
 ```bash
 # 캐시 클리어 후 실행
@@ -1005,7 +1258,7 @@ npx expo start -c
 5. ✅ "Firebase 상태: ✅ 연결됨" 표시
 6. ✅ 프로젝트 정보 정확히 표시
 
-### 14-2. TypeScript 컴파일 테스트
+### 13-2. TypeScript 컴파일 테스트
 
 ```bash
 # TypeScript 타입 체크
@@ -1014,7 +1267,7 @@ npx tsc --noEmit
 
 **성공 시**: 오류 메시지 없음
 
-### 14-3. Import 테스트
+### 13-3. Import 테스트
 
 임시 테스트 파일 생성:
 
@@ -1041,7 +1294,7 @@ rm src/test-imports.ts
 
 ---
 
-## 15. 다음 단계 준비
+## 14. 다음 단계 준비
 
 ### Step 02 준비사항
 
@@ -1065,8 +1318,15 @@ rm src/test-imports.ts
 ### 현재 상태 요약
 
 ```
+✅ 기술 스택: Expo SDK 55 (React Native 0.83, React 19.2)
+✅ New Architecture: 필수 적용 (Legacy 지원 종료)
+✅ Firebase SDK: 12.12.0 (최신 AI Logic 지원)
+✅ React Navigation: v7 (New Architecture 완전 호환)
+✅ TypeScript: 5.7.x (최신 타입 기능)
+✅ Node.js: 20.19.x (Expo SDK 55 요구사항)
 ✅ Google Cloud 프로젝트: dajeonghan (593802522640)
 ✅ Firebase 프로젝트: dajeonghan
+✅ Firebase Config: 올바른 projectId/authDomain 설정
 ✅ iOS 앱: com.onmindlab.dajeonghan
 ✅ Android 앱: com.onmindlab.dajeonghan
 ✅ Apple Developer 설정 완료
@@ -1075,8 +1335,10 @@ rm src/test-imports.ts
 ✅ 법적 문서 준비
 ✅ Expo 프로젝트 생성
 ✅ Firebase SDK 연동 및 테스트 성공
-✅ 프로젝트 폴더 구조 생성
-✅ TypeScript 설정 완료
+✅ 프로젝트 폴더 구조 생성 (14개 디렉토리)
+✅ TypeScript 설정 완료 (path aliases)
+✅ Babel 설정 완료 (Reanimated plugin)
+✅ expo-build-properties 설정 (New Architecture)
 ```
 
 ### 다음 단계
