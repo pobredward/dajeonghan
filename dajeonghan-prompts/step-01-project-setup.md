@@ -775,7 +775,7 @@ module.exports = function(api) {
 npm install --save-dev babel-plugin-module-resolver
 ```
 
-**중요**: `react-native-reanimated/plugin`은 반드시 plugins 배열의 **마지막**에 위치해야 합니다 (Expo SDK 55 / Reanimated v4 요구사항).
+**중요**: `react-native-reanimated/plugin`은 반드시 plugins 배열의 **마지막**에 위치해야 합니다 (Expo SDK 54 / Reanimated v3 요구사항).
 
 ---
 
@@ -1005,11 +1005,11 @@ eas credentials
 ### 📋 Step 01 작업 항목
 
 #### 환경 설정
-- [ ] Node.js 20.19.x 이상 확인 (Expo SDK 55 요구사항)
-- [ ] npm 10.x 이상 확인
-- [ ] EAS CLI 5.9.0 이상 설치 확인
+- [ ] Node.js 18.x 이상 확인 (Expo SDK 54 요구사항)
+- [ ] npm 9.x 이상 확인
+- [ ] EAS CLI 5.x 이상 설치 확인
 - [ ] Git 설치 확인
-- [ ] TypeScript 5.7.x 설치 확인
+- [ ] TypeScript 5.9.x 설치 확인
 
 #### 프로젝트 파일
 - [ ] 프로젝트 폴더로 이동 (`~/Desktop/dev/dajeonghan`)
@@ -1026,13 +1026,13 @@ eas credentials
 - [ ] 화면에 "Firebase 상태: ✅ 연결됨" 표시
 
 #### 패키지 설치
-- [ ] Firebase SDK 12.x 설치
-- [ ] React Navigation v7 패키지 설치
-- [ ] React Native Reanimated v4 설치 (SDK 55 기본 포함)
-- [ ] date-fns v4 설치
+- [ ] Firebase SDK 11.x 설치
+- [ ] React Navigation v6 패키지 설치
+- [ ] React Native Reanimated v3 설치 (SDK 54 호환)
+- [ ] date-fns v3 설치
 - [ ] 알림 패키지 설치 (expo-notifications)
 - [ ] 소셜 로그인 패키지 설치
-- [ ] expo-build-properties 설치 (New Architecture 지원)
+- [ ] babel-plugin-module-resolver 설치
 - [ ] `npm install` 오류 없음
 - [ ] `npx expo install --check` 호환성 확인
 
