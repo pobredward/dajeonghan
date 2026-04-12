@@ -4,7 +4,7 @@
 
 ## 📌 단계 정보
 
-**순서**: Step 02/15  
+**순서**: Step 02/12  
 **Phase**: Phase 1 - 기초 설정 (Foundation)  
 **의존성**: Step 01 완료 필수  
 **예상 소요 시간**: 3-4시간  
@@ -18,7 +18,7 @@
 
 ### 이 단계를 건너뛸 수 없는 이유
 - Step 03의 모든 엔진이 이 타입을 사용합니다
-- Step 04~06의 모듈들이 LifeObject를 확장합니다
+- Step 04의 모든 모듈들(04-01~04-05)이 LifeObject를 확장합니다
 - TypeScript 타입 없이는 코드 작성 불가능
 
 ## 📋 완료 기준
@@ -75,7 +75,7 @@ CompletionHistory (완료 이력)
 ### 1. 기본 공통 타입 (`src/types/common.types.ts`)
 
 ```typescript
-export type ModuleType = 'cleaning' | 'food' | 'medicine';
+export type ModuleType = 'cleaning' | 'food' | 'medicine' | 'self_care' | 'self_development';
 
 export type RecurrenceType = 'fixed' | 'flexible';
 
@@ -118,7 +118,7 @@ export interface LifeObject {
   userId: string;
   type: ModuleType;
   name: string;
-  metadata: CleaningMetadata | FoodMetadata | MedicineMetadata;
+  metadata: CleaningMetadata | FoodMetadata | MedicineMetadata | SelfCareMetadata | SelfDevelopmentMetadata;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -156,6 +156,35 @@ export interface MedicineMetadata {
   totalQuantity: number;
   remainingQuantity: number;
   refillThreshold: number; // 7일치 남으면 알림
+}
+
+// 자기관리 메타데이터
+export interface SelfCareMetadata {
+  category: '피부관리' | '신체관리' | '제모' | '헤어관리' | '도구관리';
+  subcategory: string; // '세안', '손톱정리', '다리제모' 등
+  bodyPart?: '얼굴' | '겨드랑이' | '팔' | '다리' | '비키니' | '전신';
+  estimatedMinutes: number;
+  requiredProducts?: string[]; // ['클렌저', '토너']
+  requiresService: boolean; // 미용실, 네일샵 등 외부 서비스 필요 여부
+  serviceInfo?: {
+    name: string;
+    location: string;
+    contact: string;
+    lastVisit?: Date;
+    nextAppointment?: Date;
+  };
+  gender?: 'male' | 'female' | 'non_binary' | 'all';
+}
+
+// 자기계발 메타데이터 (추후 확장)
+export interface SelfDevelopmentMetadata {
+  category: '독서' | '운동' | '학습' | '명상' | '취미';
+  goal?: string;
+  progressTracking?: {
+    target: number;
+    current: number;
+    unit: string; // '페이지', '분', '회'
+  };
 }
 ```
 
@@ -606,6 +635,7 @@ templateUsages/{usageId}
 ---
 
 ## 다음 단계
-- 03-core-engine.md: 공통 엔진 구현
+- **step-03-core-engines.md**: 공통 엔진 구현
+- **step-04-00-modules-overview.md**: 기능 모듈 개요
 - 데이터 모델을 기반으로 주기/미루기/알림 로직 개발
-- 14-template-marketplace.md: 템플릿 마켓플레이스 구현
+- **step-12-template-marketplace.md**: 템플릿 마켓플레이스 구현

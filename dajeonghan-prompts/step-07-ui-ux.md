@@ -1,22 +1,22 @@
-# Step 09. UI/UX 구현
+# Step 07. UI/UX 구현
 
 > **🎯 목표**: 직관적이고 아름다우며 일관된 사용자 인터페이스 구축
 
 ## 📌 단계 정보
 
-**순서**: Step 09/15  
+**순서**: Step 07/12  
 **Phase**: Phase 3 - 사용자 경험 (Experience)  
-**의존성**: Step 07, 08 완료 권장  
+**의존성**: Step 05, 06 완료 권장  
 **예상 소요 시간**: 1-2일  
 **난이도**: ⭐⭐⭐
 
 ### 이전 단계 요구사항
-- ✅ Step 07 완료: 온보딩 (첫 진입점)
-- ✅ Step 08 완료: 알림 (알림 설정 화면 필요)
-- ✅ Step 04~06 완료: 모든 모듈 (각 모듈 화면 필요)
+- ✅ Step 05 완료: 온보딩 (첫 진입점)
+- ✅ Step 06 완료: 알림 (알림 설정 화면 필요)
+- ✅ Step 04-01~04-05 완료: 모든 모듈 (각 모듈 화면 필요)
 
 ### 다음 단계
-- **Step 10**: Firebase 설정
+- **Step 08**: Firebase 설정
 
 ### 이 단계가 필요한 이유
 - 실제로 앱을 사용하기 위해 필수
@@ -121,9 +121,11 @@ export const Colors = {
   textInverse: '#FFFFFF',
 
   // Module Colors
-  cleaning: '#2196F3',
-  fridge: '#4CAF50',
-  medicine: '#9C27B0'
+  cleaning: '#2196F3',       // 청소 - 파랑
+  fridge: '#4CAF50',         // 냉장고 - 초록
+  medicine: '#9C27B0',       // 약 - 보라
+  selfCare: '#E91E63',       // 자기관리 - 핑크
+  selfDevelopment: '#FF9800' // 자기계발 - 오렌지
 };
 
 export const Gradients = {
@@ -556,6 +558,8 @@ import { HomeScreen } from '@/screens/home/HomeScreen';
 import { CleaningHomeScreen } from '@/modules/cleaning/screens/CleaningHomeScreen';
 import { FridgeHomeScreen } from '@/modules/fridge/screens/FridgeHomeScreen';
 import { MedicineHomeScreen } from '@/modules/medicine/screens/MedicineHomeScreen';
+import { SelfCareHomeScreen } from '@/modules/self-care/screens/SelfCareHomeScreen';
+import { SelfDevHomeScreen } from '@/modules/self-development/screens/SelfDevHomeScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -610,6 +614,22 @@ export const TabNavigator: React.FC = () => {
         options={{
           title: '약',
           tabBarIcon: ({ color, size }) => <Text style={{ fontSize: size }}>💊</Text>
+        }}
+      />
+      <Tab.Screen
+        name="SelfCare"
+        component={SelfCareHomeScreen}
+        options={{
+          title: '자기관리',
+          tabBarIcon: ({ color, size }) => <Text style={{ fontSize: size }}>🧖</Text>
+        }}
+      />
+      <Tab.Screen
+        name="SelfDev"
+        component={SelfDevHomeScreen}
+        options={{
+          title: '자기계발',
+          tabBarIcon: ({ color, size }) => <Text style={{ fontSize: size }}>📚</Text>
         }}
       />
       <Tab.Screen

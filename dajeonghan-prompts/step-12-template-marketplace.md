@@ -1,22 +1,22 @@
-# Step 14. 템플릿 마켓플레이스
+# Step 12. 템플릿 마켓플레이스
 
 > **🎯 목표**: 유저가 템플릿을 생성·공유·적용할 수 있는 커뮤니티 기능 구축
 
 ## 📌 단계 정보
 
-**순서**: Step 14/15  
+**순서**: Step 12/12  
 **Phase**: Phase 5 - 출시 (Launch)  
-**의존성**: Step 02 (데이터 모델), Step 07 (온보딩), Step 12 (성장 전략) 완료 필수  
+**의존성**: Step 02 (데이터 모델), Step 05 (온보딩), Step 10 (성장 전략) 완료 필수  
 **예상 소요 시간**: 1-2일  
 **난이도**: ⭐⭐⭐
 
 ### 이전 단계 요구사항
 - ✅ Step 02 완료: 데이터 모델 정의
-- ✅ Step 07 완료: 온보딩 시스템
-- ✅ Step 12 완료: 성장 전략 기초
+- ✅ Step 05 완료: 온보딩 시스템
+- ✅ Step 10 완료: 성장 전략 기초
 
 ### 다음 단계
-- **Step 15**: 테스트 및 배포 (최종 단계)
+- **Step 11**: 테스트 및 배포 (최종 단계)
 
 ### 이 단계가 필요한 이유
 - 바이럴 성장의 핵심 기능
@@ -117,7 +117,7 @@ export interface SharedTemplate {
   updatedAt: Date;
 }
 
-export type TemplateCategory = 
+export type TemplateCategory =
   | 'student_living_alone'    // 학생 자취
   | 'worker_single'           // 직장인 1인
   | 'worker_roommate'         // 룸메이트
@@ -126,6 +126,9 @@ export type TemplateCategory =
   | 'pet_owner'               // 반려동물
   | 'minimalist'              // 미니멀리스트
   | 'weekend_warrior'         // 주말 집중형
+  | 'grooming_basic'          // 기본 자기관리
+  | 'grooming_advanced'       // 집중 자기관리
+  | 'self_improvement'        // 자기계발
   | 'custom';                 // 커스텀
 
 /**
