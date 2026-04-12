@@ -1,0 +1,30 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/types/*": ["src/types/*"],
+      "@/config/*": ["src/config/*"],
+      "@/services/*": ["src/services/*"],
+      "@/components/*": ["src/components/*"],
+      "@/screens/*": ["src/screens/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/utils/*": ["src/utils/*"],
+      "@/constants/*": ["src/constants/*"],
+      "@/core/*": ["src/core/*"],
+      "@/modules/*": ["src/modules/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "types/env.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

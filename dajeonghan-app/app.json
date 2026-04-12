@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "다정한",
+    "slug": "dajeonghan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onmindlab.dajeonghan",
+      "buildNumber": "1",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "dajeonghan"
+            ]
+          }
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.onmindlab.dajeonghan",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "dajeonghan",
+    "extra": {
+      "firebaseProjectId": "dajeonghan",
+      "appleTeamId": "3V8G7Y74HY",
+      "kakaoNativeAppKey": "d4ae3ad0839632cbaa36546e1b88bcc5"
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
+  }
+}
