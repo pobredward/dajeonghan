@@ -1,0 +1,16 @@
+# FSIS FoodKeeper Data
+
+이 폴더에는 USDA FSIS FoodKeeper 데이터를 저장합니다.
+
+## 파일 위치
+- `foodkeeper.json` - FSIS FoodKeeper 원본 데이터
+
+## 데이터 소스
+- URL: https://www.fsis.usda.gov/shared/data/EN/foodkeeper.json
+- 라이센스: CC0 Public Domain
+- 최근 업데이트: 2025-01-22
+
+## 사용 방법
+1. 위 URL에서 JSON 데이터를 복사
+2. `foodkeeper.json` 파일에 붙여넣기
+3. FridgeService에서 자동으로 로드됨

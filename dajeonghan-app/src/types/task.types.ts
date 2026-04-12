@@ -14,6 +14,9 @@ import {
   UserOwnedEntity,
 } from './common.types';
 
+// Re-export common types for convenience
+export type { CompletionHistory, Recurrence, NotificationSettings, ModuleType, PriorityLevel, TaskStatus };
+
 /**
  * Task 메인 인터페이스
  * 

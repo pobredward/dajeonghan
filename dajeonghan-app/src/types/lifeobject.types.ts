@@ -79,10 +79,10 @@ export interface CleaningMetadata {
 // 식재료 모듈
 // ============================================================================
 
-export type FoodCategory = '채소' | '과일' | '육류' | '해산물' | '유제품' | '조미료' | '기타';
+export type FoodCategory = '채소' | '과일' | '육류' | '해산물' | '유제품' | '조미료' | '가공식품' | '곡물' | '기타';
 export type ExpiryType = 'sell_by' | 'consume_by';
 export type StorageCondition = '냉장' | '냉동' | '실온';
-export type StorageType = '밀폐용기' | '비닐' | '원래포장';
+export type StorageType = '밀폐용기' | '비닐' | '원래포장' | '랩';
 export type FoodState = '통' | '손질' | '조리';
 
 /**
@@ -101,6 +101,8 @@ export interface FoodMetadata {
   state: FoodState;
   recommendedConsumption?: Date;
   quantity?: string;
+  imageUrl?: string;
+  memo?: string;
 }
 
 // ============================================================================
@@ -108,8 +110,8 @@ export interface FoodMetadata {
 // ============================================================================
 
 export type MedicineType = '처방약' | '일반약' | '영양제';
-export type DoseFrequency = 'daily' | 'specific_days';
-export type MealTiming = '식전' | '식후' | '무관';
+export type DoseFrequency = 'daily' | 'specific_days' | 'as_needed';
+export type MealTiming = '식전' | '식후' | '식사중' | '무관';
 
 /**
  * 약 복용 스케줄
