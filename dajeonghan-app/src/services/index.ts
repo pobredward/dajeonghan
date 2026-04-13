@@ -10,3 +10,4 @@ export * from './habitService';
 export * from './analyticsService';
 export * from './templateSharingService';
 export * from './purchaseService';
+export * from './templateMarketplaceService';

@@ -5,3 +5,6 @@ export * from './TaskCard';
 export * from './AdvancedSettingsBanner';
 export * from './WeeklyReport';
 export * from './PremiumGate';
+export * from './TemplateCard';
+export * from './ReviewList';
+export * from './FAB';
