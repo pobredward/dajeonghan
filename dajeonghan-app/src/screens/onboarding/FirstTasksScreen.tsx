@@ -10,20 +10,28 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  SafeAreaView
+  ScrollView
 } from 'react-native';
 import { Task } from '@/types/task.types';
 
 interface Props {
   tasks: Task[];
   onStart: () => void;
+  onBack: () => void;
 }
 
-export const FirstTasksScreen: React.FC<Props> = ({ tasks, onStart }) => {
+export const FirstTasksScreen: React.FC<Props> = ({ tasks, onStart, onBack }) => {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={onBack}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.backButtonText}>← 이전</Text>
+      </TouchableOpacity>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.celebration}>🎉</Text>
         <Text style={styles.title}>준비 완료!</Text>
         <Text style={styles.subtitle}>
@@ -54,21 +62,32 @@ export const FirstTasksScreen: React.FC<Props> = ({ tasks, onStart }) => {
           복잡한 설정은 나중에 해도 됩니다.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF'
-  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF'
   },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    marginTop: 8
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: '600'
+  },
+  scrollView: {
+    flex: 1
+  },
   content: {
     padding: 20,
+    paddingTop: 0,
     paddingBottom: 40
   },
   celebration: {

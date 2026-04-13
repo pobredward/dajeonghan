@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Button } from '@/components/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
+import { RootStackParamList } from '@/navigation/RootNavigator';
+
+type TermsNavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface Props {
   onAccept: () => void;
+  navigation: TermsNavigationProp;
 }
 
-export const TermsAgreementScreen: React.FC<Props> = ({ onAccept }) => {
+export const TermsAgreementScreen: React.FC<Props> = ({ onAccept, navigation }) => {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
   const handlePrivacyPolicyPress = () => {
-    // 추후 내부 화면으로 네비게이션하거나 웹 링크 열기
-    console.log('Open privacy policy');
+    navigation.navigate('PrivacyPolicy');
   };
 
   const handleTermsPress = () => {
-    // 추후 내부 화면으로 네비게이션하거나 웹 링크 열기
-    console.log('Open terms of service');
+    navigation.navigate('TermsOfService');
   };
 
   const canProceed = termsAgreed && privacyAgreed;

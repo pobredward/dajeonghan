@@ -1,8 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
-import { FridgeHomeScreen } from './src/modules/fridge/screens/FridgeHomeScreen';
+import { RootNavigator } from './src/navigation/RootNavigator';
 import { AnalyticsService } from './src/services/analyticsService';
 import { TemplateSharingService } from './src/services/templateSharingService';
 
@@ -32,16 +31,9 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <FridgeHomeScreen />
-      <StatusBar style="auto" />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <RootNavigator />
+      <StatusBar style="dark" />
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-});

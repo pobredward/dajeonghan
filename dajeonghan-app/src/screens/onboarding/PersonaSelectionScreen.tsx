@@ -10,55 +10,57 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  SafeAreaView
+  ScrollView
 } from 'react-native';
 import { PersonaType } from '@/types/user.types';
 import { OnboardingService } from '@/services/OnboardingService';
 
 interface Props {
   onSelect: (personaId: PersonaType) => void;
+  selectedPersona: PersonaType | null;
 }
 
-export const PersonaSelectionScreen: React.FC<Props> = ({ onSelect }) => {
+export const PersonaSelectionScreen: React.FC<Props> = ({ onSelect, selectedPersona }) => {
   const personas = OnboardingService.getPersonas();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>어떤 분이신가요?</Text>
-        <Text style={styles.subtitle}>
-          생활 패턴에 맞는 추천을 드릴게요
-        </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>어떤 분이신가요?</Text>
+      <Text style={styles.subtitle}>
+        생활 패턴에 맞는 추천을 드릴게요
+      </Text>
 
-        <View style={styles.grid}>
-          {personas.map(persona => (
+      <View style={styles.grid}>
+        {personas.map(persona => {
+          const isSelected = selectedPersona === persona.id;
+          return (
             <TouchableOpacity
               key={persona.id}
-              style={styles.card}
+              style={[styles.card, isSelected && styles.cardSelected]}
               onPress={() => onSelect(persona.id as PersonaType)}
               activeOpacity={0.7}
             >
               <Text style={styles.icon}>{persona.icon}</Text>
               <Text style={styles.personaName}>{persona.name}</Text>
               <Text style={styles.description}>{persona.description}</Text>
+              {isSelected && (
+                <View style={styles.selectedBadge}>
+                  <Text style={styles.selectedBadgeText}>✓ 선택됨</Text>
+                </View>
+              )}
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
+      </View>
 
-        <Text style={styles.hint}>
-          💡 나중에 언제든 변경할 수 있어요
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
+      <Text style={styles.hint}>
+        💡 나중에 언제든 변경할 수 있어요
+      </Text>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF'
-  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF'
@@ -92,6 +94,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent'
   },
+  cardSelected: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#2196F3'
+  },
   icon: {
     fontSize: 48,
     marginBottom: 12
@@ -108,6 +114,18 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     lineHeight: 20
+  },
+  selectedBadge: {
+    marginTop: 12,
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
+  selectedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600'
   },
   hint: {
     marginTop: 24,

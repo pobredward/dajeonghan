@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Colors } from '@/constants';
 import { HomeScreen } from '@/screens/home/HomeScreen';
@@ -35,8 +35,9 @@ export const TabNavigator: React.FC = () => {
         headerStyle: {
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: 0
-        }
+          borderBottomWidth: 0,
+        },
+        headerStatusBarHeight: Platform.OS === 'ios' ? 0 : undefined,
       }}
     >
       <Tab.Screen

@@ -20,6 +20,7 @@
       "bundleIdentifier": "com.onmindlab.dajeonghan",
       "buildNumber": "1",
       "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
