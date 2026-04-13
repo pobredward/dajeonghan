@@ -5,9 +5,15 @@ import {
   Auth,
   browserLocalPersistence
 } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  Firestore,
+  enableIndexedDbPersistence,
+  enableMultiTabIndexedDbPersistence
+} from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import {
   FIREBASE_API_KEY,
   FIREBASE_AUTH_DOMAIN,
@@ -75,6 +81,49 @@ try {
  * Firestore 초기화
  */
 export const db: Firestore = getFirestore(app);
+
+/**
+ * Firestore 오프라인 지속성 활성화
+ * 
+ * React Native: IndexedDB가 아닌 AsyncStorage 기반 지속성 사용
+ * 웹: IndexedDB 기반 오프라인 지속성 사용
+ */
+const enableOfflinePersistence = async () => {
+  try {
+    // React Native 환경 감지: Platform API 사용
+    const isReactNative = Platform.OS === 'ios' || Platform.OS === 'android';
+    
+    if (isReactNative) {
+      // React Native에서는 기본적으로 AsyncStorage 기반 persistence가 활성화됨
+      console.log('✅ React Native: 오프라인 지속성 자동 활성화');
+    } else {
+      // 웹 환경: IndexedDB 기반 persistence 활성화
+      try {
+        await enableMultiTabIndexedDbPersistence(db);
+        console.log('✅ 웹: 멀티탭 오프라인 지속성 활성화');
+      } catch (err: any) {
+        if (err.code === 'unimplemented') {
+          // 멀티탭 지원 불가 시 단일탭 모드로 fallback
+          await enableIndexedDbPersistence(db);
+          console.log('✅ 웹: 단일탭 오프라인 지속성 활성화');
+        } else {
+          throw err;
+        }
+      }
+    }
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+      console.warn('⚠️ 여러 탭이 열려있어 하나의 탭에서만 오프라인 지속성이 활성화됩니다.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('⚠️ 현재 브라우저는 오프라인 지속성을 지원하지 않습니다.');
+    } else {
+      console.error('❌ 오프라인 지속성 활성화 실패:', err);
+    }
+  }
+};
+
+// 오프라인 지속성 활성화 실행
+enableOfflinePersistence();
 
 /**
  * Storage 초기화

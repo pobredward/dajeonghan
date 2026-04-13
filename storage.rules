@@ -1,0 +1,73 @@
+/**
+ * 다정한 - Firebase Storage 보안 규칙
+ * 
+ * 사용자별 이미지 업로드 권한을 제어합니다.
+ * 
+ * 경로 구조:
+ * - users/{userId}/profile/{imageId} : 프로필 사진
+ * - users/{userId}/objects/{objectId} : LifeObject 사진
+ * - shared/{sharedId}/{imageId} : 공유 그룹 사진
+ * 
+ * 사용법:
+ * `firebase deploy --only storage` 명령으로 배포
+ */
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 인증 헬퍼 함수
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 이미지 파일인지 확인
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // 파일 크기 제한 (10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // 사용자 프로필 이미지
+    match /users/{userId}/profile/{imageId} {
+      allow read: if true;
+      allow write: if isOwner(userId) && isImage() && isValidSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // LifeObject 이미지
+    match /users/{userId}/objects/{objectId}/{imageId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isImage() && isValidSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // 공유 그룹 이미지 (2단계)
+    match /shared/{sharedId}/{imageId} {
+      // TODO: 공유 그룹 멤버인지 확인하는 로직 추가 필요
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isValidSize();
+      allow delete: if isAuthenticated();
+    }
+    
+    // 공유 템플릿 썸네일
+    match /templates/{templateId}/{imageId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isImage() && isValidSize();
+      allow delete: if isAuthenticated();
+    }
+    
+    // 기본: 모든 접근 거부
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

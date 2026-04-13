@@ -1,0 +1,44 @@
+# Firebase 설정 및 로그
+.firebaserc
+firebase-debug*.log
+firestore-debug*.log
+ui-debug.log
+*.log
+
+# Firebase 캐시
+.firebase/
+
+# Emulator 데이터
+*-debug.log
+*-debug.*.log
+.emulator/
+
+# Functions 빌드 결과
+functions/lib/
+functions/node_modules/
+
+# 환경 변수
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
