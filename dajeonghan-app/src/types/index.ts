@@ -13,3 +13,4 @@ export * from './task.types';
 export * from './user.types';
 export * from './template.types';
 export * from './validation';
+export * from './notification.types';
