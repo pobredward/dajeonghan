@@ -6,3 +6,7 @@ export * from './authService';
 export * from './firestoreService';
 export * from './OnboardingService';
 export * from './notifications';
+export * from './habitService';
+export * from './analyticsService';
+export * from './templateSharingService';
+export * from './purchaseService';

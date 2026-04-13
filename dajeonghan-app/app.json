@@ -27,7 +27,8 @@
             ]
           }
         ]
-      }
+      },
+      "associatedDomains": ["applinks:dajeonghan.app"]
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +38,20 @@
       "package": "com.onmindlab.dajeonghan",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "dajeonghan.app",
+              "pathPrefix": "/template"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

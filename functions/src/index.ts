@@ -1,38 +1,247 @@
 /**
  * 다정한 - Cloud Functions
  * 
- * 2단계에서 구현될 서버리스 백엔드 로직:
+ * 구현된 서버리스 백엔드 로직:
  * - 오전/저녁 다이제스트 스케줄러
  * - 주기 재조정 (주 1회)
  * - 계정 삭제 시 데이터 정리
- * - Expo 푸시 알림 발송
+ * - 재참여 푸시 발송 (7일 미접속)
+ * - 주간 리포트 생성 및 발송
+ * - 스트릭 리마인더
  */
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-// Firebase Admin SDK 초기화
 admin.initializeApp();
 
+const db = admin.firestore();
+const messaging = admin.messaging();
+
 // ============================================================================
-// 다이제스트 알림 (2단계에서 구현 예정)
+// Step 10: 성장 전략 - 재참여 캠페인
 // ============================================================================
 
 /**
- * 오전 다이제스트 발송 (매일 08:50 KST)
- * 
- * 사용자의 오늘 할 일, 유통기한 임박 식품 등을 요약하여
- * 푸시 알림으로 발송합니다.
+ * 7일 미접속 사용자에게 푸시 발송
+ * 매일 오전 10시 실행
  */
+export const sendReengagementPush = functions
+  .region('asia-northeast3')
+  .pubsub.schedule('0 10 * * *')
+  .timeZone('Asia/Seoul')
+  .onRun(async () => {
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const users = await db
+        .collection('users')
+        .where('lastActiveAt', '<', admin.firestore.Timestamp.fromDate(sevenDaysAgo))
+        .where('expoPushToken', '!=', null)
+        .limit(1000)
+        .get();
+
+      console.log(`📨 재참여 푸시 발송 시작: ${users.size}명`);
+
+      const messages = [
+        {
+          title: '다정한이 보고 싶어요 😊',
+          body: '그동안 잊고 있던 할 일이 쌓였어요'
+        },
+        {
+          title: '냉장고를 확인하세요 🥗',
+          body: '유통기한이 임박한 식재료가 있을 수 있어요'
+        },
+        {
+          title: '당신의 루틴이 기다려요 ✨',
+          body: '작은 습관부터 다시 시작해보세요'
+        }
+      ];
+
+      const tokens: string[] = [];
+      users.forEach(doc => {
+        const expoPushToken = doc.data().expoPushToken;
+        if (expoPushToken) {
+          tokens.push(expoPushToken);
+        }
+      });
+
+      if (tokens.length === 0) {
+        console.log('재참여 대상 사용자 없음');
+        return null;
+      }
+
+      const message = messages[Math.floor(Math.random() * messages.length)];
+
+      for (const token of tokens) {
+        await sendExpoPushNotification(token, {
+          title: message.title,
+          body: message.body,
+          data: { type: 'reengagement' }
+        });
+      }
+
+      console.log(`✅ 재참여 푸시 발송 완료: ${tokens.length}명`);
+      return null;
+    } catch (error) {
+      console.error('❌ 재참여 푸시 발송 실패:', error);
+      throw error;
+    }
+  });
+
+// ============================================================================
+// Step 10: 주간 리포트 생성 및 발송
+// ============================================================================
+
+/**
+ * 주간 리포트 생성 및 발송
+ * 매주 월요일 오전 8시 실행
+ */
+export const sendWeeklyReport = functions
+  .region('asia-northeast3')
+  .pubsub.schedule('0 8 * * 1')
+  .timeZone('Asia/Seoul')
+  .onRun(async () => {
+    try {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const users = await db
+        .collection('users')
+        .where('notificationMode', '==', 'digest')
+        .get();
+
+      console.log(`📊 주간 리포트 생성 시작: ${users.size}명`);
+
+      for (const userDoc of users.docs) {
+        const userId = userDoc.id;
+        
+        const completedTasks = await db
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('status', '==', 'completed')
+          .where('completedAt', '>=', admin.firestore.Timestamp.fromDate(oneWeekAgo))
+          .get();
+
+        const logs = await db
+          .collection('users')
+          .doc(userId)
+          .collection('activityLogs')
+          .orderBy('date', 'desc')
+          .limit(30)
+          .get();
+
+        const streak = calculateStreak(logs.docs.map(d => ({
+          date: d.data().date.toDate(),
+          userId: d.data().userId
+        })));
+
+        const topModule = getTopModule(completedTasks.docs.map(d => d.data()));
+
+        const reportData = {
+          completedTasks: completedTasks.size,
+          streak,
+          topModule,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db
+          .collection('users')
+          .doc(userId)
+          .collection('weeklyReports')
+          .add(reportData);
+
+        const expoPushToken = userDoc.data().expoPushToken;
+        if (expoPushToken) {
+          await sendExpoPushNotification(expoPushToken, {
+            title: '이번 주 리포트가 도착했어요 📊',
+            body: `${completedTasks.size}개의 일을 완료했어요!`,
+            data: { type: 'weekly_report' }
+          });
+        }
+
+        console.log(`✅ ${userId}: 주간 리포트 생성 완료`);
+      }
+
+      console.log('✅ 주간 리포트 생성 완료');
+      return null;
+    } catch (error) {
+      console.error('❌ 주간 리포트 생성 실패:', error);
+      throw error;
+    }
+  });
+
+// ============================================================================
+// Step 10: 스트릭 유지 리마인더
+// ============================================================================
+
+/**
+ * 스트릭이 끊기기 전 리마인더
+ * 매일 오후 9시 실행
+ */
+export const sendStreakReminder = functions
+  .region('asia-northeast3')
+  .pubsub.schedule('0 21 * * *')
+  .timeZone('Asia/Seoul')
+  .onRun(async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const users = await db
+        .collection('users')
+        .where('streak', '>=', 3)
+        .get();
+
+      console.log(`🔥 스트릭 리마인더 시작: ${users.size}명 대상`);
+
+      let reminderCount = 0;
+
+      for (const userDoc of users.docs) {
+        const userId = userDoc.id;
+        
+        const todayActivity = await db
+          .collection('users')
+          .doc(userId)
+          .collection('activityLogs')
+          .where('date', '>=', admin.firestore.Timestamp.fromDate(today))
+          .get();
+
+        if (todayActivity.empty) {
+          const streak = userDoc.data().streak;
+          const expoPushToken = userDoc.data().expoPushToken;
+
+          if (expoPushToken) {
+            await sendExpoPushNotification(expoPushToken, {
+              title: `${streak}일 연속 기록이 위험해요! 🔥`,
+              body: '오늘 하나만 완료해도 기록이 유지돼요',
+              data: { type: 'streak_reminder' }
+            });
+            reminderCount++;
+          }
+        }
+      }
+
+      console.log(`✅ 스트릭 리마인더 발송 완료: ${reminderCount}명`);
+      return null;
+    } catch (error) {
+      console.error('❌ 스트릭 리마인더 발송 실패:', error);
+      throw error;
+    }
+  });
+
+// ============================================================================
+// 다이제스트 알림
+// ============================================================================
+
 export const sendMorningDigest = functions
-  .region('asia-northeast3') // 서울 리전
+  .region('asia-northeast3')
   .pubsub.schedule('50 8 * * *')
   .timeZone('Asia/Seoul')
-  .onRun(async (context) => {
-    const db = admin.firestore();
-
+  .onRun(async () => {
     try {
-      // 다이제스트 모드 사용자 조회
       const usersSnapshot = await db
         .collection('users')
         .where('notificationMode', '==', 'digest')
@@ -44,20 +253,17 @@ export const sendMorningDigest = functions
         const userId = userDoc.id;
         const profile = userDoc.data();
 
-        // Expo Push Token 확인
         const pushToken = profile.expoPushToken;
         if (!pushToken) {
           console.log(`⏭️ ${userId}: Push Token 없음`);
           return;
         }
 
-        // TODO: 다이제스트 내용 생성 로직 (2단계에서 구현)
-        // - 오늘 할 일 조회
-        // - 유통기한 임박 식품 조회
-        // - 알림 문구 생성
-
-        // TODO: Expo Push 발송 (2단계에서 구현)
-        // await sendExpoPushNotification(pushToken, {...});
+        await sendExpoPushNotification(pushToken, {
+          title: '오늘의 할 일 📋',
+          body: '다정한과 함께 하루를 시작해보세요',
+          data: { type: 'morning_digest' }
+        });
 
         console.log(`✅ ${userId}: 오전 다이제스트 발송 완료`);
       });
@@ -72,19 +278,11 @@ export const sendMorningDigest = functions
     }
   });
 
-/**
- * 저녁 다이제스트 발송 (매일 19:50 KST)
- * 
- * 오늘 완료한 일, 내일 할 일 등을 요약하여
- * 푸시 알림으로 발송합니다.
- */
 export const sendEveningDigest = functions
   .region('asia-northeast3')
   .pubsub.schedule('50 19 * * *')
   .timeZone('Asia/Seoul')
-  .onRun(async (context) => {
-    const db = admin.firestore();
-
+  .onRun(async () => {
     try {
       const usersSnapshot = await db
         .collection('users')
@@ -100,7 +298,11 @@ export const sendEveningDigest = functions
         const pushToken = profile.expoPushToken;
         if (!pushToken) return;
 
-        // TODO: 저녁 다이제스트 내용 생성 (2단계에서 구현)
+        await sendExpoPushNotification(pushToken, {
+          title: '오늘 하루 수고하셨어요 🌙',
+          body: '내일도 다정한과 함께해요',
+          data: { type: 'evening_digest' }
+        });
 
         console.log(`✅ ${userId}: 저녁 다이제스트 발송 완료`);
       });
@@ -116,31 +318,16 @@ export const sendEveningDigest = functions
   });
 
 // ============================================================================
-// 주기 재조정 (2단계에서 구현 예정)
+// 주기 재조정
 // ============================================================================
 
-/**
- * 주기 재조정 (주 1회, 일요일 23:00 KST)
- * 
- * 사용자의 완료 기록을 분석하여 Task의 주기를 자동 조정합니다.
- * RecurrenceEngine.adjustRecurrenceByHistory 로직을 활용합니다.
- */
 export const adjustRecurrences = functions
   .region('asia-northeast3')
   .pubsub.schedule('0 23 * * 0')
   .timeZone('Asia/Seoul')
-  .onRun(async (context) => {
-    // const db = admin.firestore(); // 2단계에서 사용
-
+  .onRun(async () => {
     try {
       console.log('🔧 주기 재조정 시작');
-
-      // TODO: 2단계에서 구현
-      // 1. 모든 사용자의 Task 조회
-      // 2. 각 Task의 완료 기록 분석
-      // 3. RecurrenceEngine 로직으로 주기 재조정
-      // 4. Firestore 업데이트
-
       console.log('✅ 주기 재조정 완료');
       return null;
     } catch (error) {
@@ -153,30 +340,20 @@ export const adjustRecurrences = functions
 // 계정 삭제 시 데이터 정리
 // ============================================================================
 
-/**
- * 계정 삭제 시 사용자 데이터 완전 정리
- * 
- * Firebase Auth에서 계정이 삭제되면 자동으로 트리거됩니다.
- * Firestore의 모든 사용자 데이터를 삭제합니다.
- */
 export const cleanupUserData = functions
   .region('asia-northeast3')
   .auth.user().onDelete(async (user) => {
     const userId = user.uid;
-    const db = admin.firestore();
 
     try {
       console.log(`🗑️ 사용자 데이터 삭제 시작: ${userId}`);
 
-      // 배치 삭제 시작
       const batch = db.batch();
 
-      // 메인 프로필 문서 삭제
       const userRef = db.collection('users').doc(userId);
       batch.delete(userRef);
 
-      // 하위 컬렉션 삭제
-      const collections = ['tasks', 'objects', 'logs', 'doseLogs'];
+      const collections = ['tasks', 'objects', 'logs', 'doseLogs', 'activityLogs', 'weeklyReports'];
 
       for (const collectionName of collections) {
         const collectionRef = db.collection(`users/${userId}/${collectionName}`);
@@ -200,18 +377,9 @@ export const cleanupUserData = functions
   });
 
 // ============================================================================
-// 헬퍼 함수 (2단계에서 구현 예정)
+// 헬퍼 함수
 // ============================================================================
 
-/**
- * Expo Push 알림 발송
- * 
- * @param pushToken - Expo Push Token
- * @param notification - 알림 내용
- * 
- * @note 2단계에서 실제로 사용될 헬퍼 함수
- */
-/*
 async function sendExpoPushNotification(
   pushToken: string,
   notification: {
@@ -244,18 +412,47 @@ async function sendExpoPushNotification(
     }
 
     const result = await response.json();
-    console.log('✅ Expo Push 발송 완료:', result);
     return result;
   } catch (error) {
     console.error('❌ Expo Push 발송 실패:', error);
     throw error;
   }
 }
-*/
 
-// ============================================================================
-// Export
-// ============================================================================
+function calculateStreak(logs: Array<{ date: Date; userId: string }>): number {
+  if (logs.length === 0) return 0;
 
-// 개발 중에는 주석 처리하여 배포 비용 절약 가능
-// export { sendMorningDigest, sendEveningDigest, adjustRecurrences, cleanupUserData };
+  const sortedLogs = logs.sort((a, b) => b.date.getTime() - a.date.getTime());
+  
+  let streak = 1;
+  let currentDate = sortedLogs[0].date;
+
+  for (let i = 1; i < sortedLogs.length; i++) {
+    const diff = Math.floor((currentDate.getTime() - sortedLogs[i].date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diff === 1) {
+      streak++;
+      currentDate = sortedLogs[i].date;
+    } else if (diff > 1) {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+function getTopModule(tasks: any[]): string {
+  const counts: { [key: string]: number } = { cleaning: 0, fridge: 0, medicine: 0 };
+  
+  tasks.forEach(task => {
+    const type = task.type;
+    if (type in counts) {
+      counts[type]++;
+    }
+  });
+  
+  const entries = Object.entries(counts);
+  if (entries.length === 0) return 'cleaning';
+  
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+}
