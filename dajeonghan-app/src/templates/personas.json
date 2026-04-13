@@ -1,0 +1,88 @@
+{
+  "personas": [
+    {
+      "id": "student_20s_male",
+      "name": "20대 초반 자취 대학생 (남)",
+      "icon": "🎓",
+      "description": "혼자 사는 대학생, 간단한 청소 루틴 필요",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "sometimes",
+        "hasPet": false,
+        "householdSize": 1
+      }
+    },
+    {
+      "id": "student_20s_female",
+      "name": "20대 초반 자취 대학생 (여)",
+      "icon": "👩‍🎓",
+      "description": "혼자 사는 대학생, 정리정돈 중시",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "often",
+        "hasPet": false,
+        "householdSize": 1
+      }
+    },
+    {
+      "id": "worker_single",
+      "name": "직장인 (1인)",
+      "icon": "💼",
+      "description": "혼자 사는 직장인, 주말 집중 청소",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "rarely",
+        "hasPet": false,
+        "householdSize": 1
+      }
+    },
+    {
+      "id": "worker_roommate",
+      "name": "직장인 (룸메)",
+      "icon": "👥",
+      "description": "룸메와 함께 사는 직장인, 분담 필요",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "sometimes",
+        "hasPet": false,
+        "householdSize": 2
+      }
+    },
+    {
+      "id": "newlywed",
+      "name": "신혼",
+      "icon": "💑",
+      "description": "신혼부부, 함께 만드는 루틴",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": true,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "daily",
+        "hasPet": false,
+        "householdSize": 2
+      }
+    },
+    {
+      "id": "pet_owner",
+      "name": "반려동물 집사",
+      "icon": "🐕",
+      "description": "반려동물과 함께, 청결 관리 중요",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "often",
+        "hasPet": true,
+        "householdSize": 1
+      }
+    }
+  ]
+}

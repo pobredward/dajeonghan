@@ -1,0 +1,75 @@
+{
+  "questions": [
+    {
+      "id": "washer",
+      "question": "세탁기가 있나요?",
+      "type": "boolean",
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요 (코인세탁)", "value": false }
+      ]
+    },
+    {
+      "id": "dryer",
+      "question": "건조기가 있나요?",
+      "type": "boolean",
+      "condition": { "washer": true },
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
+      ]
+    },
+    {
+      "id": "cooking",
+      "question": "요리는 얼마나 자주 하나요?",
+      "type": "select",
+      "options": [
+        { "id": "rarely", "label": "거의 안 함", "value": "rarely" },
+        { "id": "sometimes", "label": "가끔", "value": "sometimes" },
+        { "id": "often", "label": "자주", "value": "often" },
+        { "id": "daily", "label": "매일", "value": "daily" }
+      ]
+    },
+    {
+      "id": "medicine",
+      "question": "복용 중인 약이 있나요?",
+      "type": "boolean",
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
+      ]
+    },
+    {
+      "id": "self_care_level",
+      "question": "자기관리는 얼마나 하시나요?",
+      "type": "select",
+      "options": [
+        { "id": "basic", "label": "기본만 (세안, 손톱 정리)", "value": "basic" },
+        { "id": "intermediate", "label": "보통 (스킨케어, 미용실)", "value": "intermediate" },
+        { "id": "advanced", "label": "철저히 (제모, 정기 관리)", "value": "advanced" },
+        { "id": "none", "label": "하지 않음", "value": "none" }
+      ]
+    },
+    {
+      "id": "gender",
+      "question": "성별을 선택해주세요 (맞춤 추천용)",
+      "type": "select",
+      "options": [
+        { "id": "male", "label": "남성", "value": "male" },
+        { "id": "female", "label": "여성", "value": "female" },
+        { "id": "non_binary", "label": "논바이너리", "value": "non_binary" },
+        { "id": "skip", "label": "건너뛰기", "value": "all" }
+      ]
+    },
+    {
+      "id": "notification",
+      "question": "알림은 어떻게 받고 싶나요?",
+      "type": "select",
+      "options": [
+        { "id": "digest", "label": "조용한 비서 (하루 2회 다이제스트)", "value": "digest" },
+        { "id": "immediate", "label": "강한 루틴 (즉시 알림)", "value": "immediate" },
+        { "id": "minimal", "label": "필요할 때만 (앱 내에서만)", "value": "minimal" }
+      ]
+    }
+  ]
+}
