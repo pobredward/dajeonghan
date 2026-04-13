@@ -2,7 +2,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Colors } from '@/constants';
-import { HomeScreen } from '../screens/home/HomeScreen';
+import { HomeScreen } from '@/screens/home/HomeScreen';
 import { CleaningHomeScreen } from '@/modules/cleaning/screens/CleaningHomeScreen';
 import { FridgeHomeScreen } from '@/modules/fridge/screens/FridgeHomeScreen';
 import { MedicineHomeScreen } from '@/modules/medicine/screens/MedicineHomeScreen';
