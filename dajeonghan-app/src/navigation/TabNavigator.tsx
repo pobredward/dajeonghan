@@ -2,11 +2,11 @@ import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Colors } from '@/constants';
-import { HomeScreen } from '@/screens/home/HomeScreen';
+import { HomeScreen } from '../screens/home/HomeScreen';
 import { CleaningHomeScreen } from '@/modules/cleaning/screens/CleaningHomeScreen';
 import { FridgeHomeScreen } from '@/modules/fridge/screens/FridgeHomeScreen';
 import { MedicineHomeScreen } from '@/modules/medicine/screens/MedicineHomeScreen';
-import { SettingsScreen } from '@/screens/settings/SettingsScreen';
+import { SettingsNavigator } from './SettingsNavigator';
 
 export type TabParamList = {
   Home: undefined;
@@ -73,10 +73,11 @@ export const TabNavigator: React.FC = () => {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
           title: '설정',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>,
+          headerShown: false
         }}
       />
     </Tab.Navigator>

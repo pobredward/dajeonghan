@@ -2,6 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import { Card } from '@/components';
+import type { NavigationProp } from '@react-navigation/native';
+
+interface Props {
+  navigation?: NavigationProp<any>;
+}
 
 interface SettingItemProps {
   title: string;
@@ -32,9 +37,21 @@ const SettingItem: React.FC<SettingItemProps> = ({ title, subtitle, onPress, rig
   return content;
 };
 
-export const SettingsScreen: React.FC = () => {
+export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
+
+  const handlePrivacyPolicy = () => {
+    navigation?.navigate('PrivacyPolicy');
+  };
+
+  const handleTermsOfService = () => {
+    navigation?.navigate('TermsOfService');
+  };
+
+  const handleDeleteAccount = () => {
+    navigation?.navigate('DeleteAccount');
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -102,23 +119,40 @@ export const SettingsScreen: React.FC = () => {
           <View style={styles.divider} />
           <SettingItem
             title="개인정보 처리방침"
-            onPress={() => console.log('Privacy policy')}
+            onPress={handlePrivacyPolicy}
             rightElement={<Text style={styles.arrow}>›</Text>}
           />
           <View style={styles.divider} />
           <SettingItem
             title="서비스 이용약관"
-            onPress={() => console.log('Terms of service')}
+            onPress={handleTermsOfService}
+            rightElement={<Text style={styles.arrow}>›</Text>}
+          />
+          <View style={styles.divider} />
+          <SettingItem
+            title="오픈소스 라이선스"
+            onPress={() => console.log('Open source licenses')}
             rightElement={<Text style={styles.arrow}>›</Text>}
           />
         </Card>
 
+        <Text style={styles.sectionTitle}>계정 관리</Text>
         <Card padding="medium" style={StyleSheet.flatten([styles.section, styles.dangerSection])}>
           <SettingItem
             title="로그아웃"
             onPress={() => console.log('Logout')}
             rightElement={<Text style={styles.arrow}>›</Text>}
           />
+          <View style={styles.divider} />
+          <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.dangerText}>계정 삭제</Text>
+                <Text style={styles.settingSubtitle}>모든 데이터가 삭제됩니다</Text>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </View>
+          </TouchableOpacity>
         </Card>
       </View>
     </ScrollView>
@@ -194,5 +228,11 @@ const styles = StyleSheet.create({
   },
   dangerSection: {
     marginTop: Spacing.lg
+  },
+  dangerText: {
+    ...Typography.body,
+    color: Colors.error,
+    marginBottom: 2,
+    fontWeight: '600'
   }
 });

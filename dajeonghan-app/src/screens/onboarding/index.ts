@@ -8,3 +8,4 @@ export { PersonaSelectionScreen } from './PersonaSelectionScreen';
 export { QuestionScreen } from './QuestionScreen';
 export { FirstTasksScreen } from './FirstTasksScreen';
 export { OnboardingFlow } from './OnboardingFlow';
+export { TermsAgreementScreen } from './TermsAgreementScreen';

@@ -1,11 +1,6 @@
-/**
- * 다정한 - 온보딩 플로우 통합
- * 
- * 페르소나 선택 → 질문 → 첫 할일 → 완료
- */
-
 import React, { useState } from 'react';
 import { View } from 'react-native';
+import { TermsAgreementScreen } from './TermsAgreementScreen';
 import { PersonaSelectionScreen } from './PersonaSelectionScreen';
 import { QuestionScreen } from './QuestionScreen';
 import { FirstTasksScreen } from './FirstTasksScreen';
@@ -19,10 +14,14 @@ interface Props {
 }
 
 export const OnboardingFlow: React.FC<Props> = ({ userId, onComplete }) => {
-  const [step, setStep] = useState<'persona' | 'questions' | 'tasks'>('persona');
+  const [step, setStep] = useState<'terms' | 'persona' | 'questions' | 'tasks'>('terms');
   const [selectedPersona, setSelectedPersona] = useState<PersonaType | null>(null);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [firstTasks, setFirstTasks] = useState<Task[]>([]);
+
+  const handleTermsAccept = () => {
+    setStep('persona');
+  };
 
   const handlePersonaSelect = (personaId: PersonaType) => {
     setSelectedPersona(personaId);
@@ -54,6 +53,9 @@ export const OnboardingFlow: React.FC<Props> = ({ userId, onComplete }) => {
 
   return (
     <View style={{ flex: 1 }}>
+      {step === 'terms' && (
+        <TermsAgreementScreen onAccept={handleTermsAccept} />
+      )}
       {step === 'persona' && (
         <PersonaSelectionScreen onSelect={handlePersonaSelect} />
       )}
