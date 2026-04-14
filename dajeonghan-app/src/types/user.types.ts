@@ -47,6 +47,19 @@ export interface UserEnvironment {
 }
 
 /**
+ * 온보딩 응답 데이터
+ * 
+ * 버전별로 다를 수 있는 원본 온보딩 답변을 저장합니다.
+ * 나중에 재분석이나 마이그레이션에 사용할 수 있습니다.
+ */
+export interface OnboardingResponse {
+  version: string; // 'v1', 'v2' 등
+  timestamp: Date;
+  rawAnswers: Record<string, any>; // 원본 질문-답변 쌍
+  questionFlowId?: string; // 사용된 질문 템플릿 ID
+}
+
+/**
  * 사용자 프로필
  * 
  * 사용자의 기본 정보와 설정을 관리합니다.
@@ -59,6 +72,8 @@ export interface UserProfile extends BaseEntity {
   digestTimes: string[];
   onboardingCompleted: boolean;
   onboardingDate?: Date;
+  onboardingResponse?: OnboardingResponse; // 온보딩 원본 데이터 보관
+  profileVersion: string; // 프로필 스키마 버전 (예: '1.0')
 }
 
 /**

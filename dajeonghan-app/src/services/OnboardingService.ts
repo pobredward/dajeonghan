@@ -7,11 +7,15 @@
  * - 템플릿 적용
  */
 
-import { UserProfile, PersonaType, UserEnvironment, NotificationMode } from '@/types/user.types';
+import { UserProfile, PersonaType, UserEnvironment, NotificationMode, OnboardingResponse } from '@/types/user.types';
 import { Task } from '@/types/task.types';
 import { CleaningService } from '@/modules/cleaning/CleaningService';
 import * as Crypto from 'expo-crypto';
 import personas from '@/templates/personas.json';
+
+// 현재 온보딩 버전
+const ONBOARDING_VERSION = 'v1';
+const PROFILE_VERSION = '1.0';
 
 /**
  * 온보딩 답변 인터페이스
@@ -77,6 +81,14 @@ export class OnboardingService {
 
     const now = new Date();
 
+    // 원본 온보딩 답변 저장
+    const onboardingResponse: OnboardingResponse = {
+      version: ONBOARDING_VERSION,
+      timestamp: now,
+      rawAnswers: { ...answers },
+      questionFlowId: 'default_v1',
+    };
+
     return {
       id: Crypto.randomUUID(),
       userId,
@@ -86,6 +98,8 @@ export class OnboardingService {
       digestTimes: ['09:00', '20:00'],
       onboardingCompleted: false,
       onboardingDate: now,
+      onboardingResponse, // 원본 답변 보관
+      profileVersion: PROFILE_VERSION, // 프로필 스키마 버전
       createdAt: now,
       updatedAt: now
     };
@@ -186,5 +200,51 @@ export class OnboardingService {
     return (personas as { personas: PersonaDefinition[] }).personas.find(
       p => p.id === personaId
     );
+  }
+
+  /**
+   * 프로필 마이그레이션 필요 여부 확인
+   * 
+   * @param profile 사용자 프로필
+   * @returns 마이그레이션 필요 여부
+   */
+  static needsMigration(profile: UserProfile): boolean {
+    return !profile.profileVersion || profile.profileVersion !== PROFILE_VERSION;
+  }
+
+  /**
+   * 프로필 마이그레이션
+   * 
+   * 이전 버전의 프로필을 현재 버전으로 업데이트합니다.
+   * 
+   * @param profile 사용자 프로필
+   * @returns 마이그레이션된 프로필
+   */
+  static migrateProfile(profile: UserProfile): UserProfile {
+    // 버전별 마이그레이션 로직
+    let migratedProfile = { ...profile };
+
+    // 버전이 없는 경우 (초기 버전)
+    if (!migratedProfile.profileVersion) {
+      migratedProfile.profileVersion = '1.0';
+      
+      // onboardingResponse가 없으면 빈 객체로 초기화
+      if (!migratedProfile.onboardingResponse) {
+        migratedProfile.onboardingResponse = {
+          version: 'legacy',
+          timestamp: migratedProfile.onboardingDate || new Date(),
+          rawAnswers: {},
+          questionFlowId: 'legacy',
+        };
+      }
+    }
+
+    // 향후 버전 추가 시 여기에 마이그레이션 로직 추가
+    // if (migratedProfile.profileVersion === '1.0') {
+    //   // 1.0 -> 2.0 마이그레이션
+    // }
+
+    migratedProfile.updatedAt = new Date();
+    return migratedProfile;
   }
 }

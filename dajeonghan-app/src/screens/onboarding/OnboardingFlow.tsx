@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { SafeAreaView, StyleSheet, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { TermsAgreementScreen } from './TermsAgreementScreen';
 import { PersonaSelectionScreen } from './PersonaSelectionScreen';
@@ -9,6 +9,7 @@ import { OnboardingService, OnboardingAnswers } from '@/services/OnboardingServi
 import { PersonaType } from '@/types/user.types';
 import { Task } from '@/types/task.types';
 import { RootStackParamList } from '@/navigation/RootNavigator';
+import { saveUserProfile, saveTasks } from '@/services/firestoreService';
 
 type OnboardingNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -23,6 +24,8 @@ export const OnboardingFlow: React.FC<Props> = ({ userId, onComplete, navigation
   const [selectedPersona, setSelectedPersona] = useState<PersonaType | null>(null);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [firstTasks, setFirstTasks] = useState<Task[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
 
   const handleTermsAccept = () => {
     setStep('persona');
@@ -48,6 +51,8 @@ export const OnboardingFlow: React.FC<Props> = ({ userId, onComplete, navigation
 
     const firstDay = OnboardingService.generateFirstDayTasks(tasks);
 
+    setUserProfile(profile);
+    setAllTasks(tasks);
     setFirstTasks(firstDay);
     setStep('tasks');
   };
@@ -60,8 +65,30 @@ export const OnboardingFlow: React.FC<Props> = ({ userId, onComplete, navigation
     setStep('questions');
   };
 
-  const handleStart = () => {
-    onComplete();
+  const handleStart = async () => {
+    try {
+      // 프로필 저장
+      if (userProfile) {
+        const completedProfile = OnboardingService.markOnboardingCompleted(userProfile);
+        await saveUserProfile(completedProfile);
+        console.log('✅ 프로필 저장 완료:', completedProfile);
+      }
+
+      // 초기 테스크 저장
+      if (allTasks.length > 0) {
+        await saveTasks(allTasks);
+        console.log(`✅ ${allTasks.length}개 테스크 저장 완료`);
+      }
+
+      onComplete();
+    } catch (error) {
+      console.error('❌ 온보딩 데이터 저장 실패:', error);
+      Alert.alert(
+        '저장 실패',
+        '온보딩 정보를 저장하는데 실패했습니다. 다시 시도해주세요.',
+        [{ text: '확인' }]
+      );
+    }
   };
 
   return (
