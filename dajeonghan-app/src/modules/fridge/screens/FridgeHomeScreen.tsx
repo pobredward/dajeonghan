@@ -6,11 +6,6 @@ import { Card } from '@/components';
 export const FridgeHomeScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🥗 냉장고</Text>
-        <Text style={styles.subtitle}>신선한 식재료 관리</Text>
-      </View>
-
       <View style={styles.content}>
         <Card>
           <Text style={styles.emptyText}>
@@ -26,19 +21,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background
-  },
-  header: {
-    padding: Spacing.lg,
-    backgroundColor: Colors.surface
-  },
-  title: {
-    ...Typography.h2,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs
-  },
-  subtitle: {
-    ...Typography.body,
-    color: Colors.textSecondary
   },
   content: {
     padding: Spacing.md

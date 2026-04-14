@@ -59,17 +59,6 @@ export const HomeScreen: React.FC = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.greeting}>안녕하세요 👋</Text>
-        <Text style={styles.date}>
-          {new Date().toLocaleDateString('ko-KR', {
-            month: 'long',
-            day: 'numeric',
-            weekday: 'short'
-          })}
-        </Text>
-      </View>
-
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>🚀 10분 코스</Text>
@@ -123,19 +112,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background
-  },
-  header: {
-    padding: Spacing.lg,
-    backgroundColor: Colors.surface
-  },
-  greeting: {
-    ...Typography.h2,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs
-  },
-  date: {
-    ...Typography.body,
-    color: Colors.textSecondary
   },
   section: {
     padding: Spacing.md

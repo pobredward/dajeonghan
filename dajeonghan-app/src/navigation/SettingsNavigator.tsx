@@ -39,7 +39,7 @@ export const SettingsNavigator: React.FC = () => {
         name="SettingsList"
         component={SettingsScreen}
         options={{
-          headerShown: false
+          title: '설정'
         }}
       />
       <Stack.Screen

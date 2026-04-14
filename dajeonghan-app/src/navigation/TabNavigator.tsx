@@ -39,8 +39,9 @@ export const TabNavigator: React.FC = () => {
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 0,
+          height: Platform.OS === 'ios' ? 44 + insets.top : undefined,
         },
-        headerStatusBarHeight: Platform.OS === 'ios' ? 0 : undefined,
+        headerStatusBarHeight: insets.top,
       }}
     >
       <Tab.Screen
