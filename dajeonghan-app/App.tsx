@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { AuthProvider } from './src/contexts/AuthContext';
 import { AnalyticsService } from './src/services/analyticsService';
 import { TemplateSharingService } from './src/services/templateSharingService';
 
@@ -32,8 +33,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <RootNavigator />
-      <StatusBar style="dark" />
+      <AuthProvider>
+        <RootNavigator />
+        <StatusBar style="dark" />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

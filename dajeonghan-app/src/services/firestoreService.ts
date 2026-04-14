@@ -49,6 +49,7 @@ export const dateToTimestamp = (date: Date): Timestamp => {
 
 /**
  * 객체 내의 모든 Date를 Timestamp로 변환 (재귀)
+ * undefined 값은 제거하여 Firestore 호환성 보장
  */
 export const convertDatesToTimestamps = <T>(obj: T): any => {
   if (obj instanceof Date) {
@@ -62,7 +63,10 @@ export const convertDatesToTimestamps = <T>(obj: T): any => {
   if (obj && typeof obj === 'object') {
     const converted: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      converted[key] = convertDatesToTimestamps(value);
+      // undefined 값은 건너뛰기 (Firestore가 지원하지 않음)
+      if (value !== undefined) {
+        converted[key] = convertDatesToTimestamps(value);
+      }
     }
     return converted;
   }

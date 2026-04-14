@@ -3,7 +3,7 @@ import {
   getAuth, 
   initializeAuth, 
   Auth,
-  browserLocalPersistence
+  getReactNativePersistence
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -38,22 +38,6 @@ const firebaseConfig = {
 };
 
 /**
- * React Native용 커스텀 Persistence 구현
- */
-const reactNativePersistence = {
-  ...browserLocalPersistence,
-  async _get(key: string) {
-    return AsyncStorage.getItem(key);
-  },
-  async _set(key: string, value: string) {
-    return AsyncStorage.setItem(key, value);
-  },
-  async _remove(key: string) {
-    return AsyncStorage.removeItem(key);
-  }
-};
-
-/**
  * Firebase 앱 초기화 (중복 방지)
  */
 let app: FirebaseApp;
@@ -66,15 +50,21 @@ if (getApps().length === 0) {
 }
 
 /**
- * Auth 초기화 (React Native persistence 사용)
+ * Auth 초기화 (플랫폼별 persistence)
  */
 let auth: Auth;
-try {
-  auth = getAuth(app);
-} catch (error) {
+const isReactNative = Platform.OS === 'ios' || Platform.OS === 'android';
+
+if (isReactNative) {
+  // React Native: AsyncStorage persistence 사용
   auth = initializeAuth(app, {
-    persistence: reactNativePersistence as any
+    persistence: getReactNativePersistence(AsyncStorage)
   });
+  console.log('✅ React Native Auth: AsyncStorage persistence 활성화');
+} else {
+  // 웹: 기본 persistence 사용
+  auth = getAuth(app);
+  console.log('✅ 웹 Auth: 기본 persistence 활성화');
 }
 
 /**
@@ -90,9 +80,6 @@ export const db: Firestore = getFirestore(app);
  */
 const enableOfflinePersistence = async () => {
   try {
-    // React Native 환경 감지: Platform API 사용
-    const isReactNative = Platform.OS === 'ios' || Platform.OS === 'android';
-    
     if (isReactNative) {
       // React Native에서는 기본적으로 AsyncStorage 기반 persistence가 활성화됨
       console.log('✅ React Native: 오프라인 지속성 자동 활성화');
