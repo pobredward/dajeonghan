@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants';
 import { HomeScreen } from '@/screens/home/HomeScreen';
+import { HouseNavigator } from './HouseNavigator';
 import { CleaningHomeScreen } from '@/modules/cleaning/screens/CleaningHomeScreen';
 import { FridgeHomeScreen } from '@/modules/fridge/screens/FridgeHomeScreen';
 import { MedicineHomeScreen } from '@/modules/medicine/screens/MedicineHomeScreen';
@@ -11,6 +12,7 @@ import { SettingsNavigator } from './SettingsNavigator';
 
 export type TabParamList = {
   Home: undefined;
+  HouseMap: undefined;
   Cleaning: undefined;
   Fridge: undefined;
   Medicine: undefined;
@@ -49,7 +51,16 @@ export const TabNavigator: React.FC = () => {
         component={HomeScreen}
         options={{
           title: '오늘',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📋</Text>
+        }}
+      />
+      <Tab.Screen
+        name="HouseMap"
+        component={HouseNavigator}
+        options={{
+          title: '내 집',
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>,
+          headerShown: false
         }}
       />
       <Tab.Screen

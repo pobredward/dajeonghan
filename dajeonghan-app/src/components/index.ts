@@ -8,3 +8,4 @@ export * from './PremiumGate';
 export * from './TemplateCard';
 export * from './ReviewList';
 export * from './FAB';
+export * from './AnimationEffects';
