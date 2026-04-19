@@ -21,6 +21,7 @@ import { LifeObject } from '@/types/lifeobject.types';
 import { Task, Recurrence } from '@/types/task.types';
 import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
 import { Furniture } from '@/types/house.types';
+import { linkLifeObjectToFurniture } from '@/services/houseService';
 
 export class FurnitureTaskService {
   /**
@@ -28,6 +29,7 @@ export class FurnitureTaskService {
    */
   static async addTaskFromTemplate(
     userId: string,
+    roomId: string,
     furnitureId: string,
     roomName: string,
     furnitureName: string,
@@ -68,7 +70,10 @@ export class FurnitureTaskService {
         status: 'pending',
         notificationSettings: {
           enabled: customization.notificationEnabled ?? true,
-          minutesBefore: customization.notificationMinutesBefore ?? 30,
+          timing: 'immediate',
+          advanceHours: customization.notificationMinutesBefore 
+            ? [customization.notificationMinutesBefore / 60] 
+            : [0.5], // 30분 = 0.5시간
         },
         completionHistory: [],
       };
@@ -83,7 +88,7 @@ export class FurnitureTaskService {
       );
 
       // 4. Furniture의 linkedObjectIds 업데이트
-      await this.linkObjectToFurniture(userId, furnitureId, lifeObjectRef.id);
+      await linkLifeObjectToFurniture(userId, roomId, furnitureId, lifeObjectRef.id);
 
       return {
         lifeObjectId: lifeObjectRef.id,
@@ -100,6 +105,7 @@ export class FurnitureTaskService {
    */
   static async addCustomTask(
     userId: string,
+    roomId: string,
     furnitureId: string,
     roomName: string,
     furnitureName: string,
@@ -144,7 +150,10 @@ export class FurnitureTaskService {
         status: 'pending',
         notificationSettings: {
           enabled: taskData.customization.notificationEnabled ?? true,
-          minutesBefore: taskData.customization.notificationMinutesBefore ?? 30,
+          timing: 'immediate',
+          advanceHours: taskData.customization.notificationMinutesBefore 
+            ? [taskData.customization.notificationMinutesBefore / 60] 
+            : [0.5],
         },
         completionHistory: [],
       };
@@ -159,7 +168,7 @@ export class FurnitureTaskService {
       );
 
       // Furniture 연결
-      await this.linkObjectToFurniture(userId, furnitureId, lifeObjectRef.id);
+      await linkLifeObjectToFurniture(userId, roomId, furnitureId, lifeObjectRef.id);
 
       return {
         lifeObjectId: lifeObjectRef.id,
@@ -172,121 +181,61 @@ export class FurnitureTaskService {
   }
 
   /**
-   * 가구에 LifeObject 연결
-   */
-  private static async linkObjectToFurniture(
-    userId: string,
-    furnitureId: string,
-    lifeObjectId: string
-  ): Promise<void> {
-    try {
-      // HouseLayout 찾기
-      const layoutsQuery = query(
-        collection(db, 'users', userId, 'houseLayouts')
-      );
-      const layoutsSnapshot = await getDocs(layoutsQuery);
-
-      if (layoutsSnapshot.empty) {
-        throw new Error('No house layout found');
-      }
-
-      // 첫 번째 레이아웃 사용 (사용자당 하나의 레이아웃 가정)
-      const layoutDoc = layoutsSnapshot.docs[0];
-      const layoutData = layoutDoc.data();
-      const rooms = layoutData.rooms || [];
-
-      // 가구가 있는 방 찾기
-      let updated = false;
-      const updatedRooms = rooms.map((room: any) => {
-        const updatedFurnitures = room.furnitures.map((furniture: any) => {
-          if (furniture.id === furnitureId) {
-            updated = true;
-            return {
-              ...furniture,
-              linkedObjectIds: [...(furniture.linkedObjectIds || []), lifeObjectId],
-            };
-          }
-          return furniture;
-        });
-        return { ...room, furnitures: updatedFurnitures };
-      });
-
-      if (!updated) {
-        throw new Error('Furniture not found in layout');
-      }
-
-      // 레이아웃 업데이트
-      await updateDoc(doc(db, 'users', userId, 'houseLayouts', layoutDoc.id), {
-        rooms: updatedRooms,
-        updatedAt: Timestamp.now(),
-      });
-    } catch (error) {
-      console.error('Link object to furniture error:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Recurrence 생성
    */
   private static createRecurrence(customization: TaskCustomization): Recurrence {
     const now = new Date();
     let nextDue = new Date(now);
 
+    let unit: 'day' | 'week' | 'month' = 'week';
+    let interval = customization.interval || 1;
+
     switch (customization.recurrenceType) {
       case 'daily':
-        nextDue.setDate(nextDue.getDate() + 1);
-        return {
-          type: 'daily',
-          nextDue,
-        };
+        unit = 'day';
+        nextDue.setDate(nextDue.getDate() + interval);
+        break;
 
       case 'weekly':
-        const interval = customization.interval || 1;
+        unit = 'week';
         nextDue.setDate(nextDue.getDate() + (7 * interval));
+        
+        // 특정 요일로 설정 (선택된 요일이 있으면)
         if (customization.dayOfWeek !== undefined) {
-          // 특정 요일로 설정
           const currentDay = nextDue.getDay();
           const daysToAdd = (customization.dayOfWeek - currentDay + 7) % 7;
           nextDue.setDate(nextDue.getDate() + daysToAdd);
         }
-        return {
-          type: 'weekly',
-          interval,
-          dayOfWeek: customization.dayOfWeek,
-          nextDue,
-        };
+        break;
 
       case 'monthly':
-        const monthInterval = customization.interval || 1;
-        nextDue.setMonth(nextDue.getMonth() + monthInterval);
+        unit = 'month';
+        nextDue.setMonth(nextDue.getMonth() + interval);
+        
+        // 특정 일자로 설정
         if (customization.dayOfMonth !== undefined) {
           nextDue.setDate(customization.dayOfMonth);
         }
-        return {
-          type: 'monthly',
-          interval: monthInterval,
-          dayOfMonth: customization.dayOfMonth,
-          nextDue,
-        };
+        break;
 
       case 'custom':
-        const days = customization.interval || 7;
-        nextDue.setDate(nextDue.getDate() + days);
-        return {
-          type: 'custom',
-          interval: days,
-          nextDue,
-        };
+        unit = 'day';
+        interval = customization.interval || 7;
+        nextDue.setDate(nextDue.getDate() + interval);
+        break;
 
       default:
+        unit = 'week';
+        interval = 1;
         nextDue.setDate(nextDue.getDate() + 7);
-        return {
-          type: 'weekly',
-          interval: 1,
-          nextDue,
-        };
     }
+
+    return {
+      type: 'fixed',
+      interval,
+      unit,
+      nextDue,
+    };
   }
 
   /**

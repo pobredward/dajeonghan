@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  /* 다정한 컬러 팔레트 */
+  --background: #FEFEFE;
+  --foreground: #2D3748;
+  
+  /* Primary Colors - 따뜻한 오렌지/코랄 계열 */
+  --primary: #FF6B6B;
+  --primary-light: #FF8E8E;
+  --primary-dark: #E55555;
+  
+  /* Secondary Colors - 부드러운 그린/블루 계열 */
+  --secondary: #4ECDC4;
+  --secondary-light: #7ED7D1;
+  --secondary-dark: #3BB3AA;
+  
+  /* Neutral Colors */
+  --neutral-50: #F8F9FA;
+  --neutral-100: #E9ECEF;
+  --neutral-200: #DEE2E6;
+  --neutral-300: #CED4DA;
+  --neutral-400: #ADB5BD;
+  --neutral-500: #6C757D;
+  --neutral-600: #495057;
+  --neutral-700: #343A40;
+  --neutral-800: #212529;
+  --neutral-900: #1A1A1A;
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+  --gradient-warm: linear-gradient(135deg, #FFE5E5 0%, #E5F8F7 100%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  /* Primary Colors */
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  
+  /* Secondary Colors */
+  --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-light);
+  --color-secondary-dark: var(--secondary-dark);
+  
+  /* Neutral Colors */
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  
+  /* Typography */
+  --font-sans: 'Pretendard', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-base: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-base: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1A1A1A;
+    --foreground: #EDEDED;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Pretendard', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pretendard는 layout.tsx에서 로드 */
+
+/* 스무스 스크롤링 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 커스텀 유틸리티 클래스들 */
+.gradient-primary {
+  background: var(--gradient-primary);
+}
+
+.gradient-warm {
+  background: var(--gradient-warm);
+}
+
+.text-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

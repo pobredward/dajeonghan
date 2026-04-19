@@ -42,7 +42,71 @@ export type FurnitureType =
   | 'dresser';       // 화장대
 
 /**
- * 가구 정보
+ * 가구별 특화 메타데이터
+ */
+export interface FridgeMetadata {
+  type: 'fridge';
+  capacity: 'large' | 'medium' | 'small'; // 용량
+  temperature: number; // 온도 (°C)
+  lastCleaned?: Date; // 마지막 청소일
+  inventoryItems: FridgeInventoryItem[]; // 재고 아이템들
+}
+
+export interface FridgeInventoryItem {
+  foodId: string; // LifeObject ID 참조
+  location: 'refrigerator' | 'freezer' | 'vegetable_drawer'; // 위치
+  quantity: string; // 수량 (예: "2개", "500g")
+  addedDate: Date; // 추가일
+}
+
+export interface BedMetadata {
+  type: 'bed';
+  size: 'single' | 'double' | 'queen' | 'king'; // 침대 크기
+  mattressType: string; // 매트리스 종류
+  lastSheetChange?: Date; // 마지막 시트 교체일
+  sleepTrackingEnabled: boolean; // 수면 추적 활성화 여부
+}
+
+export interface DeskMetadata {
+  type: 'desk';
+  workType: 'study' | 'office' | 'creative' | 'gaming'; // 작업 유형
+  equipment: string[]; // 장비 목록
+  lastOrganized?: Date; // 마지막 정리일
+  focusSessionEnabled: boolean; // 집중 세션 활성화 여부
+}
+
+export interface PlantMetadata {
+  type: 'plant';
+  species: string; // 식물 종류
+  wateringFrequency: number; // 물주기 주기 (일)
+  lastWatered?: Date; // 마지막 물준 날짜
+  lastFertilized?: Date; // 마지막 시비일
+  sunlightRequirement: 'low' | 'medium' | 'high'; // 햇빛 요구량
+}
+
+export interface CleaningFurnitureMetadata {
+  type: 'cleaning_furniture';
+  cleaningFrequency: number; // 청소 주기 (일)
+  lastCleaned?: Date; // 마지막 청소일
+  cleaningSupplies: string[]; // 필요한 청소용품
+  difficulty: 'easy' | 'medium' | 'hard'; // 청소 난이도
+}
+
+export interface DefaultFurnitureMetadata {
+  type: 'default';
+  customFields?: Record<string, any>; // 커스텀 필드
+}
+
+export type FurnitureMetadata = 
+  | FridgeMetadata 
+  | BedMetadata 
+  | DeskMetadata 
+  | PlantMetadata
+  | CleaningFurnitureMetadata
+  | DefaultFurnitureMetadata;
+
+/**
+ * 가구 정보 (확장된 버전)
  */
 export interface Furniture {
   id: string;
@@ -60,6 +124,7 @@ export interface Furniture {
   rotation: number; // 0, 90, 180, 270
   linkedObjectIds: string[]; // 연결된 LifeObject ID들
   dirtyScore: number; // 0-100
+  furnitureMetadata?: FurnitureMetadata; // 가구별 특화 데이터
 }
 
 /**
@@ -188,4 +253,61 @@ export const ROOM_NAMES: Record<RoomType, string> = {
   utility: '다용도실',
   balcony: '발코니',
   entrance: '현관',
+};
+
+/**
+ * 가구별 기본 메타데이터 생성
+ */
+export const createDefaultFurnitureMetadata = (furnitureType: FurnitureType): FurnitureMetadata => {
+  switch (furnitureType) {
+    case 'fridge':
+      return {
+        type: 'fridge',
+        capacity: 'medium',
+        temperature: 4,
+        inventoryItems: [],
+      };
+    
+    case 'bed':
+      return {
+        type: 'bed',
+        size: 'double',
+        mattressType: '스프링',
+        sleepTrackingEnabled: false,
+      };
+    
+    case 'desk':
+      return {
+        type: 'desk',
+        workType: 'study',
+        equipment: [],
+        focusSessionEnabled: false,
+      };
+    
+    case 'plant':
+      return {
+        type: 'plant',
+        species: '일반 식물',
+        wateringFrequency: 7,
+        sunlightRequirement: 'medium',
+      };
+    
+    case 'toilet':
+    case 'bathtub':
+    case 'shower':
+    case 'sink':
+    case 'washing_machine':
+      return {
+        type: 'cleaning_furniture',
+        cleaningFrequency: 7,
+        cleaningSupplies: [],
+        difficulty: 'medium',
+      };
+    
+    default:
+      return {
+        type: 'default',
+        customFields: {},
+      };
+  }
 };

@@ -157,13 +157,11 @@ export const hardDeleteTask = async (userId: string, taskId: string): Promise<vo
  * 사용자의 모든 Task 조회 (필터 및 정렬 옵션 지원)
  */
 export const getTasks = async (userId: string, options?: TaskQueryOptions): Promise<Task[]> => {
+  console.log('getTasks 호출됨, userId:', userId);
   const tasksRef = collection(db, `users/${userId}/tasks`);
   const constraints: QueryConstraint[] = [];
 
-  // 삭제되지 않은 Task만 조회
-  constraints.push(where('deletedAt', '==', null));
-
-  // 필터 적용
+  // 필터 적용 (deletedAt 조건은 제거)
   if (options?.filter) {
     const { type, status, priority, dueDateRange } = options.filter;
 
@@ -199,10 +197,20 @@ export const getTasks = async (userId: string, options?: TaskQueryOptions): Prom
 
   const q = query(tasksRef, ...constraints);
   const querySnapshot = await getDocs(q);
+  
+  console.log('Firestore에서 가져온 Task 개수:', querySnapshot.docs.length);
 
-  return querySnapshot.docs.map(doc => 
-    convertTimestampsToDates<Task>({ id: doc.id, ...doc.data() })
-  );
+  // deletedAt이 없거나 null인 문서만 필터링
+  const tasks = querySnapshot.docs
+    .map(doc => {
+      const data = doc.data();
+      console.log('Task 문서 데이터:', { id: doc.id, deletedAt: data.deletedAt, title: data.title });
+      return convertTimestampsToDates<Task>({ id: doc.id, ...data });
+    })
+    .filter(task => !task.deletedAt); // deletedAt이 없거나 falsy인 경우만 포함
+
+  console.log('필터링된 Task 개수:', tasks.length);
+  return tasks;
 };
 
 /**
@@ -235,16 +243,15 @@ export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
   const tasksRef = collection(db, `users/${userId}/tasks`);
   const q = query(
     tasksRef,
-    where('deletedAt', '==', null),
     where('status', '==', 'pending'),
     where('recurrence.nextDue', '<', dateToTimestamp(today)),
     orderBy('recurrence.nextDue', 'asc')
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => 
-    convertTimestampsToDates<Task>({ id: doc.id, ...doc.data() })
-  );
+  return querySnapshot.docs
+    .map(doc => convertTimestampsToDates<Task>({ id: doc.id, ...doc.data() }))
+    .filter(task => !task.deletedAt); // 클라이언트에서 deletedAt 필터링
 };
 
 // ============================================================================
@@ -299,8 +306,9 @@ export const deleteLifeObject = async (userId: string, objectId: string): Promis
  * 사용자의 모든 LifeObject 조회
  */
 export const getLifeObjects = async (userId: string, moduleType?: string): Promise<LifeObject[]> => {
-  const objsRef = collection(db, `users/${userId}/objects`);
-  const constraints: QueryConstraint[] = [where('deletedAt', '==', null)];
+  console.log('getLifeObjects 호출됨, userId:', userId, 'moduleType:', moduleType);
+  const objsRef = collection(db, `users/${userId}/lifeObjects`); // 경로 수정
+  const constraints: QueryConstraint[] = [];
 
   if (moduleType) {
     constraints.push(where('type', '==', moduleType));
@@ -308,10 +316,20 @@ export const getLifeObjects = async (userId: string, moduleType?: string): Promi
 
   const q = query(objsRef, ...constraints);
   const querySnapshot = await getDocs(q);
+  
+  console.log('Firestore에서 가져온 LifeObject 개수:', querySnapshot.docs.length);
 
-  return querySnapshot.docs.map(doc => 
-    convertTimestampsToDates<LifeObject>({ id: doc.id, ...doc.data() })
-  );
+  // deletedAt이 없거나 null인 문서만 필터링
+  const objects = querySnapshot.docs
+    .map(doc => {
+      const data = doc.data();
+      console.log('LifeObject 문서 데이터:', { id: doc.id, deletedAt: data.deletedAt, name: data.name });
+      return convertTimestampsToDates<LifeObject>({ id: doc.id, ...data });
+    })
+    .filter(obj => !obj.deletedAt);
+
+  console.log('필터링된 LifeObject 개수:', objects.length);
+  return objects;
 };
 
 // ============================================================================

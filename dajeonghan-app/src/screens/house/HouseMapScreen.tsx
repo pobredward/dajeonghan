@@ -26,28 +26,13 @@ import { getHouseLayout } from '@/services/houseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { DustParticles, PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
-import { getTemplateByFurnitureType } from '@/data/furnitureTaskTemplates';
-import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
-import { FurnitureTaskService } from '@/services/furnitureTaskService';
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
 
 interface ModalData {
   visible: boolean;
-  item: 
-    | { type: 'room'; room: Room } 
-    | { type: 'furniture'; room: Room; furniture: Furniture } 
-    | null;
+  item: { type: 'room'; room: Room } | null;
 }
-
-// Task 추가 모달 상태
-interface TaskAddState {
-  step: 'template' | 'customize' | null;
-  selectedTemplate: TaskTemplateItem | null;
-}
-
-// 요일 타입
-type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 interface FurnitureWithData extends Furniture {
   linkedObjects: LifeObject[];
@@ -67,23 +52,6 @@ export const HouseMapScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   
-  // Task 탭 state ('info' 또는 'add')
-  const [activeTab, setActiveTab] = useState<'info' | 'add'>('info');
-  const [taskAddState, setTaskAddState] = useState<TaskAddState>({
-    step: null,
-    selectedTemplate: null,
-  });
-  const [taskCustomization, setTaskCustomization] = useState<TaskCustomization>({
-    recurrenceType: 'weekly',
-    interval: 1,
-    notificationEnabled: true,
-    notificationMinutesBefore: 30,
-  });
-  
-  // 주기 설정 state
-  const [startDate, setStartDate] = useState<Date>(new Date());
-  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
-  const [showCalendar, setShowCalendar] = useState(false);
   
   // 캔버스 스케일 계산 (화면에 맞게)
   const canvasScale = React.useMemo(() => {
@@ -99,23 +67,35 @@ export const HouseMapScreen: React.FC = () => {
     return Math.min(scaleX, scaleY, 1);
   }, [containerSize, layout]);
 
-  // 화면이 포커스될 때마다 레이아웃 새로고침
+  // 초기 로딩 및 userId 변경 시에만 로딩 표시
+  useEffect(() => {
+    loadHouseLayout(true);
+  }, [userId]);
+
+  // 화면이 포커스될 때 가구 데이터만 조용히 새로고침
   useFocusEffect(
     React.useCallback(() => {
-      loadHouseLayout();
-    }, [userId])
+      if (layout) {
+        loadFurnitureData(false); // 로딩 없이 가구 데이터만 업데이트
+      }
+    }, [layout])
   );
 
   useEffect(() => {
     if (layout) {
-      loadFurnitureData();
+      loadFurnitureData(true); // 첫 로드 시에만 로딩 표시
     }
   }, [layout, userId]);
 
-  const loadHouseLayout = async () => {
+  const loadHouseLayout = async (forceReload = false) => {
     if (!userId) return;
 
     try {
+      // 이미 레이아웃이 있고 강제 새로고침이 아니면 로딩 스킵
+      if (layout && !forceReload) {
+        return;
+      }
+      
       setLoading(true);
       const existingLayout = await getHouseLayout(userId);
       
@@ -132,16 +112,20 @@ export const HouseMapScreen: React.FC = () => {
     }
   };
 
-  const loadFurnitureData = async () => {
-    if (!userId) return;
+  const loadFurnitureData = async (showLoading = false) => {
+    if (!userId || !layout) return;
 
     try {
-      setLoading(true);
+      console.log('loadFurnitureData 호출됨');
+      if (showLoading) {
+        setLoading(true);
+      }
       const dataMap = new Map<string, FurnitureWithData>();
 
       // 모든 LifeObject와 Task 가져오기
       const allObjects = await getLifeObjects(userId);
       const allTasks = await getTasks(userId);
+      console.log('전체 Task 개수:', allTasks.length);
 
       // 각 가구에 대해 데이터 연결
       for (const room of layout.rooms) {
@@ -153,6 +137,11 @@ export const HouseMapScreen: React.FC = () => {
           const linkedTasks = allTasks.filter((task) =>
             furniture.linkedObjectIds.includes(task.objectId)
           );
+          
+          console.log(`가구 ${furniture.name} (${furniture.id}):`, {
+            linkedObjectIds: furniture.linkedObjectIds,
+            linkedTasksCount: linkedTasks.length
+          });
 
           // dirtyScore 계산
           const now = new Date();
@@ -184,7 +173,9 @@ export const HouseMapScreen: React.FC = () => {
     } catch (error) {
       console.error('Failed to load furniture data:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -193,124 +184,18 @@ export const HouseMapScreen: React.FC = () => {
   };
 
   const handleFurniturePress = (room: Room, furniture: Furniture) => {
-    setModalData({ visible: true, item: { type: 'furniture', room, furniture } });
+    // 세부 페이지로 네비게이션
+    navigation.navigate('FurnitureDetail', {
+      roomId: room.id,
+      furnitureId: furniture.id,
+      furnitureType: furniture.type,
+    });
   };
 
   const closeModal = () => {
     setModalData({ visible: false, item: null });
-    setActiveTab('info');
-    setTaskAddState({ step: null, selectedTemplate: null });
   };
 
-  // Task 추가 관련 핸들러
-  const handleShowTaskTemplates = () => {
-    setActiveTab('add');
-    setTaskAddState({ step: 'template', selectedTemplate: null });
-  };
-
-  const handleSelectTemplate = (template: TaskTemplateItem) => {
-    // 기본 customization 설정
-    setTaskCustomization({
-      recurrenceType: template.defaultRecurrence.type,
-      interval: template.defaultRecurrence.interval || 1,
-      estimatedMinutes: template.estimatedMinutes,
-      priority: template.priority,
-      notificationEnabled: true,
-      notificationMinutesBefore: 30,
-    });
-    
-    // 기본 시작일은 내일
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    setStartDate(tomorrow);
-    
-    // 요일 초기화
-    setSelectedDays([]);
-    
-    setTaskAddState({ step: 'customize', selectedTemplate: template });
-  };
-
-  const handleBackToTemplates = () => {
-    setTaskAddState({ step: 'template', selectedTemplate: null });
-  };
-
-  const toggleDayOfWeek = (day: DayOfWeek) => {
-    if (selectedDays.includes(day)) {
-      setSelectedDays(selectedDays.filter(d => d !== day));
-    } else {
-      setSelectedDays([...selectedDays, day].sort());
-    }
-  };
-
-  const getNextOccurrences = (count: number = 3): Date[] => {
-    const dates: Date[] = [];
-    let current = new Date(startDate);
-    
-    if (taskCustomization.recurrenceType === 'daily') {
-      for (let i = 0; i < count; i++) {
-        dates.push(new Date(current));
-        current.setDate(current.getDate() + (taskCustomization.interval || 1));
-      }
-    } else if (taskCustomization.recurrenceType === 'weekly') {
-      if (selectedDays.length === 0) {
-        // 요일 선택 없으면 시작일 기준 매주
-        for (let i = 0; i < count; i++) {
-          dates.push(new Date(current));
-          current.setDate(current.getDate() + 7 * (taskCustomization.interval || 1));
-        }
-      } else {
-        // 선택한 요일에만 반복
-        const tempDate = new Date(current);
-        while (dates.length < count) {
-          if (selectedDays.includes(tempDate.getDay() as DayOfWeek)) {
-            dates.push(new Date(tempDate));
-          }
-          tempDate.setDate(tempDate.getDate() + 1);
-        }
-      }
-    } else if (taskCustomization.recurrenceType === 'monthly') {
-      for (let i = 0; i < count; i++) {
-        dates.push(new Date(current));
-        current.setMonth(current.getMonth() + (taskCustomization.interval || 1));
-      }
-    }
-    
-    return dates;
-  };
-
-  const handleConfirmTask = async () => {
-    if (!userId || !modalData.item || modalData.item.type !== 'furniture' || !taskAddState.selectedTemplate) return;
-
-    const { furniture, room } = modalData.item;
-
-    try {
-      setLoading(true);
-      
-      await FurnitureTaskService.addTaskFromTemplate(
-        userId,
-        furniture.id,
-        room.name,
-        furniture.name,
-        taskAddState.selectedTemplate,
-        taskCustomization
-      );
-
-      Alert.alert('완료', 'Task가 추가되었습니다.');
-      
-      // 초기화 및 정보 탭으로 이동
-      setTaskAddState({ step: null, selectedTemplate: null });
-      setActiveTab('info');
-      
-      // 데이터 새로고침
-      await loadHouseLayout();
-    } catch (error) {
-      console.error('Task 추가 실패:', error);
-      Alert.alert('오류', 'Task 추가에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const renderRoom = (room: Room) => {
     return (
