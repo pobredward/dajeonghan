@@ -11,8 +11,6 @@ import {
   PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Rect, G, Text as SvgText, Circle } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
 import {
@@ -23,11 +21,12 @@ import {
   FURNITURE_DEFAULTS,
   ROOM_COLORS,
 } from '@/types/house.types';
-import { saveHouseLayout } from '@/services/houseService';
-import { HouseStackParamList } from '@/navigation/HouseNavigator';
 
-type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseEditor'>;
-type RoutePropType = RouteProp<HouseStackParamList, 'HouseEditor'>;
+interface Props {
+  initialLayout: HouseLayout;
+  onSave: (updatedLayout: HouseLayout) => Promise<void>;
+  onCancel: () => void;
+}
 
 type EditorMode = 'view' | 'move_furniture' | 'resize_room' | 'add_room' | 'add_furniture';
 type SelectedItem = 
@@ -37,10 +36,7 @@ type SelectedItem =
   | { type: 'character' }
   | null;
 
-export const HouseEditorScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RoutePropType>();
-  const initialLayout = route.params.layout;
+export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCancel }) => {
   
   const [layout, setLayout] = useState<HouseLayout>(initialLayout);
   const [mode, setMode] = useState<EditorMode>('view');
@@ -403,16 +399,7 @@ export const HouseEditorScreen: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await saveHouseLayout(layout);
-      Alert.alert('완료', '집 구조가 저장되었습니다!', [
-        { 
-          text: '확인', 
-          onPress: () => {
-            // HouseMain으로 돌아가면서 새로고침 트리거
-            navigation.navigate('HouseMain' as any, { refresh: Date.now() });
-          }
-        }
-      ]);
+      await onSave(layout);
     } catch (error) {
       console.error('Failed to save layout:', error);
       Alert.alert('오류', '집 구조를 저장하는데 실패했습니다.');
@@ -422,7 +409,7 @@ export const HouseEditorScreen: React.FC = () => {
   const handleCancel = () => {
     Alert.alert('편집 취소', '변경사항이 저장되지 않습니다. 취소하시겠습니까?', [
       { text: '계속 편집', style: 'cancel' },
-      { text: '취소', style: 'destructive', onPress: () => navigation.goBack() }
+      { text: '취소', style: 'destructive', onPress: onCancel }
     ]);
   };
 

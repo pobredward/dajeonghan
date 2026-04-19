@@ -2,7 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Colors } from '@/constants';
 import { HouseLayout, FurnitureType } from '@/types/house.types';
-import { HouseMapScreen } from '@/screens/house/HouseMapScreen';
+import { HouseSetupFlow } from '@/screens/house/HouseSetupFlow';
 import { HouseEditorScreen } from '@/screens/house/HouseEditorScreen';
 import { HouseLayoutSelectionScreen } from '@/screens/house/HouseLayoutSelectionScreen';
 import { FurnitureDetailScreen } from '@/screens/furniture/FurnitureDetailScreen';
@@ -37,7 +37,7 @@ export const HouseNavigator: React.FC = () => {
     >
       <Stack.Screen
         name="HouseMain"
-        component={HouseMapScreen}
+        component={HouseSetupFlow}
         options={{ headerShown: false }}
       />
       <Stack.Screen

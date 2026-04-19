@@ -47,7 +47,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   
   // 캔버스 스케일 계산 (화면에 맞게)
   const canvasScale = React.useMemo(() => {
-    if (!layout || containerSize.width === 0 || containerSize.height === 0) return 1;
+    if (!layout || !layout.canvasSize || containerSize.width === 0 || containerSize.height === 0) {
+      return 1;
+    }
     
     const padding = 40;
     const availableWidth = containerSize.width - padding;
@@ -123,6 +125,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
 
   const renderRoom = (room: Room) => {
+    if (!room || !layout) return null;
+    
     return (
       <G key={room.id}>
         <Rect
@@ -232,6 +236,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
 
   const renderCharacter = () => {
+    if (!layout) return null;
+    
     const charX = layout.character.position.x;
     const charY = layout.character.position.y;
     return (
@@ -344,12 +350,20 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🏠 내 집</Text>
         <View style={styles.headerStats}>
-          <TouchableOpacity 
-            onPress={onEdit || (() => navigation.navigate('HouseEditor', { layout }))} 
-            style={styles.editButton}
-          >
-            <Text style={styles.editButtonText}>✏️ 편집</Text>
-          </TouchableOpacity>
+          {layout && (
+            <TouchableOpacity 
+              onPress={onEdit || (() => {
+                if (layout) {
+                  navigation.navigate('HouseEditor', { layout });
+                } else {
+                  Alert.alert('알림', '집 구조를 먼저 설정해주세요.');
+                }
+              })} 
+              style={styles.editButton}
+            >
+              <Text style={styles.editButtonText}>✏️ 편집</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -363,66 +377,82 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         }}
       >
         <View style={styles.mapWrapper}>
-          <View style={{ 
-            transform: [{ scale: canvasScale }],
-            alignSelf: 'center',
-          }}>
-            <Svg
-              width={layout.canvasSize.width}
-              height={layout.canvasSize.height}
-              viewBox={`0 0 ${layout.canvasSize.width} ${layout.canvasSize.height}`}
-            >
-              <Rect
-                x={0}
-                y={0}
+          {layout ? (
+            <View style={{ 
+              transform: [{ scale: canvasScale }],
+              alignSelf: 'center',
+            }}>
+              <Svg
                 width={layout.canvasSize.width}
                 height={layout.canvasSize.height}
-                fill="#F5F5DC"
-                stroke={Colors.lightGray}
-                strokeWidth={2}
-              />
+                viewBox={`0 0 ${layout.canvasSize.width} ${layout.canvasSize.height}`}
+              >
+                <Rect
+                  x={0}
+                  y={0}
+                  width={layout.canvasSize.width}
+                  height={layout.canvasSize.height}
+                  fill="#F5F5DC"
+                  stroke={Colors.lightGray}
+                  strokeWidth={2}
+                />
 
-              {layout.rooms.map(renderRoom)}
-              {renderCharacter()}
-            </Svg>
+                {layout?.rooms?.map(renderRoom) || null}
+                {renderCharacter()}
+              </Svg>
 
-            {/* 가구 레이블 - Animated.View 내부로 이동 */}
-            {layout.rooms.map((room) =>
-              room.furnitures.map((furniture) => {
-                const absX = room.position.x + furniture.position.x + furniture.size.width / 2;
-                const absY = room.position.y + furniture.position.y + furniture.size.height / 2;
-                return (
-                  <View
-                    key={`label-${furniture.id}`}
-                    style={[
-                      styles.furnitureLabel,
-                      { left: absX - 15, top: absY - 15 },
-                    ]}
-                  >
-                    <TouchableOpacity onPress={() => handleFurniturePress(room, furniture)}>
-                      <Text style={styles.furnitureEmojiLabel}>{furniture.emoji}</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })
-            )}
+              {/* 가구 레이블 - Animated.View 내부로 이동 */}
+              {layout?.rooms?.map((room) =>
+                room?.furnitures?.map((furniture) => {
+                  if (!room?.position || !furniture?.position || !furniture?.size) return null;
+                  
+                  const absX = room.position.x + furniture.position.x + furniture.size.width / 2;
+                  const absY = room.position.y + furniture.position.y + furniture.size.height / 2;
+                  return (
+                    <View
+                      key={`label-${furniture.id}`}
+                      style={[
+                        styles.furnitureLabel,
+                        { left: absX - 15, top: absY - 15 },
+                      ]}
+                    >
+                      <TouchableOpacity onPress={() => handleFurniturePress(room, furniture)}>
+                        <Text style={styles.furnitureEmojiLabel}>{furniture.emoji}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }) || []
+              )?.flat() || []}
 
-            {/* 캐릭터 레이블 */}
-            <View
-              key="character-label"
-              style={[
-                styles.furnitureLabel,
-                { 
-                  left: layout.character.position.x - 20, 
-                  top: layout.character.position.y - 20 
-                },
-              ]}
-            >
-              <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
-                <Text style={styles.furnitureEmojiLabel}>🧑</Text>
+              {/* 캐릭터 레이블 */}
+              {layout?.character?.position && (
+                <View
+                  key="character-label"
+                  style={[
+                    styles.furnitureLabel,
+                    { 
+                      left: layout.character.position.x - 20, 
+                      top: layout.character.position.y - 20 
+                    },
+                  ]}
+                >
+                  <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
+                    <Text style={styles.furnitureEmojiLabel}>🧑</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.noLayoutContainer}>
+              <Text style={styles.noLayoutText}>집 구조를 설정해주세요</Text>
+              <TouchableOpacity 
+                style={styles.setupButton}
+                onPress={() => navigation.navigate('HouseLayoutSelection')}
+              >
+                <Text style={styles.setupButtonText}>집 구조 설정하기</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          )}
         </View>
       </View>
 
@@ -537,9 +567,6 @@ const styles = StyleSheet.create({
   characterEmoji: {
     fontSize: 40,
     pointerEvents: 'auto',
-  },
-  characterEmoji: {
-    fontSize: 40,
   },
   quickSummary: {
     padding: Spacing.md,
@@ -1032,5 +1059,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textPrimary,
     marginBottom: 4,
+  },
+  // 집 구조 없을 때 스타일
+  noLayoutContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  noLayoutText: {
+    ...Typography.h3,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  setupButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+  },
+  setupButtonText: {
+    ...Typography.body,
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

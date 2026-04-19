@@ -8,15 +8,12 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing } from '@/constants';
 import { HouseLayout } from '@/types/house.types';
-import { getLayoutTemplate, saveHouseLayout } from '@/services/houseService';
-import { useAuth } from '@/contexts/AuthContext';
-import { HouseStackParamList } from '@/navigation/HouseNavigator';
 
-type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseLayoutSelection'>;
+interface Props {
+  onSelect: (layoutType: HouseLayout['layoutType']) => Promise<void>;
+}
 
 interface LayoutOption {
   type: HouseLayout['layoutType'];
@@ -59,9 +56,7 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   },
 ];
 
-export const HouseLayoutSelectionScreen: React.FC = () => {
-  const { userId } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
+export const HouseLayoutSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   const [selectedType, setSelectedType] = useState<HouseLayout['layoutType']>('two_room');
 
   const handleSelect = (type: HouseLayout['layoutType']) => {
@@ -69,22 +64,11 @@ export const HouseLayoutSelectionScreen: React.FC = () => {
   };
 
   const handleNext = async () => {
-    if (!userId) return;
-
     try {
-      const template = getLayoutTemplate(selectedType);
-      const newLayout: HouseLayout = {
-        ...template,
-        id: 'main',
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      navigation.navigate('HouseEditor', { layout: newLayout });
+      await onSelect(selectedType);
     } catch (error) {
-      console.error('Failed to create layout:', error);
-      Alert.alert('오류', '집 구조를 생성하는데 실패했습니다.');
+      console.error('Failed to select layout:', error);
+      Alert.alert('오류', '집 구조를 선택하는데 실패했습니다.');
     }
   };
 
