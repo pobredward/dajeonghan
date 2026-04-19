@@ -76,7 +76,7 @@ export function CTA() {
               새로운 생활을 시작하세요
             </h2>
             <p className="text-xl md:text-2xl text-neutral-600 max-w-4xl mx-auto leading-relaxed">
-              3D 하우스 맵, 통합 생활관리, 스마트 알림, 66일 습관화까지
+              2D 평면도 그리기, 가구별 맞춤 관리, 스마트 알림, 66일 습관화까지
               <br />
               <strong className="text-primary">무료로</strong> 다운로드하고 지금 바로 경험해보세요
             </p>
@@ -132,69 +132,7 @@ export function CTA() {
             </motion.div>
           </motion.div>
 
-          {/* 특별 혜택 */}
-          <motion.div 
-            variants={itemVariants}
-            className="bg-gradient-to-r from-primary to-secondary rounded-3xl p-8 text-white relative overflow-hidden"
-          >
-            {/* 배경 패턴 */}
-            <div className="absolute inset-0">
-              <div className="absolute top-4 left-4 w-12 h-12 border border-white/20 rounded-full"></div>
-              <div className="absolute bottom-8 right-8 w-16 h-16 border border-white/20 rounded-full"></div>
-              <div className="absolute top-1/2 right-1/4 w-8 h-8 border border-white/20 rounded-full"></div>
-            </div>
-
-            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-              <div className="text-left">
-                <h3 className="text-2xl md:text-3xl font-bold mb-4">
-                  🎉 런칭 기념 특별 혜택
-                </h3>
-                <div className="space-y-3 text-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">✓</span>
-                    </div>
-                    <span>모든 프리미엄 기능 <strong>30일 무료</strong></span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">✓</span>
-                    </div>
-                    <span>전용 템플릿 <strong>100개 무료</strong> 제공</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-bold">✓</span>
-                    </div>
-                    <span>개인 맞춤 설정 <strong>무료 상담</strong></span>
-                  </div>
-                </div>
-                <div className="mt-6 p-4 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <div className="text-sm opacity-90">
-                    <strong>📅 한정 혜택:</strong> 2026년 5월 31일까지
-                  </div>
-                </div>
-              </div>
-
-              <motion.div 
-                className="flex justify-center lg:justify-end"
-                animate={floatingAnimation}
-              >
-                <div className="relative">
-                  <div className="w-48 h-48 bg-white/20 rounded-3xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                    <div className="text-6xl">🎁</div>
-                  </div>
-                  <motion.div 
-                    className="absolute -top-4 -right-4 w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                  >
-                    <span className="text-2xl">✨</span>
-                  </motion.div>
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
+          {/* 특별 혜택 섹션 제거됨 */}
 
           {/* 마지막 액션 유도 */}
           <motion.div variants={itemVariants} className="mt-12 text-center">

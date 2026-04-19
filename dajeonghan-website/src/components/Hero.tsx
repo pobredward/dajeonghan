@@ -73,7 +73,7 @@ export function Hero() {
               </h1>
               
               <p className="text-xl text-neutral-600 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                3D 하우스 맵으로 집안일부터 건강관리까지,<br />
+                간편하게 평면도를 그리고 가구별 맞춤 기능까지,<br />
                 하나의 앱에서 <strong className="text-primary">다정하게</strong> 관리하세요
               </p>
             </motion.div>
@@ -98,7 +98,7 @@ export function Hero() {
             </motion.div>
           </div>
 
-          {/* 오른쪽: 3D 하우스 맵 미리보기 */}
+          {/* 오른쪽: 2D 하우스 맵 미리보기 */}
           <div className="relative">
             <motion.div
               variants={itemVariants}
@@ -108,7 +108,7 @@ export function Hero() {
               {/* 메인 앱 이미지 플레이스홀더 */}
               <div className="relative bg-gradient-to-br from-white to-neutral-100 rounded-3xl shadow-2xl p-8 mx-auto max-w-md">
                 <div className="aspect-[9/16] bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                  {/* 3D 하우스 맵 미리보기 모형 */}
+                  {/* 2D 하우스 맵 미리보기 모형 */}
                   <div className="relative w-full h-full p-6">
                     {/* 방 레이아웃 표현 */}
                     <div className="grid grid-cols-2 gap-2 h-1/2 mb-2">

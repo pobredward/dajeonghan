@@ -25,7 +25,7 @@ export function Features() {
     }
   }, [controls, isInView])
 
-  // 3D 하우스 맵 일러스트레이션
+  // 2D 하우스 맵 일러스트레이션
   const HouseMapIllustration = () => (
     <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl p-8 shadow-2xl">
       <div className="aspect-square bg-white/80 rounded-2xl p-6 relative overflow-hidden">
@@ -87,67 +87,92 @@ export function Features() {
     </div>
   )
 
-  // 통합 생활관리 일러스트레이션
+  // 가구별 맞춤 생활관리 일러스트레이션
   const IntegratedManagementIllustration = () => (
     <div className="bg-gradient-to-br from-secondary/10 to-primary/10 rounded-3xl p-8 shadow-2xl">
       <div className="aspect-square bg-white/80 rounded-2xl p-6 relative">
-        {/* 중앙 허브 */}
-        <motion.div 
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center shadow-lg z-10"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        >
-          <Home className="w-8 h-8 text-white" />
-        </motion.div>
+        {/* 가구들을 평면도 스타일로 배치 */}
+        <div className="grid grid-cols-2 gap-4 h-full">
+          {/* 침대 */}
+          <motion.div 
+            className="bg-purple-100 rounded-xl p-3 cursor-pointer hover:bg-purple-200 transition-colors relative"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl mb-2">🛏️</div>
+            <div className="text-xs font-medium text-purple-800">침대</div>
+            <motion.div 
+              className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <span className="text-xs text-white">💤</span>
+            </motion.div>
+          </motion.div>
+          
+          {/* 냉장고 */}
+          <motion.div 
+            className="bg-green-100 rounded-xl p-3 cursor-pointer hover:bg-green-200 transition-colors relative"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl mb-2">🧊</div>
+            <div className="text-xs font-medium text-green-800">냉장고</div>
+            <motion.div 
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+            >
+              <span className="text-xs text-white">!</span>
+            </motion.div>
+          </motion.div>
+          
+          {/* 책상 */}
+          <motion.div 
+            className="bg-blue-100 rounded-xl p-3 cursor-pointer hover:bg-blue-200 transition-colors relative"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl mb-2">🏢</div>
+            <div className="text-xs font-medium text-blue-800">책상</div>
+            <motion.div 
+              className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            >
+              <span className="text-xs text-white">📊</span>
+            </motion.div>
+          </motion.div>
+          
+          {/* 소파 */}
+          <motion.div 
+            className="bg-orange-100 rounded-xl p-3 cursor-pointer hover:bg-orange-200 transition-colors relative"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl mb-2">🛋️</div>
+            <div className="text-xs font-medium text-orange-800">소파</div>
+            <motion.div 
+              className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center"
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+            >
+              <span className="text-xs text-white">✨</span>
+            </motion.div>
+          </motion.div>
+        </div>
         
-        {/* 주변 기능들 */}
+        {/* 중앙 설명 */}
         <motion.div 
-          className="absolute top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-green-400 rounded-full flex items-center justify-center shadow-lg"
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 2, repeat: Infinity, delay: 0 }}
+          className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.5 }}
         >
-          <Refrigerator className="w-6 h-6 text-white" />
+          <div className="text-xs text-center text-neutral-600">
+            <strong className="text-primary">가구를 눌러</strong> 맞춤 기능 확인
+          </div>
         </motion.div>
-        
-        <motion.div 
-          className="absolute top-1/2 right-4 transform -translate-y-1/2 w-12 h-12 bg-blue-400 rounded-full flex items-center justify-center shadow-lg"
-          animate={{ x: [0, 5, 0] }}
-          transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-        >
-          <Sparkles className="w-6 h-6 text-white" />
-        </motion.div>
-        
-        <motion.div 
-          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-purple-400 rounded-full flex items-center justify-center shadow-lg"
-          animate={{ y: [0, 5, 0] }}
-          transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-        >
-          💊
-        </motion.div>
-        
-        <motion.div 
-          className="absolute top-1/2 left-4 transform -translate-y-1/2 w-12 h-12 bg-orange-400 rounded-full flex items-center justify-center shadow-lg"
-          animate={{ x: [0, -5, 0] }}
-          transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-        >
-          🧹
-        </motion.div>
-
-        {/* 연결 선들 */}
-        <svg className="absolute inset-0 w-full h-full">
-          <motion.line
-            x1="50%" y1="50%" x2="50%" y2="20%"
-            stroke="#FF6B6B" strokeWidth="2" strokeDasharray="4,4"
-            animate={{ strokeDashoffset: [0, -8] }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <motion.line
-            x1="50%" y1="50%" x2="80%" y2="50%"
-            stroke="#4ECDC4" strokeWidth="2" strokeDasharray="4,4"
-            animate={{ strokeDashoffset: [0, -8] }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear", delay: 0.25 }}
-          />
-        </svg>
       </div>
     </div>
   )
@@ -281,26 +306,26 @@ export function Features() {
   const features = [
     {
       icon: <Home className="w-8 h-8 text-primary" />,
-      title: "3D 하우스 맵",
-      description: "직관적인 3D 인터페이스로 집 안의 모든 공간을 한눈에 파악하고 관리할 수 있습니다. 9가지 방 타입과 18종 가구를 자유롭게 배치하세요.",
+      title: "2D 하우스 맵",
+      description: "간편하게 내 집 평면도를 그리고 가구를 자유롭게 추가할 수 있습니다. 직관적인 2D 인터페이스로 누구나 쉽게 우리 집을 디지털화하세요.",
       benefits: [
-        "드래그 앤 드롭으로 쉬운 방 및 가구 배치",
-        "실제 집 구조를 반영한 직관적인 관리",
-        "방별, 가구별 맞춤 태스크 자동 생성",
-        "시각적으로 명확한 진행 상황 확인"
+        "손쉬운 평면도 그리기 도구",
+        "다양한 가구 템플릿으로 빠른 배치",
+        "실제 집 크기에 맞는 비율 조정",
+        "완성된 맵으로 효율적인 공간 관리"
       ],
       image: <HouseMapIllustration />,
       gradient: "from-primary/10 to-orange-100"
     },
     {
       icon: <Smartphone className="w-8 h-8 text-secondary" />,
-      title: "통합 생활관리",
-      description: "냉장고 유통기한, 청소 루틴, 약 복용 관리를 하나의 앱에서 완전 통합 관리할 수 있습니다. 더 이상 여러 앱을 오갈 필요가 없어요.",
+      title: "가구별 맞춤 생활관리",
+      description: "침대를 누르면 수면 패턴 분석과 매트리스 관리, 책상을 누르면 업무 효율성 추적까지! 각 가구의 본질적 기능에 맞는 특별한 관리 도구를 제공합니다.",
       benefits: [
-        "냉장고 식품 유통기한 자동 추적",
-        "가구별 맞춤 청소 스케줄 관리",
-        "약 복용 시간 알림 및 기록",
-        "모든 생활 패턴을 한 곳에서 관리"
+        "가구 종류별 전용 기능과 태스크",
+        "냉장고: 유통기한부터 식단 관리까지",
+        "침대: 수면 추적과 침구 관리",
+        "책상: 집중 시간과 정리 상태 모니터링"
       ],
       image: <IntegratedManagementIllustration />,
       reverse: true,
@@ -351,7 +376,7 @@ export function Features() {
             스마트한 생활 관리
           </h2>
           <p className="text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
-            다정한의 4가지 핵심 기능으로 복잡한 일상을 체계적이고 효율적으로 관리해보세요
+            평면도 그리기부터 가구별 맞춤 관리까지, 다정한의 4가지 핵심 기능으로 근본적인 생활의 불편함을 해결해보세요
           </p>
         </motion.div>
 

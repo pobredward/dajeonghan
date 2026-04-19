@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Heart, Home, Mail, Phone, MapPin } from 'lucide-react'
+import { Heart, Home, Mail, MapPin } from 'lucide-react'
 import { RenewalModal } from './RenewalModal'
 
 export function Footer() {
@@ -32,8 +32,8 @@ export function Footer() {
               </div>
             </div>
             <p className="text-neutral-300 leading-relaxed mb-6 max-w-md">
-              3D 하우스 맵 기반 스마트 라이프케어 플랫폼으로 체계적인 생활 관리를 
-              쉽고 다정하게 도와드립니다.
+              2D 평면도와 가구별 맞춤 기능으로 근본적인 생활의 불편함을 해결하는
+              스마트 라이프케어 플랫폼입니다.
             </p>
             <div className="flex items-center gap-2 text-sm text-neutral-400">
               <Heart className="w-4 h-4 text-primary" />
@@ -98,24 +98,14 @@ export function Footer() {
 
         {/* 연락처 정보 */}
         <div className="border-t border-neutral-800 pt-8 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-neutral-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-neutral-300 max-w-2xl mx-auto">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center">
                 <Mail className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <div className="text-sm text-neutral-400">이메일</div>
-                <div className="font-medium">support@onmindlab.com</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center">
-                <Phone className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm text-neutral-400">고객지원</div>
-                <div className="font-medium">1588-0000</div>
+                <div className="font-medium">onmindlabs@gmail.com</div>
               </div>
             </div>
             

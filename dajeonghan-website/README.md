@@ -1,6 +1,6 @@
 # 다정한 웹사이트
 
-다정한 앱(3D 하우스 맵 기반 스마트 라이프케어 플랫폼)의 공식 마케팅 웹사이트입니다.
+다정한 앱(2D 하우스 맵 기반 스마트 라이프케어 플랫폼)의 공식 마케팅 웹사이트입니다.
 
 ## 🌟 주요 기능
 
@@ -26,8 +26,8 @@
 
 1. **Hero Section**: 다정한 소개 및 다운로드 CTA
 2. **Features Section**: 4가지 핵심 기능 소개
-   - 3D 하우스 맵
-   - 통합 생활관리
+   - 2D 하우스 맵
+   - 가구별 맞춤 생활관리
    - 스마트 알림
    - 66일 습관화
 3. **App Screenshots**: 인터랙티브 앱 스크린샷 갤러리
@@ -173,7 +173,7 @@ export function NewSection() {
 
 ## 📞 문의
 
-- **이메일**: support@onmindlab.com
+- **이메일**: onmindlabs@gmail.com
 - **개발사**: OnMind Lab
 - **앱 다운로드**: [iOS](https://apps.apple.com/app/dajeonghan) | [Android](https://play.google.com/store/apps/details?id=com.onmindlab.dajeonghan)
 

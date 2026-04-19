@@ -132,6 +132,50 @@ export function AppScreenshots() {
     </div>
   )
 
+  const BedSpecialMockup = () => (
+    <div className="bg-gradient-to-b from-purple-50 to-purple-100 rounded-2xl p-4 h-full">
+      <div className="bg-white rounded-xl shadow-sm p-3 h-full">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-neutral-800">침대 관리</h3>
+          <div className="text-lg">🛏️</div>
+        </div>
+        <div className="space-y-2">
+          <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-purple-400 rounded-full flex items-center justify-center text-white text-xs">😴</div>
+              <div>
+                <div className="text-sm font-medium text-purple-800">수면 패턴</div>
+                <div className="text-xs text-purple-600">어젯밤 7시간 30분</div>
+              </div>
+            </div>
+          </div>
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white text-xs">🧺</div>
+              <div>
+                <div className="text-sm font-medium text-blue-800">침구 교체</div>
+                <div className="text-xs text-blue-600">이번 주 일요일 예정</div>
+              </div>
+            </div>
+          </div>
+          <motion.div 
+            className="p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+            animate={{ backgroundColor: ["rgb(254 249 195)", "rgb(253 246 178)", "rgb(254 249 195)"] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white text-xs">🌙</div>
+              <div>
+                <div className="text-sm font-medium text-yellow-800">취침 준비</div>
+                <div className="text-xs text-yellow-600">30분 후 알림 예정</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  )
+
   const MedicineMockup = () => (
     <div className="bg-gradient-to-b from-purple-50 to-purple-100 rounded-2xl p-4 h-full">
       <div className="bg-white rounded-xl shadow-sm p-3 h-full">
@@ -249,8 +293,8 @@ export function AppScreenshots() {
   const screenshots: Screenshot[] = [
     {
       id: '1',
-      title: '3D 하우스 맵',
-      description: '직관적인 3D 인터페이스로 집 안 모든 공간을 한눈에 관리',
+      title: '2D 하우스 맵',
+      description: '간편한 평면도 그리기로 내 집을 디지털화하고 가구 배치까지',
       category: '핵심기능',
       mockup: <HouseMapMockup />
     },
@@ -270,10 +314,10 @@ export function AppScreenshots() {
     },
     {
       id: '4',
-      title: '복용 관리',
-      description: '약 복용 시간 알림과 기록으로 건강한 생활',
-      category: '건강관리',
-      mockup: <MedicineMockup />
+      title: '침대 특별기능',
+      description: '수면 패턴 추적부터 침구 교체 알림까지 침대만의 특별한 관리',
+      category: '가구관리',
+      mockup: <BedSpecialMockup />
     },
     {
       id: '5',
@@ -317,7 +361,7 @@ export function AppScreenshots() {
             앱에서 <span className="text-gradient">직접 경험</span>해보세요
           </h2>
           <p className="text-xl text-neutral-600 max-w-3xl mx-auto leading-relaxed">
-            실제 앱 화면으로 다정한의 주요 기능들을 미리 살펴보고 어떻게 생활을 편리하게 만드는지 확인해보세요
+            평면도 그리기부터 가구별 특별 기능까지! 실제 앱 화면으로 다정한이 어떻게 근본적인 불편함을 해결하는지 확인해보세요
           </p>
         </motion.div>
 
