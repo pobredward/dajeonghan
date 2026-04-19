@@ -10,7 +10,25 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+import * as KoreanHolidays from 'korean-holidays';
 import { Colors, Typography, Spacing } from '@/constants';
+
+// 한국어 설정
+LocaleConfig.locales['kr'] = {
+  monthNames: [
+    '1월', '2월', '3월', '4월', '5월', '6월',
+    '7월', '8월', '9월', '10월', '11월', '12월'
+  ],
+  monthNamesShort: [
+    '1월', '2월', '3월', '4월', '5월', '6월',
+    '7월', '8월', '9월', '10월', '11월', '12월'
+  ],
+  dayNames: ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'],
+  dayNamesShort: ['일', '월', '화', '수', '목', '금', '토'],
+  today: '오늘'
+};
+LocaleConfig.defaultLocale = 'kr';
 import { Room, Furniture } from '@/types/house.types';
 import { LifeObject } from '@/types/lifeobject.types';
 import { Task } from '@/types/task.types';
@@ -28,10 +46,6 @@ interface FurnitureTasksTabProps {
 }
 
 // Task 추가 모달 상태
-interface TaskAddState {
-  step: 'template' | 'customize' | null;
-  selectedTemplate: TaskTemplateItem | null;
-}
 
 // 요일 타입
 type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -53,20 +67,14 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   const [taskLoadingStates, setTaskLoadingStates] = useState<{ [taskId: string]: boolean }>({});
   const [furnitureData, setFurnitureData] = useState<FurnitureWithData | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'add'>(initialTab);
-  const [taskAddState, setTaskAddState] = useState<TaskAddState>({
+  const [taskAddState, setTaskAddState] = useState<{
+    step: 'template' | 'customize' | null;
+    selectedTemplate: TaskTemplateItem | null;
+  }>({
     step: null,
     selectedTemplate: null,
   });
-  const [taskCustomization, setTaskCustomization] = useState<TaskCustomization>({
-    recurrenceType: 'weekly',
-    interval: 1,
-    notificationEnabled: true,
-    notificationMinutesBefore: 30,
-  });
-  
-  // 주기 설정 state
-  const [startDate, setStartDate] = useState<Date>(new Date());
-  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
+  // 주기 설정 state는 아래에서 통합됨
   
   // Task 관리 state
   const [taskActionModal, setTaskActionModal] = useState<{
@@ -94,7 +102,81 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   });
   const [postponeDays, setPostponeDays] = useState<number>(1);
 
+  // Task 추가 관련 state
+  const [customization, setCustomization] = useState<TaskCustomization>({
+    recurrenceType: 'daily',
+    interval: 1,
+    notificationEnabled: false,
+  });
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
+  const [startDate, setStartDate] = useState<Date>(new Date());
+
+  // 미래 일정 계산 함수
+  const getNextOccurrences = (
+    startDate: Date,
+    customization: TaskCustomization,
+    selectedDays: DayOfWeek[],
+    count: number
+  ): Date[] => {
+    const occurrences: Date[] = [];
+    let currentDate = new Date(startDate);
+
+    if (customization.recurrenceType === 'weekly' && selectedDays.length > 0) {
+      // 특정 요일 선택된 경우
+      let weekOffset = 0;
+      
+      while (occurrences.length < count && weekOffset < 52) { // 최대 1년
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 주의 시작 (일요일)
+        
+        selectedDays.forEach(dayOfWeek => {
+          const targetDate = new Date(weekStart);
+          targetDate.setDate(targetDate.getDate() + dayOfWeek + (weekOffset * 7 * (customization.interval || 1)));
+          
+          if (targetDate >= startDate && occurrences.length < count) {
+            occurrences.push(new Date(targetDate));
+          }
+        });
+        
+        weekOffset++;
+      }
+      
+      return occurrences.sort((a, b) => a.getTime() - b.getTime()).slice(0, count);
+    } else {
+      // 일반적인 간격 반복
+      for (let i = 0; i < count && i < 365; i++) { // 최대 365일
+        const nextDate = new Date(currentDate);
+        
+        switch (customization.recurrenceType) {
+          case 'daily':
+            nextDate.setDate(nextDate.getDate() + (i * (customization.interval || 1)));
+            break;
+          case 'weekly':
+            nextDate.setDate(nextDate.getDate() + (i * 7 * (customization.interval || 1)));
+            break;
+          case 'monthly':
+            nextDate.setMonth(nextDate.getMonth() + (i * (customization.interval || 1)));
+            break;
+        }
+        
+        occurrences.push(nextDate);
+      }
+    }
+
+    return occurrences;
+  };
+
   useEffect(() => {
+    // 컴포넌트 마운트 시 기본 데이터 설정
+    if (!furnitureData) {
+      setFurnitureData({
+        ...furniture,
+        linkedObjects: [],
+        linkedTasks: [],
+        calculatedDirtyScore: furniture.dirtyScore || 0,
+      });
+    }
+    
     loadFurnitureData();
   }, [furniture.id, userId]);
 
@@ -121,8 +203,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       setLoading(true);
       
       // 모든 LifeObject와 Task 가져오기
-      const allObjects = await getLifeObjects(userId);
-      const allTasks = await getTasks(userId);
+      const allObjects = await getLifeObjects(userId!);
+      const allTasks = await getTasks(userId!);
       
       console.log('getTasks에서 반환된 첫 번째 태스크:', allTasks[0]);
       console.log('모든 태스크 ID들:', allTasks.map(task => ({ 
@@ -184,6 +266,14 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     } catch (error) {
       console.error('Failed to load furniture data:', error);
       Alert.alert('오류', '가구 데이터를 불러오는데 실패했습니다.');
+      
+      // 오류 발생 시 기본 데이터 설정
+      setFurnitureData({
+        ...furniture,
+        linkedObjects: [],
+        linkedTasks: [],
+        calculatedDirtyScore: furniture.dirtyScore || 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -196,7 +286,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
 
   const handleSelectTemplate = (template: TaskTemplateItem) => {
     // 기본 customization 설정
-    setTaskCustomization({
+    setCustomization({
       recurrenceType: template.defaultRecurrence.type,
       interval: template.defaultRecurrence.interval || 1,
       estimatedMinutes: template.estimatedMinutes,
@@ -237,7 +327,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         room.name,
         furniture.name,
         taskAddState.selectedTemplate,
-        taskCustomization
+        customization
       );
 
       // 조용히 완료 - UI 업데이트로 충분함
@@ -263,6 +353,19 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     } else {
       setSelectedDays([...selectedDays, day]);
     }
+  };
+
+  // TaskCustomizationForm에서 사용하는 핸들러 함수들
+  const onCustomizationChange = (newCustomization: TaskCustomization) => {
+    setCustomization(newCustomization);
+  };
+
+  const onToggleDayOfWeek = (day: DayOfWeek) => {
+    toggleDayOfWeek(day);
+  };
+
+  const onDateChange = (newDate: Date) => {
+    setStartDate(newDate);
   };
 
   // Task 액션 핸들러들
@@ -366,10 +469,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         }
         
         // 완료 기록을 completionHistory에 추가
-        const completionRecord = {
-          completedAt: new Date(),
-          scheduledDue: task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : new Date()
-        };
+            const completionRecord = {
+              date: new Date(),
+              postponed: false,
+              actualInterval: undefined
+            };
         
         updatedTask = {
           recurrence: {
@@ -395,7 +499,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       }
       
       console.log('updateTask 호출 전:', { userId, taskId, taskIdType: typeof taskId, updatedTask });
-      await updateTask(userId, taskId, updatedTask);
+      await updateTask(userId!, taskId, updatedTask);
       console.log('Firestore 업데이트 완료');
       
       // UI 즉시 업데이트 (사용자 피드백)
@@ -462,8 +566,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
           nextDue: previousDue,
         },
         lastCompletedAt: updatedCompletionHistory.length > 0 
-          ? updatedCompletionHistory[updatedCompletionHistory.length - 1].completedAt 
-          : null, // 이전 완료 시간으로 되돌리기 (없으면 null)
+          ? updatedCompletionHistory[updatedCompletionHistory.length - 1].date 
+          : undefined, // 이전 완료 시간으로 되돌리기 (없으면 undefined)
         completionHistory: updatedCompletionHistory,
         status: 'pending',
         updatedAt: new Date(),
@@ -474,7 +578,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       // 일회성 Task: 완료 취소
       updatedTask = {
         isCompleted: false,
-        completedAt: null,
+        completedAt: undefined,
         status: 'pending',
         updatedAt: new Date(),
       };
@@ -483,7 +587,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     }
     
     console.log('updateTask 호출 전 (완료 취소):', { userId, taskId, taskIdType: typeof taskId, updatedTask });
-    await updateTask(userId, taskId, updatedTask);
+    await updateTask(userId!, taskId, updatedTask);
     console.log('Firestore 업데이트 완료 (완료 취소)');
     
     // UI 즉시 업데이트 (사용자 피드백)
@@ -552,7 +656,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       };
       
       console.log('미루기 새 일정:', nextDue);
-      await updateTask(userId, taskId, updatedTask);
+      await updateTask(userId!, taskId, updatedTask);
       console.log('미루기 Firestore 업데이트 완료');
       
       // UI 업데이트
@@ -601,7 +705,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 updatedAt: new Date(),
               };
               
-              await updateTask(userId, taskId, updatedTask);
+              await updateTask(userId!, taskId, updatedTask);
               console.log('삭제 Firestore 업데이트 완료');
               
               // UI 업데이트
@@ -642,7 +746,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     );
   }
 
-  const { linkedTasks, linkedObjects, calculatedDirtyScore } = furnitureData;
+  const { linkedTasks, linkedObjects, calculatedDirtyScore } = furnitureData || { 
+    linkedTasks: [], 
+    linkedObjects: [], 
+    calculatedDirtyScore: 0 
+  };
 
   return (
     <View style={styles.container}>
@@ -842,14 +950,13 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
           {taskAddState.step === 'customize' && taskAddState.selectedTemplate && (
             <TaskCustomizationForm
               template={taskAddState.selectedTemplate}
-              customization={taskCustomization}
-              onCustomizationChange={setTaskCustomization}
+              customization={customization}
+              onCustomizationChange={onCustomizationChange}
               startDate={startDate}
-              onStartDateChange={setStartDate}
+              onStartDateChange={onDateChange}
               selectedDays={selectedDays}
-              onToggleDayOfWeek={toggleDayOfWeek}
-              onBack={handleBackToTemplates}
-              onConfirm={handleConfirmTask}
+              onToggleDayOfWeek={onToggleDayOfWeek}
+              getNextOccurrences={getNextOccurrences}
             />
           )}
         </ScrollView>
@@ -1122,17 +1229,17 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       <Modal
         visible={taskAddModal.visible}
         transparent={true}
-        animationType="slide"
+        animationType="none"
         onRequestClose={() => setTaskAddModal({ visible: false, template: null })}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.taskAddModalOverlay}>
           <TouchableOpacity
-            style={styles.modalBackdrop}
+            style={styles.taskAddModalBackdrop}
             activeOpacity={1}
             onPress={() => setTaskAddModal({ visible: false, template: null })}
           />
 
-          <View style={styles.taskAddModal}>
+          <View style={styles.taskAddModalCentered}>
             {taskAddModal.template && (
               <>
                 <View style={styles.modalHeader}>
@@ -1150,19 +1257,34 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
                   <TaskCustomizationForm
                     template={taskAddModal.template}
-                    customization={taskCustomization}
-                    onCustomizationChange={setTaskCustomization}
+                    customization={customization}
+                    onCustomizationChange={onCustomizationChange}
                     startDate={startDate}
-                    onStartDateChange={setStartDate}
+                    onStartDateChange={onDateChange}
                     selectedDays={selectedDays}
-                    onToggleDayOfWeek={toggleDayOfWeek}
-                    onBack={() => setTaskAddModal({ visible: false, template: null })}
-                    onConfirm={() => {
+                    onToggleDayOfWeek={onToggleDayOfWeek}
+                    getNextOccurrences={getNextOccurrences}
+                  />
+                </ScrollView>
+                
+                {/* 고정된 하단 버튼 */}
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity 
+                    style={styles.modalCancelButton} 
+                    onPress={() => setTaskAddModal({ visible: false, template: null })}
+                  >
+                    <Text style={styles.modalCancelButtonText}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.modalConfirmButton} 
+                    onPress={() => {
                       handleConfirmTask();
                       setTaskAddModal({ visible: false, template: null });
                     }}
-                  />
-                </ScrollView>
+                  >
+                    <Text style={styles.modalConfirmButtonText}>추가</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
@@ -1228,8 +1350,7 @@ const TaskCustomizationForm: React.FC<{
   onStartDateChange: (date: Date) => void;
   selectedDays: DayOfWeek[];
   onToggleDayOfWeek: (day: DayOfWeek) => void;
-  onBack: () => void;
-  onConfirm: () => void;
+  getNextOccurrences: (startDate: Date, customization: TaskCustomization, selectedDays: DayOfWeek[], count: number) => Date[];
 }> = ({
   template,
   customization,
@@ -1238,229 +1359,282 @@ const TaskCustomizationForm: React.FC<{
   onStartDateChange,
   selectedDays,
   onToggleDayOfWeek,
-  onBack,
-  onConfirm
+  getNextOccurrences,
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
+
+  // 주말 및 공휴일 색상 적용 함수
+  const getDateColor = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay(); // 0 = 일요일, 6 = 토요일
+    
+    // 공휴일 확인
+    const isHoliday = KoreanHolidays.isHoliday(date);
+    
+    if (isHoliday || dayOfWeek === 0) { // 공휴일 또는 일요일
+      return '#FF3B30'; // 빨간색
+    } else if (dayOfWeek === 6) { // 토요일
+      return '#007AFF'; // 파란색
+    }
+    
+    return Colors.textPrimary; // 평일
+  };
 
   return (
     <View style={styles.modernForm}>
       {/* 헤더 */}
       <View style={styles.modernHeader}>
         <View style={styles.taskInfoCard}>
-          <View style={styles.taskTitleRow}>
-            <Text style={styles.modernTitle}>{template.title}</Text>
-            <View style={[
-              styles.priorityBadge,
-              template.priority === 'high' && styles.priorityBadgeHigh,
-              template.priority === 'medium' && styles.priorityBadgeMedium,
-              template.priority === 'low' && styles.priorityBadgeLow,
-            ]}>
-              <Text style={styles.priorityBadgeText}>
-                {template.priority === 'high' ? '높음' : 
-                 template.priority === 'medium' ? '보통' : '낮음'}
-              </Text>
-            </View>
-          </View>
           <Text style={styles.modernSubtitle}>{template.description}</Text>
           <Text style={styles.estimateText}>⏱️ 예상 시간: {template.estimatedMinutes}분</Text>
         </View>
       </View>
 
-      {/* 시작일 */}
+      {/* 달력 */}
       <View style={styles.modernSection}>
-        <Text style={styles.modernSectionTitle}>📅 시작일</Text>
-        <View style={styles.dateCard}>
-          <TouchableOpacity 
-            style={styles.modernDateButton}
-            onPress={() => {
-              const newDate = new Date(startDate);
-              newDate.setDate(newDate.getDate() - 1);
-              onStartDateChange(newDate);
+        <View style={styles.calendarContainer}>
+          <Calendar
+            style={styles.calendar}
+            current={startDate.toISOString().split('T')[0]}
+            markedDates={(() => {
+              const marked: { [key: string]: any } = {};
+              const nextDates = getNextOccurrences(startDate, customization, selectedDays, 10);
+              
+              // 일정이 있는 날짜에 표시
+              nextDates.forEach((date, index) => {
+                const dateString = date.toISOString().split('T')[0];
+                
+                // 앞의 3개 일정은 파란 배경, 나머지는 점 표시
+                if (index < 3) {
+                  marked[dateString] = {
+                    selected: true,
+                    selectedColor: Colors.primary,
+                    selectedTextColor: Colors.white,
+                  };
+                } else {
+                  marked[dateString] = {
+                    marked: true,
+                    dotColor: Colors.textSecondary,
+                  };
+                }
+              });
+              
+              return marked;
+            })()}
+            dayComponent={({date, state}) => {
+              if (!date) return null;
+              
+              const dateObj = new Date(date.year, date.month - 1, date.day);
+              const dayOfWeek = dateObj.getDay();
+              const isHoliday = KoreanHolidays.isHoliday(dateObj);
+              const dateString = date.dateString;
+              const nextDates = getNextOccurrences(startDate, customization, selectedDays, 50);
+              const hasSchedule = nextDates.some(d => d.toISOString().split('T')[0] === dateString);
+              const scheduleIndex = nextDates.findIndex(d => d.toISOString().split('T')[0] === dateString);
+              
+              // 색상 결정
+              let textColor: any = Colors.textPrimary;
+              if (isHoliday || dayOfWeek === 0) {
+                textColor = '#FF3B30'; // 공휴일/일요일 - 빨간색
+              } else if (dayOfWeek === 6) {
+                textColor = '#007AFF'; // 토요일 - 파란색
+              }
+              
+              // 일정이 있는 경우 스타일링
+              let containerStyle: any = styles.calendarDay;
+              let textStyle: any = [styles.calendarDayText, { color: textColor }];
+              
+              if (hasSchedule) {
+                // 모든 일정은 파란 테두리로만 표시
+                containerStyle = [styles.calendarDay, styles.calendarDayMarked];
+              }
+              
+              return (
+                <View style={containerStyle}>
+                  <Text style={textStyle}>{date.day}</Text>
+                </View>
+              );
             }}
-          >
-            <Text style={styles.dateArrow}>‹</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.dateDisplay}>
-            <Text style={styles.modernDateText}>
-              {startDate.toLocaleDateString('ko-KR', { 
-                month: 'long', 
-                day: 'numeric',
-              })}
-            </Text>
-            <Text style={styles.dateWeekday}>
-              {startDate.toLocaleDateString('ko-KR', { weekday: 'short' })}
-              {startDate.toDateString() === new Date().toDateString() && ' (오늘)'}
-            </Text>
+            theme={{
+              backgroundColor: Colors.white,
+              calendarBackground: Colors.white,
+              textSectionTitleColor: Colors.textSecondary,
+              selectedDayBackgroundColor: Colors.primary,
+              selectedDayTextColor: Colors.white,
+              todayTextColor: Colors.primary,
+              dayTextColor: Colors.textPrimary,
+              textDisabledColor: Colors.lightGray,
+              dotColor: Colors.primary,
+              selectedDotColor: Colors.white,
+              arrowColor: Colors.primary,
+              disabledArrowColor: Colors.lightGray,
+              monthTextColor: Colors.textPrimary,
+              indicatorColor: Colors.primary,
+              textDayFontWeight: '400',
+              textMonthFontWeight: '600',
+              textDayHeaderFontWeight: '500',
+              textDayFontSize: 12,
+              textMonthFontSize: 14,
+              textDayHeaderFontSize: 10,
+            }}
+            hideExtraDays={true}
+            disableMonthChange={false}
+            firstDay={1}
+            hideDayNames={false}
+            showWeekNumbers={false}
+            disableArrowLeft={false}
+            disableArrowRight={false}
+            onMonthChange={(month) => {
+              // 월이 변경될 때마다 재렌더링하여 공휴일 색상 업데이트
+              setCurrentCalendarMonth(new Date(month.year, month.month - 1, 1));
+            }}
+            />
           </View>
-          
-          <TouchableOpacity 
-            style={styles.modernDateButton}
-            onPress={() => {
-              const newDate = new Date(startDate);
-              newDate.setDate(newDate.getDate() + 1);
-              onStartDateChange(newDate);
-            }}
-          >
-            <Text style={styles.dateArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* 반복 주기 */}
+      {/* 일정 설정 */}
       <View style={styles.modernSection}>
-        <Text style={styles.modernSectionTitle}>🔄 반복 주기</Text>
-        <View style={styles.recurrenceGrid}>
-          {(['daily', 'weekly', 'monthly'] as const).map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.modernRecurrenceCard,
-                customization.recurrenceType === type && styles.modernRecurrenceCardActive
-              ]}
-              onPress={() => onCustomizationChange({ ...customization, recurrenceType: type })}
-            >
-              <Text style={styles.recurrenceIcon}>
-                {type === 'daily' ? '📅' : type === 'weekly' ? '📆' : '🗓️'}
-              </Text>
-              <Text style={[
-                styles.modernRecurrenceText,
-                customization.recurrenceType === type && styles.modernRecurrenceTextActive
-              ]}>
-                {type === 'daily' ? '매일' : type === 'weekly' ? '매주' : '매월'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={styles.modernSectionTitle}>📅 일정 설정</Text>
         
-        {/* 간격 설정 */}
-        <View style={styles.intervalCard}>
-          <Text style={styles.intervalLabel}>간격</Text>
-          <View style={styles.intervalControls}>
+        {/* 시작일 선택 - 인라인 스타일 */}
+        <View style={styles.inlineCard}>
+          <Text style={styles.inlineLabel}>시작일</Text>
+          <View style={styles.inlineDateSelector}>
             <TouchableOpacity 
-              style={styles.modernIntervalButton}
-              onPress={() => onCustomizationChange({ 
-                ...customization, 
-                interval: Math.max(1, (customization.interval || 1) - 1)
-              })}
+              style={styles.compactArrowButton}
+              onPress={() => {
+                const newDate = new Date(startDate);
+                newDate.setDate(newDate.getDate() - 1);
+                onStartDateChange(newDate);
+              }}
             >
-              <Text style={styles.intervalButtonIcon}>−</Text>
+              <Text style={styles.compactArrow}>‹</Text>
             </TouchableOpacity>
             
-            <View style={styles.intervalDisplay}>
-              <Text style={styles.intervalNumber}>{customization.interval || 1}</Text>
-              <Text style={styles.intervalUnit}>
-                {customization.recurrenceType === 'daily' ? '일마다' : 
-                 customization.recurrenceType === 'weekly' ? '주마다' : '개월마다'}
-              </Text>
-            </View>
+            <Text style={styles.inlineDateText}>
+              {startDate.toLocaleDateString('ko-KR', { 
+                month: 'short', 
+                day: 'numeric',
+              })} {(() => {
+                const today = new Date();
+                const diffTime = startDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const weekday = startDate.toLocaleDateString('ko-KR', { weekday: 'short' });
+                
+                if (diffDays === 0) {
+                  return `${weekday}`;
+                } else if (diffDays === 1) {
+                  return `${weekday}`;
+                } else if (diffDays === -1) {
+                  return `${weekday}`;
+                } else {
+                  return `${weekday}`;
+                }
+              })()}
+            </Text>
             
             <TouchableOpacity 
-              style={styles.modernIntervalButton}
-              onPress={() => onCustomizationChange({ 
-                ...customization, 
-                interval: Math.min(30, (customization.interval || 1) + 1)
-              })}
+              style={styles.compactArrowButton}
+              onPress={() => {
+                const newDate = new Date(startDate);
+                newDate.setDate(newDate.getDate() + 1);
+                onStartDateChange(newDate);
+              }}
             >
-              <Text style={styles.intervalButtonIcon}>+</Text>
+              <Text style={styles.compactArrow}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-      
-      {/* 요일 선택 (주간 반복시) */}
-      {customization.recurrenceType === 'weekly' && (
-        <View style={styles.modernSection}>
-          <Text style={styles.modernSectionTitle}>📅 요일 선택</Text>
-          <View style={styles.modernDayPicker}>
-            {dayNames.map((day, index) => (
+
+        {/* 반복 주기 선택 */}
+        <View style={styles.compactCard}>
+          <Text style={styles.compactLabel}>반복 주기</Text>
+          <View style={styles.recurrenceGrid}>
+            {(['daily', 'weekly', 'monthly'] as const).map((type) => (
               <TouchableOpacity
-                key={index}
+                key={type}
                 style={[
-                  styles.modernDayButton,
-                  selectedDays.includes(index as DayOfWeek) && styles.modernDayButtonActive
+                  styles.modernRecurrenceCard,
+                  customization.recurrenceType === type && styles.modernRecurrenceCardActive
                 ]}
-                onPress={() => onToggleDayOfWeek(index as DayOfWeek)}
+                onPress={() => onCustomizationChange({ ...customization, recurrenceType: type })}
               >
+                <Text style={styles.recurrenceIcon}>
+                  {type === 'daily' ? '📅' : type === 'weekly' ? '📆' : '🗓️'}
+                </Text>
                 <Text style={[
-                  styles.modernDayButtonText,
-                  selectedDays.includes(index as DayOfWeek) && styles.modernDayButtonTextActive
+                  styles.modernRecurrenceText,
+                  customization.recurrenceType === type && styles.modernRecurrenceTextActive
                 ]}>
-                  {day}
+                  {type === 'daily' ? '매일' : type === 'weekly' ? '매주' : '매월'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-      )}
-
-      {/* 알림 설정 */}
-      <View style={styles.modernSection}>
-        <Text style={styles.modernSectionTitle}>🔔 알림 설정</Text>
-        <View style={styles.notificationCard}>
-          <View style={styles.notificationToggle}>
-            <Text style={styles.notificationLabel}>알림 받기</Text>
-            <TouchableOpacity
-              style={[
-                styles.toggleSwitch,
-                customization.notificationEnabled && styles.toggleSwitchActive
-              ]}
-              onPress={() => onCustomizationChange({
-                ...customization,
-                notificationEnabled: !customization.notificationEnabled
-              })}
-            >
-              <View style={[
-                styles.toggleThumb,
-                customization.notificationEnabled && styles.toggleThumbActive
-              ]} />
-            </TouchableOpacity>
-          </View>
           
-          {customization.notificationEnabled && (
-            <View style={styles.timePickerContainer}>
-              <Text style={styles.timePickerLabel}>알림 시간</Text>
-              <View style={styles.timePickerRow}>
-                <TouchableOpacity
-                  style={[styles.timeOption, customization.notificationTime === '09:00' && styles.timeOptionActive]}
-                  onPress={() => onCustomizationChange({ ...customization, notificationTime: '09:00' })}
-                >
-                  <Text style={[styles.timeOptionText, customization.notificationTime === '09:00' && styles.timeOptionTextActive]}>
-                    오전 9시
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.timeOption, customization.notificationTime === '12:00' && styles.timeOptionActive]}
-                  onPress={() => onCustomizationChange({ ...customization, notificationTime: '12:00' })}
-                >
-                  <Text style={[styles.timeOptionText, customization.notificationTime === '12:00' && styles.timeOptionTextActive]}>
-                    정오
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.timeOption, customization.notificationTime === '18:00' && styles.timeOptionActive]}
-                  onPress={() => onCustomizationChange({ ...customization, notificationTime: '18:00' })}
-                >
-                  <Text style={[styles.timeOptionText, customization.notificationTime === '18:00' && styles.timeOptionTextActive]}>
-                    저녁 6시
-                  </Text>
-                </TouchableOpacity>
-              </View>
+          {/* 간격 설정 - 인라인 스타일 */}
+          <View style={styles.inlineCard}>
+            <Text style={styles.inlineLabel}>간격</Text>
+            <View style={styles.inlineIntervalSelector}>
+              <TouchableOpacity 
+                style={styles.compactIntervalButton}
+                onPress={() => onCustomizationChange({ 
+                  ...customization, 
+                  interval: Math.max(1, (customization.interval || 1) - 1)
+                })}
+              >
+                <Text style={styles.compactIntervalIcon}>−</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.inlineIntervalText}>
+                {customization.interval || 1}
+                {customization.recurrenceType === 'daily' ? '일마다' : 
+                 customization.recurrenceType === 'weekly' ? '주마다' : '개월마다'}
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.compactIntervalButton}
+                onPress={() => onCustomizationChange({ 
+                  ...customization, 
+                  interval: Math.min(30, (customization.interval || 1) + 1)
+                })}
+              >
+                <Text style={styles.compactIntervalIcon}>+</Text>
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
         </View>
+
+        {/* 요일 선택 (주간 반복시) - 인라인 스타일 */}
+        {customization.recurrenceType === 'weekly' && (
+          <View style={styles.inlineCard}>
+            <Text style={styles.inlineLabel}>요일</Text>
+            <View style={styles.inlineDayPicker}>
+              {dayNames.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.compactDayButton,
+                    selectedDays.includes(index as DayOfWeek) && styles.compactDayButtonActive
+                  ]}
+                  onPress={() => onToggleDayOfWeek(index as DayOfWeek)}
+                >
+                  <Text style={[
+                    styles.compactDayButtonText,
+                    selectedDays.includes(index as DayOfWeek) && styles.compactDayButtonTextActive
+                  ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* 버튼 영역 */}
-      <View style={styles.modalActionButtons}>
-        <TouchableOpacity style={styles.modalCancelButton} onPress={onBack}>
-          <Text style={styles.modalCancelButtonText}>취소</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modalConfirmButton} onPress={onConfirm}>
-          <Text style={styles.modalConfirmButtonText}>추가</Text>
-        </TouchableOpacity>
-      </View>
+
+
     </View>
   );
 };
@@ -1471,18 +1645,18 @@ const styles = StyleSheet.create({
   },
   // 모던 폼 스타일
   modernForm: {
-    flex: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
   },
   modernHeader: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   taskInfoCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: Spacing.lg,
+    backgroundColor: Colors.white,
+    borderRadius: 8,
+    padding: Spacing.xs,
     borderWidth: 1,
-    borderColor: Colors.veryLightGray,
+    borderColor: Colors.veryLightGray + '40',
   },
   taskTitleRow: {
     flexDirection: 'row',
@@ -1529,35 +1703,150 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   modernSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  compactCard: {
+    marginBottom: Spacing.sm,
+  },
+  compactLabel: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginBottom: Spacing.xs,
+    fontWeight: '500',
+  },
+  
+  // 인라인 스타일들
+  inlineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderRadius: 8,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray + '40',
+    marginBottom: Spacing.xs,
+    minHeight: 44,
+  },
+  inlineLabel: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  
+  // 시작일 인라인 스타일
+  inlineDateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 2,
+    justifyContent: 'flex-end',
+  },
+  compactArrowButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: Spacing.xs,
+  },
+  compactArrow: {
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  inlineDateText: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+    minWidth: 80,
+    textAlign: 'center',
+  },
+  
+  // 간격 설정 인라인 스타일
+  inlineIntervalSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 2,
+    justifyContent: 'flex-end',
+  },
+  compactIntervalButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: Spacing.xs,
+  },
+  compactIntervalIcon: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  inlineIntervalText: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    minWidth: 70,
+    textAlign: 'center',
+  },
+  
+  // 요일 선택 인라인 스타일
+  inlineDayPicker: {
+    flexDirection: 'row',
+    flex: 2,
+    justifyContent: 'flex-end',
+    gap: 3,
+  },
+  compactDayButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.veryLightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactDayButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  compactDayButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  compactDayButtonTextActive: {
+    color: Colors.white,
   },
   modernSectionTitle: {
     ...Typography.h4,
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-    fontSize: 16,
+    marginBottom: Spacing.sm,
+    fontSize: 15,
   },
   // 날짜 선택 스타일
   dateCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: Spacing.md,
+    borderRadius: 10,
+    padding: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: Colors.veryLightGray,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderColor: Colors.veryLightGray + '60',
   },
   modernDateButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.primary + '10',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1570,60 +1859,64 @@ const styles = StyleSheet.create({
   dateDisplay: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
   },
   modernDateText: {
     ...Typography.h4,
     color: Colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   dateWeekday: {
     ...Typography.caption,
     color: Colors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 1,
   },
   // 반복 주기 스타일
   recurrenceGrid: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
   modernRecurrenceCard: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: Spacing.md,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: Colors.veryLightGray,
+    minHeight: 52,
   },
   modernRecurrenceCardActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primary + '08',
   },
-  recurrenceIcon: {
-    fontSize: 20,
-    marginBottom: Spacing.xs,
-  },
   modernRecurrenceText: {
     ...Typography.label,
     color: Colors.textSecondary,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '500',
   },
   modernRecurrenceTextActive: {
     color: Colors.primary,
     fontWeight: '600',
   },
+  recurrenceIcon: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
   // 간격 설정 스타일
   intervalCard: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: Spacing.md,
+    borderRadius: 8,
+    padding: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.veryLightGray,
+    marginTop: Spacing.xs,
   },
   intervalLabel: {
     ...Typography.label,
@@ -1670,12 +1963,12 @@ const styles = StyleSheet.create({
   modernDayPicker: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 4,
   },
   modernDayButton: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 34,
+    borderRadius: 8,
     backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: Colors.veryLightGray,
@@ -1695,90 +1988,6 @@ const styles = StyleSheet.create({
   modernDayButtonTextActive: {
     color: Colors.primary,
     fontWeight: '700',
-  },
-  // 알림 설정 스타일
-  notificationCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.veryLightGray,
-  },
-  notificationToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  notificationLabel: {
-    ...Typography.label,
-    color: Colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  toggleSwitch: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.lightGray,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleSwitchActive: {
-    backgroundColor: Colors.primary,
-  },
-  toggleThumb: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.white,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  toggleThumbActive: {
-    transform: [{ translateX: 20 }],
-  },
-  timePickerContainer: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.veryLightGray,
-    paddingTop: Spacing.md,
-  },
-  timePickerLabel: {
-    ...Typography.label,
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginBottom: Spacing.sm,
-  },
-  timePickerRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  timeOption: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-    borderRadius: 8,
-    backgroundColor: Colors.veryLightGray,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  timeOptionActive: {
-    backgroundColor: Colors.primary + '15',
-    borderColor: Colors.primary,
-  },
-  timeOptionText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  timeOptionTextActive: {
-    color: Colors.primary,
-    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -1810,14 +2019,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    ...Typography.button,
+    ...Typography.label,
     color: Colors.white,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.veryLightGray,
   },
   tab: {
     flex: 1,
@@ -1830,7 +2039,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.primary,
   },
   tabText: {
-    ...Typography.button,
+    ...Typography.label,
     color: Colors.textSecondary,
   },
   tabTextActive: {
@@ -1859,7 +2068,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...Typography.h4,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
   taskItem: {
@@ -1867,7 +2076,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderRadius: 8,
     marginBottom: Spacing.sm,
   },
@@ -1880,12 +2089,12 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: Colors.veryLightGray,
     marginRight: Spacing.md,
   },
   taskText: {
     ...Typography.body,
-    color: Colors.text,
+    color: Colors.textPrimary,
     flex: 1,
   },
   overdueText: {
@@ -1931,7 +2140,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   templateItem: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderRadius: 8,
     padding: Spacing.md,
     marginBottom: Spacing.md,
@@ -1948,7 +2157,7 @@ const styles = StyleSheet.create({
     maxWidth: '48%',
     borderWidth: 1,
     borderColor: Colors.veryLightGray,
-    shadowColor: Colors.shadow,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 1,
@@ -1990,7 +2199,7 @@ const styles = StyleSheet.create({
   },
   templateItemTitle: {
     ...Typography.h4,
-    color: Colors.text,
+    color: Colors.textPrimary,
     flex: 1,
   },
   templatePriority: {
@@ -2011,7 +2220,7 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   backButtonText: {
-    ...Typography.button,
+    ...Typography.label,
     color: Colors.primary,
   },
   formTitle: {
@@ -2026,36 +2235,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
   },
-  modalActionButtons: {
+  modalFooter: {
     flexDirection: 'row',
-    paddingTop: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
+    padding: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray + '60',
+    backgroundColor: Colors.white,
+    gap: Spacing.sm,
   },
   modalCancelButton: {
     flex: 1,
     backgroundColor: Colors.veryLightGray,
-    paddingVertical: Spacing.md,
-    borderRadius: 12,
+    paddingVertical: Spacing.xs,
+    borderRadius: 8,
     alignItems: 'center',
+    minHeight: 36,
   },
   modalCancelButtonText: {
-    ...Typography.label,
+    ...Typography.body,
     color: Colors.textSecondary,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   modalConfirmButton: {
     flex: 1,
     backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: 12,
+    paddingVertical: Spacing.xs,
+    borderRadius: 8,
     alignItems: 'center',
+    minHeight: 36,
   },
   modalConfirmButtonText: {
-    ...Typography.label,
+    ...Typography.body,
     color: Colors.white,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   formSection: {
@@ -2063,7 +2277,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     ...Typography.h4,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
   dateRow: {
@@ -2076,7 +2290,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     ...Typography.h4,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginHorizontal: Spacing.lg,
   },
   recurrenceRow: {
@@ -2088,8 +2302,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     marginHorizontal: Spacing.xs,
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    borderColor: Colors.veryLightGray,
     borderWidth: 1,
     borderRadius: 8,
     alignItems: 'center',
@@ -2099,8 +2313,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   recurrenceButtonText: {
-    ...Typography.button,
-    color: Colors.text,
+    ...Typography.label,
+    color: Colors.textPrimary,
   },
   recurrenceButtonTextActive: {
     color: Colors.white,
@@ -2113,8 +2327,8 @@ const styles = StyleSheet.create({
   intervalButton: {
     width: 40,
     height: 40,
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    borderColor: Colors.veryLightGray,
     borderWidth: 1,
     borderRadius: 8,
     justifyContent: 'center',
@@ -2123,25 +2337,20 @@ const styles = StyleSheet.create({
   intervalInput: {
     width: 60,
     height: 40,
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    borderColor: Colors.veryLightGray,
     borderWidth: 1,
     borderRadius: 8,
     textAlign: 'center',
     marginHorizontal: Spacing.sm,
     ...Typography.body,
   },
-  intervalUnit: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    marginLeft: Spacing.sm,
-  },
   dayPickerRow: {
     marginBottom: Spacing.md,
   },
   dayPickerLabel: {
     ...Typography.body,
-    color: Colors.text,
+    color: Colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   dayPicker: {
@@ -2151,8 +2360,8 @@ const styles = StyleSheet.create({
   dayButton: {
     width: 36,
     height: 36,
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    borderColor: Colors.veryLightGray,
     borderWidth: 1,
     borderRadius: 18,
     justifyContent: 'center',
@@ -2164,7 +2373,7 @@ const styles = StyleSheet.create({
   },
   dayButtonText: {
     ...Typography.caption,
-    color: Colors.text,
+    color: Colors.textPrimary,
   },
   dayButtonTextActive: {
     color: Colors.white,
@@ -2177,7 +2386,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
   confirmButtonText: {
-    ...Typography.button,
+    ...Typography.label,
     color: Colors.white,
     fontSize: 16,
   },
@@ -2361,12 +2570,6 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 6,
   },
-  overdueText: {
-    ...Typography.caption,
-    fontSize: 9,
-    color: Colors.white,
-    fontWeight: '600',
-  },
   todayStatus: {
     backgroundColor: Colors.warning,
     paddingHorizontal: 4,
@@ -2386,8 +2589,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
+  taskAddModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalBackdrop: {
     flex: 1,
+  },
+  taskAddModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   taskActionModalCompact: {
     backgroundColor: Colors.white,
@@ -2400,9 +2616,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: 0,
+    height: 60,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.veryLightGray,
+    borderBottomColor: Colors.veryLightGray + '60',
   },
   modalTitleCompact: {
     ...Typography.h4,
@@ -2558,6 +2775,14 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     paddingBottom: 34, // Safe area
   },
+  taskAddModalCentered: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    width: '95%',
+    height: '85%',
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -2647,5 +2872,120 @@ const styles = StyleSheet.create({
     ...Typography.label,
     color: Colors.white,
     fontWeight: '600',
+  },
+
+  // 모달 관련 스타일
+  modernModal: {
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    maxHeight: '80%',
+    width: '90%',
+  },
+  modalTitle: {
+    ...Typography.h3,
+    color: Colors.textPrimary,
+    flex: 1,
+    textAlign: 'left',
+  },
+  modalContent: {
+    backgroundColor: Colors.white,
+    flex: 1,
+    paddingHorizontal: 0,
+  },
+
+  // 미래 일정 미리보기 스타일
+  previewCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray + '40',
+  },
+  previewItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray + '40',
+  },
+  previewNumber: {
+    ...Typography.caption,
+    color: Colors.primary,
+    fontWeight: '700',
+    width: 24,
+    textAlign: 'center',
+    marginRight: Spacing.md,
+  },
+  previewDateInfo: {
+    flex: 1,
+  },
+  previewDate: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  previewWeekday: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  previewMoreIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray + '60',
+    marginTop: Spacing.sm,
+  },
+  previewMoreText: {
+    ...Typography.h3,
+    color: Colors.textSecondary,
+    width: 24,
+    textAlign: 'center',
+    marginRight: Spacing.md,
+  },
+  previewMoreSubtext: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  
+  // 달력 관련 스타일
+  calendarContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    padding: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray + '40',
+    maxHeight: 280,
+  },
+  calendar: {
+    borderRadius: 8,
+  },
+  calendarHint: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  calendarDay: {
+    width: 28,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5,
+  },
+  calendarDayMarked: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  calendarDayText: {
+    fontSize: 12,
+    fontWeight: '400',
   },
 });

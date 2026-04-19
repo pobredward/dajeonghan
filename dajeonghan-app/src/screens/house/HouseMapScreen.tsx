@@ -1,30 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Modal,
-  ScrollView,
   ActivityIndicator,
-  Animated,
-  PanResponder,
+  ScrollView,
   Alert,
-  TextInput,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
 import { HouseLayout, Room, Furniture } from '@/types/house.types';
-import { LifeObject } from '@/types/lifeobject.types';
-import { Task } from '@/types/task.types';
-import { getLifeObjects, getTasks } from '@/services/firestoreService';
 import { getHouseLayout } from '@/services/houseService';
 import { useAuth } from '@/contexts/AuthContext';
-import { DustParticles, PulseEffect } from '@/components/AnimationEffects';
+import { PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
@@ -34,21 +27,20 @@ interface ModalData {
   item: { type: 'room'; room: Room } | null;
 }
 
-interface FurnitureWithData extends Furniture {
-  linkedObjects: LifeObject[];
-  linkedTasks: Task[];
-  calculatedDirtyScore: number;
+
+interface HouseMapScreenProps {
+  layout?: HouseLayout;
+  onEdit?: () => void;
 }
 
-export const HouseMapScreen: React.FC = () => {
+export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLayout, onEdit }) => {
   const { userId } = useAuth();
   const navigation = useNavigation<NavigationProp>();
-  const [layout, setLayout] = useState<HouseLayout | null>(null);
+  const [layout, setLayout] = useState<HouseLayout | null>(propsLayout || null);
   const [modalData, setModalData] = useState<ModalData>({
     visible: false,
     item: null,
   });
-  const [furnitureDataMap, setFurnitureDataMap] = useState<Map<string, FurnitureWithData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   
@@ -69,23 +61,22 @@ export const HouseMapScreen: React.FC = () => {
 
   // 초기 로딩 및 userId 변경 시에만 로딩 표시
   useEffect(() => {
-    loadHouseLayout(true);
-  }, [userId]);
+    if (propsLayout) {
+      setLayout(propsLayout);
+      setLoading(false);
+    } else {
+      loadHouseLayout(true);
+    }
+  }, [userId, propsLayout]);
 
   // 화면이 포커스될 때 가구 데이터만 조용히 새로고침
   useFocusEffect(
     React.useCallback(() => {
       if (layout) {
-        loadFurnitureData(false); // 로딩 없이 가구 데이터만 업데이트
+        // 필요시 미래에 데이터 새로고침 로직 추가 가능
       }
     }, [layout])
   );
-
-  useEffect(() => {
-    if (layout) {
-      loadFurnitureData(true); // 첫 로드 시에만 로딩 표시
-    }
-  }, [layout, userId]);
 
   const loadHouseLayout = async (forceReload = false) => {
     if (!userId) return;
@@ -112,72 +103,6 @@ export const HouseMapScreen: React.FC = () => {
     }
   };
 
-  const loadFurnitureData = async (showLoading = false) => {
-    if (!userId || !layout) return;
-
-    try {
-      console.log('loadFurnitureData 호출됨');
-      if (showLoading) {
-        setLoading(true);
-      }
-      const dataMap = new Map<string, FurnitureWithData>();
-
-      // 모든 LifeObject와 Task 가져오기
-      const allObjects = await getLifeObjects(userId);
-      const allTasks = await getTasks(userId);
-      console.log('전체 Task 개수:', allTasks.length);
-
-      // 각 가구에 대해 데이터 연결
-      for (const room of layout.rooms) {
-        for (const furniture of room.furnitures) {
-          const linkedObjects = allObjects.filter((obj) =>
-            furniture.linkedObjectIds.includes(obj.id)
-          );
-
-          const linkedTasks = allTasks.filter((task) =>
-            furniture.linkedObjectIds.includes(task.objectId)
-          );
-          
-          console.log(`가구 ${furniture.name} (${furniture.id}):`, {
-            linkedObjectIds: furniture.linkedObjectIds,
-            linkedTasksCount: linkedTasks.length
-          });
-
-          // dirtyScore 계산
-          const now = new Date();
-          const overdueTasks = linkedTasks.filter(
-            (task) => task.recurrence.nextDue && new Date(task.recurrence.nextDue) < now
-          );
-
-          let calculatedDirtyScore = 0;
-          overdueTasks.forEach((task) => {
-            if (task.recurrence.nextDue) {
-              const daysOverdue = Math.floor(
-                (now.getTime() - new Date(task.recurrence.nextDue).getTime()) /
-                  (1000 * 60 * 60 * 24)
-              );
-              calculatedDirtyScore += Math.min(daysOverdue * 10, 50);
-            }
-          });
-
-          dataMap.set(furniture.id, {
-            ...furniture,
-            linkedObjects,
-            linkedTasks,
-            calculatedDirtyScore: Math.min(calculatedDirtyScore, 100),
-          });
-        }
-      }
-
-      setFurnitureDataMap(dataMap);
-    } catch (error) {
-      console.error('Failed to load furniture data:', error);
-    } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
-    }
-  };
 
   const handleRoomPress = (room: Room) => {
     setModalData({ visible: true, item: { type: 'room', room } });
@@ -228,13 +153,10 @@ export const HouseMapScreen: React.FC = () => {
   };
 
   const renderFurniture = (room: Room, furniture: Furniture) => {
-    const furnitureData = furnitureDataMap.get(furniture.id);
-    const hasDirt = (furnitureData?.calculatedDirtyScore || furniture.dirtyScore) > 30;
-    const dirtOpacity = Math.min((furnitureData?.calculatedDirtyScore || furniture.dirtyScore) / 100, 0.6);
-    const taskCount = furnitureData?.linkedTasks.length || furniture.linkedObjectIds.length;
-    const hasOverdueTasks = furnitureData?.linkedTasks.some(
-      (task) => task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date()
-    ) || false;
+    const hasDirt = furniture.dirtyScore > 30;
+    const dirtOpacity = Math.min(furniture.dirtyScore / 100, 0.6);
+    const taskCount = furniture.linkedObjectIds.length;
+    const hasOverdueTasks = false; // 간소화: 세부 페이지에서 확인
 
     const absoluteX = room.position.x + furniture.position.x;
     const absoluteY = room.position.y + furniture.position.y;
@@ -269,7 +191,7 @@ export const HouseMapScreen: React.FC = () => {
               rx={8}
               opacity={dirtOpacity}
             />
-            <DustParticles x={centerX} y={centerY} show={hasDirt} />
+            {/* DustParticles 제거됨 */}
           </>
         )}
 
@@ -313,7 +235,7 @@ export const HouseMapScreen: React.FC = () => {
     const charX = layout.character.position.x;
     const charY = layout.character.position.y;
     return (
-      <G onPress={() => alert('캐릭터 클릭!')}>
+      <G onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
         <Circle
           cx={charX}
           cy={charY}
@@ -329,392 +251,7 @@ export const HouseMapScreen: React.FC = () => {
   const getModalContent = () => {
     if (!modalData.item) return null;
 
-    if (modalData.item.type === 'furniture') {
-      const { furniture, room } = modalData.item;
-      const furnitureData = furnitureDataMap.get(furniture.id);
-      const linkedTasks = furnitureData?.linkedTasks || [];
-      const linkedObjects = furnitureData?.linkedObjects || [];
-      const dirtyScore = furnitureData?.calculatedDirtyScore || furniture.dirtyScore;
-
-      return (
-        <View style={styles.modalContent}>
-          {/* 헤더 */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalEmoji}>{furniture.emoji}</Text>
-            <View style={styles.modalHeaderText}>
-              <Text style={styles.modalTitle}>{furniture.name}</Text>
-              <Text style={styles.modalSubtitle}>
-                {room.name} · {linkedTasks.length > 0 ? `할 일 ${linkedTasks.length}개` : '할 일 없음'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* 탭 바 */}
-          <View style={styles.tabBar}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'info' && styles.tabActive]}
-              onPress={() => {
-                setActiveTab('info');
-                setTaskAddState({ step: null, selectedTemplate: null });
-              }}
-            >
-              <Text style={[styles.tabText, activeTab === 'info' && styles.tabTextActive]}>
-                Task 확인
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'add' && styles.tabActive]}
-              onPress={handleShowTaskTemplates}
-            >
-              <Text style={[styles.tabText, activeTab === 'add' && styles.tabTextActive]}>
-                Task 추가
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* 탭 컨텐츠 */}
-          {activeTab === 'info' ? (
-            // Task 확인 탭
-            <>
-              {dirtyScore > 30 && (
-                <View style={styles.warningBox}>
-                  <Text style={styles.warningText}>
-                    🧹 청소가 필요해요 (더러움 {Math.round(dirtyScore)}%)
-                  </Text>
-                </View>
-              )}
-
-              <ScrollView style={styles.taskList}>
-                {linkedObjects.length > 0 && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>연결된 항목 ({linkedObjects.length})</Text>
-                    {linkedObjects.map((obj) => (
-                      <View key={obj.id} style={styles.taskItem}>
-                        <Text style={styles.furnitureEmoji}>
-                          {obj.type === 'food' ? '🥗' : obj.type === 'cleaning' ? '🧹' : '💊'}
-                        </Text>
-                        <Text style={styles.taskText}>{obj.name}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {linkedTasks.length > 0 && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>할 일 ({linkedTasks.length})</Text>
-                    {linkedTasks.map((task) => (
-                      <View key={task.id} style={styles.taskItem}>
-                        <View style={styles.taskCheckbox} />
-                        <Text style={styles.taskText}>
-                          {task.title}
-                          {task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date() && (
-                            <Text style={styles.overdueText}> (연체)</Text>
-                          )}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {linkedTasks.length === 0 && linkedObjects.length === 0 && (
-                  <Text style={styles.emptyText}>연결된 항목이 없어요. Task 추가 탭에서 추가해보세요!</Text>
-                )}
-              </ScrollView>
-            </>
-          ) : (
-            // Task 추가 탭
-            <>
-              {taskAddState.step === 'customize' ? (
-                // 커스터마이징 화면
-                <>
-                  <View style={styles.customizeHeader}>
-                    <TouchableOpacity 
-                      onPress={handleBackToTemplates}
-                      style={styles.backButton}
-                    >
-                      <Text style={styles.backButtonText}>← </Text>
-                    </TouchableOpacity>
-                    <View style={styles.modalHeaderText}>
-                      <Text style={styles.modalTitle}>{taskAddState.selectedTemplate?.title}</Text>
-                      <Text style={styles.modalSubtitle}>주기 설정</Text>
-                    </View>
-                  </View>
-
-                  <ScrollView style={styles.taskList}>
-                    {/* 시작일 선택 */}
-                    <View style={styles.formSection}>
-                      <Text style={styles.formLabel}>📅 시작일</Text>
-                      
-                      {/* 날짜 조정 버튼 */}
-                      <View style={styles.dateAdjustRow}>
-                        <TouchableOpacity
-                          style={styles.dateAdjustButton}
-                          onPress={() => {
-                            const newDate = new Date(startDate);
-                            newDate.setDate(newDate.getDate() - 1);
-                            setStartDate(newDate);
-                          }}
-                        >
-                          <Text style={styles.dateAdjustButtonText}>◀ 하루 전</Text>
-                        </TouchableOpacity>
-                        
-                        <View style={styles.dateDisplay}>
-                          <Text style={styles.dateDisplayText}>
-                            {startDate.toLocaleDateString('ko-KR', { 
-                              month: 'short', 
-                              day: 'numeric',
-                            })}
-                          </Text>
-                          <Text style={styles.dateDisplaySubtext}>
-                            {startDate.toLocaleDateString('ko-KR', { weekday: 'short' })}
-                            {startDate.toDateString() === new Date().toDateString() && '(오늘)'}
-                          </Text>
-                        </View>
-                        
-                        <TouchableOpacity
-                          style={styles.dateAdjustButton}
-                          onPress={() => {
-                            const newDate = new Date(startDate);
-                            newDate.setDate(newDate.getDate() + 1);
-                            setStartDate(newDate);
-                          }}
-                        >
-                          <Text style={styles.dateAdjustButtonText}>하루 후 ▶</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* 시간 설정 */}
-                    <View style={styles.formSection}>
-                      <Text style={styles.formLabel}>⏰ 알림 시간 (선택)</Text>
-                      <View style={styles.timeRow}>
-                        <TextInput
-                          style={styles.timeInput}
-                          placeholder="09"
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.timeColon}>:</Text>
-                        <TextInput
-                          style={styles.timeInput}
-                          placeholder="00"
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                      </View>
-                    </View>
-
-                    {/* 주기 타입 선택 */}
-                    <View style={styles.formSection}>
-                      <Text style={styles.formLabel}>🔄 반복 주기</Text>
-                      <View style={styles.recurrenceTypeRow}>
-                        <TouchableOpacity
-                          style={[
-                            styles.recurrenceTypeButton,
-                            taskCustomization.recurrenceType === 'daily' && styles.recurrenceTypeButtonActive
-                          ]}
-                          onPress={() => {
-                            setTaskCustomization({ ...taskCustomization, recurrenceType: 'daily', interval: 1 });
-                            setSelectedDays([]);
-                          }}
-                        >
-                          <Text style={[
-                            styles.recurrenceTypeText,
-                            taskCustomization.recurrenceType === 'daily' && styles.recurrenceTypeTextActive
-                          ]}>매일</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.recurrenceTypeButton,
-                            taskCustomization.recurrenceType === 'weekly' && styles.recurrenceTypeButtonActive
-                          ]}
-                          onPress={() => setTaskCustomization({ ...taskCustomization, recurrenceType: 'weekly', interval: 1 })}
-                        >
-                          <Text style={[
-                            styles.recurrenceTypeText,
-                            taskCustomization.recurrenceType === 'weekly' && styles.recurrenceTypeTextActive
-                          ]}>매주</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.recurrenceTypeButton,
-                            taskCustomization.recurrenceType === 'monthly' && styles.recurrenceTypeButtonActive
-                          ]}
-                          onPress={() => {
-                            setTaskCustomization({ ...taskCustomization, recurrenceType: 'monthly', interval: 1 });
-                            setSelectedDays([]);
-                          }}
-                        >
-                          <Text style={[
-                            styles.recurrenceTypeText,
-                            taskCustomization.recurrenceType === 'monthly' && styles.recurrenceTypeTextActive
-                          ]}>매월</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* 간격 설정 */}
-                      {taskCustomization.recurrenceType !== 'custom' && (
-                        <View style={styles.intervalRow}>
-                          <Text style={styles.intervalLabel}>
-                            {taskCustomization.recurrenceType === 'daily' ? '일마다' :
-                             taskCustomization.recurrenceType === 'weekly' ? '주마다' : '개월마다'}
-                          </Text>
-                          <View style={styles.intervalInputContainer}>
-                            <TouchableOpacity
-                              style={styles.intervalButton}
-                              onPress={() => {
-                                const newInterval = Math.max(1, (taskCustomization.interval || 1) - 1);
-                                setTaskCustomization({ ...taskCustomization, interval: newInterval });
-                              }}
-                            >
-                              <Text style={styles.intervalButtonText}>−</Text>
-                            </TouchableOpacity>
-                            <TextInput
-                              style={styles.intervalInput}
-                              value={String(taskCustomization.interval || 1)}
-                              onChangeText={(text) => {
-                                const num = parseInt(text) || 1;
-                                setTaskCustomization({ ...taskCustomization, interval: Math.max(1, Math.min(30, num)) });
-                              }}
-                              keyboardType="number-pad"
-                              maxLength={2}
-                            />
-                            <TouchableOpacity
-                              style={styles.intervalButton}
-                              onPress={() => {
-                                const newInterval = Math.min(30, (taskCustomization.interval || 1) + 1);
-                                setTaskCustomization({ ...taskCustomization, interval: newInterval });
-                              }}
-                            >
-                              <Text style={styles.intervalButtonText}>+</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* 요일 선택 (매주 타입일 때만) */}
-                    {taskCustomization.recurrenceType === 'weekly' && (
-                      <View style={styles.formSection}>
-                        <Text style={styles.formLabel}>📆 반복 요일 (선택)</Text>
-                        <View style={styles.dayPickerRow}>
-                          {[
-                            { day: 0 as DayOfWeek, label: '일' },
-                            { day: 1 as DayOfWeek, label: '월' },
-                            { day: 2 as DayOfWeek, label: '화' },
-                            { day: 3 as DayOfWeek, label: '수' },
-                            { day: 4 as DayOfWeek, label: '목' },
-                            { day: 5 as DayOfWeek, label: '금' },
-                            { day: 6 as DayOfWeek, label: '토' },
-                          ].map(({ day, label }) => (
-                            <TouchableOpacity
-                              key={day}
-                              style={[
-                                styles.dayButton,
-                                selectedDays.includes(day) && styles.dayButtonActive
-                              ]}
-                              onPress={() => toggleDayOfWeek(day)}
-                            >
-                              <Text style={[
-                                styles.dayButtonText,
-                                selectedDays.includes(day) && styles.dayButtonTextActive
-                              ]}>{label}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                        <Text style={styles.dayPickerHint}>
-                          {selectedDays.length === 0 
-                            ? '요일을 선택하지 않으면 시작일 기준으로 매주 반복됩니다.' 
-                            : `선택한 요일: ${selectedDays.map(d => ['일','월','화','수','목','금','토'][d]).join(', ')}`}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* 다음 일정 미리보기 */}
-                    <View style={styles.formSection}>
-                      <Text style={styles.formLabel}>🔮 다음 일정 미리보기</Text>
-                      <View style={styles.previewBox}>
-                        {getNextOccurrences(3).map((date, index) => (
-                          <Text key={index} style={styles.previewText}>
-                            {index + 1}. {date.toLocaleDateString('ko-KR', { 
-                              month: 'long', 
-                              day: 'numeric',
-                              weekday: 'short'
-                            })}
-                          </Text>
-                        ))}
-                      </View>
-                    </View>
-                  </ScrollView>
-
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.largeButton]}
-                      onPress={handleBackToTemplates}
-                    >
-                      <Text style={styles.actionButtonText}>뒤로</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.largeButton, styles.primaryButton]}
-                      onPress={handleConfirmTask}
-                    >
-                      <Text style={[styles.actionButtonText, styles.primaryButtonText]}>추가</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                // 템플릿 선택 화면
-                <>
-                  <ScrollView style={styles.taskList}>
-                    {(() => {
-                      const template = getTemplateByFurnitureType(furniture.type);
-                      
-                      if (!template || template.tasks.length === 0) {
-                        return (
-                          <Text style={styles.emptyText}>
-                            이 가구에 대한 추천 Task가 없습니다.
-                          </Text>
-                        );
-                      }
-
-                      return template.tasks.map((task) => (
-                        <TouchableOpacity
-                          key={task.id}
-                          style={styles.templateItem}
-                          onPress={() => handleSelectTemplate(task)}
-                        >
-                          <View style={styles.templateItemHeader}>
-                            <Text style={styles.templateItemTitle}>{task.title}</Text>
-                            <Text style={styles.templateItemCategory}>{task.category}</Text>
-                          </View>
-                          <Text style={styles.templateItemDescription}>
-                            {task.description}
-                          </Text>
-                          <View style={styles.templateItemFooter}>
-                            <Text style={styles.templateItemMeta}>
-                              ⏱️ {task.estimatedMinutes}분
-                            </Text>
-                            <Text style={styles.templateItemMeta}>
-                              🔄 {task.defaultRecurrence.type === 'daily' ? '매일' :
-                                  task.defaultRecurrence.type === 'weekly' ? `${task.defaultRecurrence.interval || 1}주마다` :
-                                  task.defaultRecurrence.type === 'monthly' ? `${task.defaultRecurrence.interval || 1}개월마다` :
-                                  `${task.defaultRecurrence.interval}일마다`}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      ));
-                    })()}
-                  </ScrollView>
-                </>
-              )}
-            </>
-          )}
-        </View>
-      );
-    }
+    // furniture 모달 제거 - FurnitureDetailScreen으로 대체됨
 
     if (modalData.item.type === 'room') {
       const { room } = modalData.item;
@@ -764,9 +301,14 @@ export const HouseMapScreen: React.FC = () => {
   };
 
   const getTotalTasks = () => {
+    if (!layout || !layout.rooms) return 0;
     let total = 0;
-    furnitureDataMap.forEach((data) => {
-      total += data.linkedTasks.length;
+    layout.rooms.forEach(room => {
+      if (room.furnitures) {
+        room.furnitures.forEach(furniture => {
+          total += furniture.linkedObjectIds?.length || 0;
+        });
+      }
     });
     return total;
   };
@@ -803,7 +345,7 @@ export const HouseMapScreen: React.FC = () => {
         <Text style={styles.headerTitle}>🏠 내 집</Text>
         <View style={styles.headerStats}>
           <TouchableOpacity 
-            onPress={() => navigation.navigate('HouseEditor', { layout })} 
+            onPress={onEdit || (() => navigation.navigate('HouseEditor', { layout }))} 
             style={styles.editButton}
           >
             <Text style={styles.editButtonText}>✏️ 편집</Text>
@@ -876,7 +418,7 @@ export const HouseMapScreen: React.FC = () => {
                 },
               ]}
             >
-              <TouchableOpacity onPress={() => alert('캐릭터 클릭!')}>
+              <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
                 <Text style={styles.furnitureEmojiLabel}>🧑</Text>
               </TouchableOpacity>
             </View>
@@ -995,23 +537,6 @@ const styles = StyleSheet.create({
   characterEmoji: {
     fontSize: 40,
     pointerEvents: 'auto',
-  },
-  quickSummary: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  furnitureEmojiLabel: {
-    fontSize: 24,
-  },
-  characterLabel: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 60,
-    height: 60,
   },
   characterEmoji: {
     fontSize: 40,

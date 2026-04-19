@@ -47,4 +47,5 @@ export interface TaskCustomization {
   priority?: PriorityLevel;
   notificationEnabled?: boolean;
   notificationMinutesBefore?: number;
+  notificationTime?: string; // 알림 시간 (HH:MM 형식)
 }
