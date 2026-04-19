@@ -173,7 +173,7 @@ export function NewSection() {
 
 ## 📞 문의
 
-- **이메일**: support@dajeonghan.app
+- **이메일**: support@onmindlab.com
 - **개발사**: OnMind Lab
 - **앱 다운로드**: [iOS](https://apps.apple.com/app/dajeonghan) | [Android](https://play.google.com/store/apps/details?id=com.onmindlab.dajeonghan)
 

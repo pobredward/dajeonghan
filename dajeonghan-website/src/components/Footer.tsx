@@ -6,6 +6,11 @@ import { RenewalModal } from './RenewalModal'
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const handleDownloadClick = () => {
+    setIsModalOpen(true)
+  }
 
   return (
     <footer className="bg-neutral-900 text-white py-16">
@@ -100,7 +105,7 @@ export function Footer() {
               </div>
               <div>
                 <div className="text-sm text-neutral-400">이메일</div>
-                <div className="font-medium">support@dajeonghan.app</div>
+                <div className="font-medium">support@onmindlab.com</div>
               </div>
             </div>
             
@@ -134,10 +139,8 @@ export function Footer() {
               <p className="text-neutral-400">iOS와 Android에서 이용 가능합니다</p>
             </div>
             <div className="flex gap-4">
-              <a 
-                href="https://apps.apple.com/app/dajeonghan" 
-                target="_blank" 
-                rel="noopener noreferrer"
+              <button 
+                onClick={handleDownloadClick}
                 className="flex items-center gap-3 bg-neutral-800 hover:bg-neutral-700 px-4 py-3 rounded-lg transition-colors"
               >
                 <div className="text-2xl">🍎</div>
@@ -145,11 +148,9 @@ export function Footer() {
                   <div className="text-xs text-neutral-400">Download on the</div>
                   <div className="font-semibold">App Store</div>
                 </div>
-              </a>
-              <a 
-                href="https://play.google.com/store/apps/details?id=com.onmindlab.dajeonghan" 
-                target="_blank" 
-                rel="noopener noreferrer"
+              </button>
+              <button 
+                onClick={handleDownloadClick}
                 className="flex items-center gap-3 bg-neutral-800 hover:bg-neutral-700 px-4 py-3 rounded-lg transition-colors"
               >
                 <div className="text-2xl">🤖</div>
@@ -157,7 +158,7 @@ export function Footer() {
                   <div className="text-xs text-neutral-400">Get it on</div>
                   <div className="font-semibold">Google Play</div>
                 </div>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -178,6 +179,12 @@ export function Footer() {
             </p>
           </div>
         </div>
+        
+        {/* 리뉴얼 안내 모달 */}
+        <RenewalModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+        />
       </div>
     </footer>
   )
