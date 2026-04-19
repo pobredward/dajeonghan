@@ -1652,11 +1652,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   taskInfoCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 8,
-    padding: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.veryLightGray + '40',
+    paddingVertical: Spacing.xs,
   },
   taskTitleRow: {
     flexDirection: 'row',
