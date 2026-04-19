@@ -29,7 +29,7 @@ export function RenewalModal({ isOpen, onClose }: RenewalModalProps) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              transition={{ duration: 0.3 }}
             >
               {/* 닫기 버튼 */}
               <button
@@ -44,7 +44,7 @@ export function RenewalModal({ isOpen, onClose }: RenewalModalProps) {
                 <motion.div
                   className="w-20 h-20 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4"
                   animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
                   <div className="w-12 h-12 bg-white rounded-full p-2">
                     <img 

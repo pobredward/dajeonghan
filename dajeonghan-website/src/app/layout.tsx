@@ -8,6 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://dajeonghan.app'),
   title: "다정한 - 3D 하우스 맵 기반 스마트 라이프케어",
   description: "3D 하우스 맵으로 집안일부터 건강관리까지, 하나의 앱에서 체계적이고 다정하게 관리하세요. 냉장고 유통기한, 청소 루틴, 약 복용을 통합 관리하는 스마트 생활관리 앱입니다.",
   keywords: "생활관리 앱, 집안일 관리, 스마트홈 앱, 냉장고 관리, 청소 스케줄, 약 복용 관리, 습관 추적, 3D 하우스 맵",

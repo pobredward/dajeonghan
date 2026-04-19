@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useAnimation, useInView } from 'framer-motion'
+import { motion, useAnimation, useInView, type Variants } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import { DownloadButtons } from './DownloadButtons'
 import { Smartphone, Heart, Star, Sparkles } from 'lucide-react'
@@ -16,7 +16,7 @@ export function CTA() {
     }
   }, [controls, isInView])
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {},
     visible: {
       transition: {
@@ -25,12 +25,12 @@ export function CTA() {
     }
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.6, ease: 'easeOut' }
+      transition: { duration: 0.6 }
     }
   }
 
@@ -39,7 +39,6 @@ export function CTA() {
     rotate: [0, 5, 0],
     transition: {
       duration: 3,
-      ease: 'easeInOut',
       repeat: Infinity
     }
   }
