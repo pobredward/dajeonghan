@@ -34,7 +34,8 @@ export class FurnitureTaskService {
     roomName: string,
     furnitureName: string,
     templateTask: TaskTemplateItem,
-    customization: TaskCustomization
+    customization: TaskCustomization,
+    startDate?: Date
   ): Promise<{ lifeObjectId: string; taskId: string }> {
     try {
       // 1. LifeObject 생성
@@ -55,7 +56,7 @@ export class FurnitureTaskService {
       );
 
       // 2. Recurrence 설정
-      const recurrence = this.createRecurrence(customization);
+      const recurrence = this.createRecurrence(customization, startDate);
 
       // 3. Task 생성
       const taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -183,9 +184,9 @@ export class FurnitureTaskService {
   /**
    * Recurrence 생성
    */
-  private static createRecurrence(customization: TaskCustomization): Recurrence {
-    const now = new Date();
-    let nextDue = new Date(now);
+  private static createRecurrence(customization: TaskCustomization, startDate?: Date): Recurrence {
+    const baseDate = startDate || new Date();
+    let nextDue = new Date(baseDate);
 
     let unit: 'day' | 'week' | 'month' = 'week';
     let interval = customization.interval || 1;
@@ -193,41 +194,50 @@ export class FurnitureTaskService {
     switch (customization.recurrenceType) {
       case 'daily':
         unit = 'day';
-        nextDue.setDate(nextDue.getDate() + interval);
+        // 첫 실행은 startDate, 그 다음부터 interval 적용
+        // nextDue는 이미 baseDate(startDate)로 설정되어 있음
         break;
 
       case 'weekly':
         unit = 'week';
-        nextDue.setDate(nextDue.getDate() + (7 * interval));
-        
         // 특정 요일로 설정 (선택된 요일이 있으면)
         if (customization.dayOfWeek !== undefined) {
-          const currentDay = nextDue.getDay();
-          const daysToAdd = (customization.dayOfWeek - currentDay + 7) % 7;
-          nextDue.setDate(nextDue.getDate() + daysToAdd);
+          const currentDay = baseDate.getDay();
+          const targetDay = customization.dayOfWeek;
+          
+          if (currentDay === targetDay) {
+            // 오늘이 목표 요일이면 오늘부터 시작
+            nextDue = new Date(baseDate);
+          } else {
+            // 다음 목표 요일을 찾음
+            const daysToAdd = (targetDay - currentDay + 7) % 7;
+            nextDue.setDate(nextDue.getDate() + daysToAdd);
+          }
         }
         break;
 
       case 'monthly':
         unit = 'month';
-        nextDue.setMonth(nextDue.getMonth() + interval);
-        
         // 특정 일자로 설정
         if (customization.dayOfMonth !== undefined) {
           nextDue.setDate(customization.dayOfMonth);
+          // 만약 이번 달의 해당 일자가 이미 지났다면 다음 달로
+          if (nextDue < baseDate) {
+            nextDue.setMonth(nextDue.getMonth() + 1);
+          }
         }
         break;
 
       case 'custom':
         unit = 'day';
         interval = customization.interval || 7;
-        nextDue.setDate(nextDue.getDate() + interval);
+        // 첫 실행은 startDate, 그 다음부터 interval 적용
         break;
 
       default:
         unit = 'week';
         interval = 1;
-        nextDue.setDate(nextDue.getDate() + 7);
+        // 첫 실행은 startDate, 그 다음부터 주간 반복
     }
 
     return {

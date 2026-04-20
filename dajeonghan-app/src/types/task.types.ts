@@ -40,6 +40,7 @@ export interface Task extends UserOwnedEntity {
   isCompleted?: boolean; // 일회성 태스크 완료 여부
   completedAt?: Date; // 완료 일시
   lastCompletedAt?: Date; // 마지막 완료 일시 (반복 태스크용)
+  completionDates?: string[]; // 완료된 날짜들의 배열 (toDateString() 형태로 저장)
 }
 
 /**

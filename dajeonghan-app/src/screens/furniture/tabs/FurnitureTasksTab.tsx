@@ -109,7 +109,102 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     notificationEnabled: false,
   });
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
-  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    return today;
+  });
+
+  // 완료 상태 확인 함수
+  const isTaskCompleted = (task: Task): boolean => {
+    if (task.recurrence && task.recurrence.type === 'fixed') {
+      // 반복 Task: completionDates 배열에서 해당 nextDue 날짜가 완료되었는지 확인
+      if (task.recurrence.nextDue) {
+        const nextDueDateString = new Date(task.recurrence.nextDue).toDateString();
+        
+        if (task.completionDates) {
+          // 새로운 방식: completionDates 배열 사용
+          return task.completionDates.includes(nextDueDateString);
+        } else if (task.lastCompletedAt) {
+          // 기존 방식과의 호환성: lastCompletedAt 사용 (fallback)
+          const lastCompletedDate = new Date(task.lastCompletedAt);
+          const nextDueDate = new Date(task.recurrence.nextDue);
+          
+          lastCompletedDate.setHours(0, 0, 0, 0);
+          nextDueDate.setHours(0, 0, 0, 0);
+          
+          return lastCompletedDate.getTime() === nextDueDate.getTime();
+        }
+      }
+    } else {
+      // 일회성 Task: isCompleted 또는 status 확인
+      return task.isCompleted || task.status === 'completed';
+    }
+    
+    return false;
+  };
+
+  // Task를 날짜별로 분류 (Hook은 항상 같은 순서로 호출되어야 함)
+  const categorizedTasks = React.useMemo(() => {
+    const furnitureLinkedTasks = furnitureData?.linkedTasks || [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const overdue: Task[] = [];
+    const todayTasks: Task[] = [];
+    const upcomingTasks: Task[] = [];
+    
+    furnitureLinkedTasks.forEach(task => {
+      if (!task.recurrence?.nextDue) {
+        // nextDue가 없으면 upcoming으로 분류
+        upcomingTasks.push(task);
+        return;
+      }
+      
+      const dueDate = new Date(task.recurrence.nextDue);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      // 완료 상태 확인
+      const isCompleted = isTaskCompleted(task);
+      
+      if (dueDate < today) {
+        // 연체된 할 일 중 완료되지 않은 것만 표시
+        if (!isCompleted) {
+          overdue.push(task);
+        }
+      } else if (dueDate.getTime() === today.getTime()) {
+        // 오늘 할 일은 완료 여부와 상관없이 모두 표시
+        todayTasks.push(task);
+      } else {
+        upcomingTasks.push(task);
+      }
+    });
+    
+    // 각 카테고리 내에서 날짜순 정렬
+    overdue.sort((a, b) => {
+      if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
+      return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
+    });
+    
+    todayTasks.sort((a, b) => {
+      if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
+      return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
+    });
+    
+    upcomingTasks.sort((a, b) => {
+      if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
+      return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
+    });
+    
+    return {
+      overdue,
+      today: todayTasks,
+      upcoming: upcomingTasks,
+    };
+  }, [furnitureData?.linkedTasks]);
 
   // 미래 일정 계산 함수
   const getNextOccurrences = (
@@ -295,11 +390,10 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       notificationMinutesBefore: 30,
     });
     
-    // 기본 시작일은 내일
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    setStartDate(tomorrow);
+    // 기본 시작일은 오늘
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    setStartDate(today);
     
     // 요일 초기화
     setSelectedDays([]);
@@ -315,21 +409,69 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   };
 
   const handleConfirmTask = async () => {
-    if (!taskAddState.selectedTemplate || !userId) return;
+    console.log('handleConfirmTask 호출됨');
+    console.log('taskAddModal.template:', taskAddModal.template);
+    console.log('userId:', userId);
+    
+    if (!taskAddModal.template || !userId) {
+      console.log('조건 실패 - template 또는 userId 없음');
+      return;
+    }
 
     try {
+      console.log('Task 추가 시작...');
+      console.log('customization.recurrenceType:', customization.recurrenceType);
+      console.log('selectedDays:', selectedDays);
       setLoading(true);
       
-      await FurnitureTaskService.addTaskFromTemplate(
-        userId,
-        room.id,
-        furniture.id,
-        room.name,
-        furniture.name,
-        taskAddState.selectedTemplate,
-        customization
-      );
+      if (customization.recurrenceType === 'weekly' && selectedDays.length > 1) {
+        // 다중 요일 선택된 경우 - 각 요일별로 별도 Task 생성
+        console.log('다중 요일 Task 생성 중...');
+        
+        for (const dayOfWeek of selectedDays) {
+          const dayCustomization = {
+            ...customization,
+            dayOfWeek,
+          };
+          
+          await FurnitureTaskService.addTaskFromTemplate(
+            userId,
+            room.id,
+            furniture.id,
+            room.name,
+            furniture.name,
+            taskAddModal.template,
+            dayCustomization,
+            startDate
+          );
+          
+          console.log(`Task 추가 완료 - 요일: ${dayOfWeek}`);
+        }
+      } else {
+        // 단일 Task 생성
+        let taskCustomization = customization;
+        
+        if (customization.recurrenceType === 'weekly' && selectedDays.length === 1) {
+          taskCustomization = {
+            ...customization,
+            dayOfWeek: selectedDays[0],
+          };
+        }
+        
+        await FurnitureTaskService.addTaskFromTemplate(
+          userId,
+          room.id,
+          furniture.id,
+          room.name,
+          furniture.name,
+          taskAddModal.template,
+          taskCustomization,
+          startDate
+        );
+      }
 
+      console.log('Task 추가 성공!');
+      
       // 조용히 완료 - UI 업데이트로 충분함
       
       // 초기화 및 정보 탭으로 이동
@@ -388,11 +530,29 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     });
   };
 
-  const handleCompleteTask = async (task: Task) => {
+  const handleCompleteTask = async (taskOrId: Task | string) => {
+    // Task 객체 또는 ID를 받을 수 있도록 수정
+    let task: Task;
+    let taskId: string;
+    
+    if (typeof taskOrId === 'string') {
+      taskId = taskOrId;
+      const foundTask = linkedTasks.find(t => t.id === taskId);
+      if (!foundTask) {
+        console.error('Task를 찾을 수 없습니다:', taskId);
+        Alert.alert('오류', 'Task를 찾을 수 없습니다.');
+        return;
+      }
+      task = foundTask;
+    } else {
+      task = taskOrId;
+      taskId = String(task.id);
+    }
+    
     console.log('handleCompleteTask 호출됨:', {
       task: task,
-      taskId: task?.id,
-      taskIdType: typeof task?.id,
+      taskId: taskId,
+      taskIdType: typeof taskId,
       taskTitle: task?.title
     });
 
@@ -401,9 +561,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       Alert.alert('오류', 'Task가 존재하지 않습니다.');
       return;
     }
-
-    // Task ID를 문자열로 강제 변환
-    const taskId = String(task.id);
     if (!taskId || taskId === 'undefined' || taskId === 'null' || taskId === '[object Object]') {
       console.error('Task ID가 유효하지 않습니다:', task.id, typeof task.id);
       Alert.alert('오류', `유효하지 않은 할 일 ID입니다. (${taskId})`);
@@ -411,18 +568,45 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     }
 
     // 현재 완료 상태 확인
-    const today = new Date().toDateString();
-    let currentlyCompleted = false;
-    
-    if (task.recurrence && task.recurrence.type === 'fixed') {
-      // 반복 Task: 오늘 완료했는지 확인
-      if (task.lastCompletedAt) {
-        const lastCompletedDate = new Date(task.lastCompletedAt).toDateString();
-        currentlyCompleted = lastCompletedDate === today;
+    const currentlyCompleted = isTaskCompleted(task);
+
+    // 예정된 할 일(미래 일정)을 완료하려 할 때 확인 모달 표시
+    if (!currentlyCompleted && task.recurrence && task.recurrence.nextDue) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const nextDueDate = new Date(task.recurrence.nextDue);
+      nextDueDate.setHours(0, 0, 0, 0);
+      
+      if (nextDueDate > today) {
+        // 미래 일정을 완료하려 할 때 확인 모달
+        Alert.alert(
+          '미래 일정 완료',
+          `"${task.title}"은(는) ${nextDueDate.toLocaleDateString('ko-KR')}에 예정된 할 일입니다.\n\n미리 완료 처리하시겠습니까?\n(완료하면 다음 일정으로 변경됩니다)`,
+          [
+            {
+              text: '취소',
+              style: 'cancel'
+            },
+            {
+              text: '완료',
+              style: 'default',
+              onPress: async () => {
+                try {
+                  setTaskLoadingStates(prev => ({ ...prev, [taskId]: true }));
+                  console.log('미래 할 일 완료 처리 시작:', taskId, task.title);
+                  await handleMarkAsComplete(task, taskId);
+                } catch (error) {
+                  console.error('Failed to complete future task:', error);
+                  Alert.alert('오류', '할 일 완료에 실패했습니다.\n' + (error instanceof Error ? error.message : String(error)));
+                } finally {
+                  setTaskLoadingStates(prev => ({ ...prev, [taskId]: false }));
+                }
+              }
+            }
+          ]
+        );
+        return; // 여기서 함수 종료
       }
-    } else {
-      // 일회성 Task: isCompleted 또는 status 확인
-      currentlyCompleted = task.isCompleted || task.status === 'completed';
     }
 
     try {
@@ -430,8 +614,41 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       setTaskLoadingStates(prev => ({ ...prev, [taskId]: true }));
       
       if (currentlyCompleted) {
-        console.log('완료 취소 처리 시작:', taskId, task.title);
-        await handleUncompleteTask(task, taskId);
+        // 완료된 할 일을 취소할 때도 확인 모달
+        if (task.recurrence && task.recurrence.type === 'fixed') {
+          Alert.alert(
+            '완료 취소',
+            `"${task.title}"의 완료를 취소하시겠습니까?\n\n취소하면 이전 일정으로 되돌아갑니다.`,
+            [
+              {
+                text: '아니오',
+                style: 'cancel'
+              },
+              {
+                text: '취소',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    console.log('완료 취소 처리 시작 (확인 모달에서):', {
+                      taskId,
+                      taskTitle: task.title,
+                      currentNextDue: task.recurrence?.nextDue,
+                      completionDates: task.completionDates
+                    });
+                    await handleUncompleteTask(task);
+                  } catch (error) {
+                    console.error('Failed to uncomplete task:', error);
+                    Alert.alert('오류', '완료 취소에 실패했습니다.\n' + (error instanceof Error ? error.message : String(error)));
+                  }
+                }
+              }
+            ]
+          );
+          return; // 여기서 함수 종료
+        } else {
+          console.log('완료 취소 처리 시작:', taskId, task.title);
+          await handleUncompleteTask(task);
+        }
       } else {
         console.log('완료 처리 시작:', taskId, task.title);
         await handleMarkAsComplete(task, taskId);
@@ -475,12 +692,22 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
               actualInterval: undefined
             };
         
+        // 완료된 날짜들을 배열로 관리
+        const completionDates = task.completionDates || [];
+        const currentDueDateString = currentDue.toDateString();
+        
+        // 해당 날짜가 이미 완료 목록에 없으면 추가
+        if (!completionDates.includes(currentDueDateString)) {
+          completionDates.push(currentDueDateString);
+        }
+        
         updatedTask = {
           recurrence: {
             ...task.recurrence,
             nextDue,
           },
-          lastCompletedAt: new Date(), // 마지막 완료 시간 기록
+          lastCompletedAt: new Date(), // 마지막 완료 시간 (실제 완료 시점)
+          completionDates, // 완료된 날짜들의 배열
           completionHistory: [...(task.completionHistory || []), completionRecord],
           status: 'pending', // 다음 일정을 위해 다시 pending으로 설정
           updatedAt: new Date(),
@@ -509,8 +736,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
           const updatedLinkedTasks = furnitureData.linkedTasks.map(t => 
             t.id === taskId ? { 
               ...t, 
-              ...updatedTask,
-              lastCompletedAt: new Date() // UI에서 즉시 완료 상태 반영
+              ...updatedTask // updatedTask에 이미 모든 필요한 업데이트가 포함됨
             } : t
           );
           setFurnitureData({
@@ -531,7 +757,25 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       // 전체 데이터 새로고침은 제거 - 즉시 UI 업데이트로 충분함
   };
 
-  const handleUncompleteTask = async (task: Task, taskId: string) => {
+  const handleUncompleteTask = async (taskOrId: Task | string) => {
+    // Task 객체 또는 ID를 받을 수 있도록 수정
+    let task: Task;
+    let taskId: string;
+    
+    if (typeof taskOrId === 'string') {
+      taskId = taskOrId;
+      const foundTask = linkedTasks.find(t => t.id === taskId);
+      if (!foundTask) {
+        console.error('Task를 찾을 수 없습니다:', taskId);
+        Alert.alert('오류', 'Task를 찾을 수 없습니다.');
+        return;
+      }
+      task = foundTask;
+    } else {
+      task = taskOrId;
+      taskId = String(task.id);
+    }
+    
     // Task 완료 취소 처리
     let updatedTask: Partial<Task>;
     
@@ -560,20 +804,34 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         updatedCompletionHistory.pop();
       }
       
+      // 완료된 날짜들에서 현재 날짜 제거
+      const completionDates = [...(task.completionDates || [])];
+      const currentDueDateString = currentDue.toDateString();
+      const indexToRemove = completionDates.indexOf(currentDueDateString);
+      if (indexToRemove > -1) {
+        completionDates.splice(indexToRemove, 1);
+      }
+      
       updatedTask = {
         recurrence: {
           ...task.recurrence,
           nextDue: previousDue,
         },
-        lastCompletedAt: updatedCompletionHistory.length > 0 
-          ? updatedCompletionHistory[updatedCompletionHistory.length - 1].date 
-          : undefined, // 이전 완료 시간으로 되돌리기 (없으면 undefined)
+        lastCompletedAt: completionDates.length > 0 ? new Date() : undefined,
+        completionDates, // 해당 날짜를 제거한 완료 날짜 배열
         completionHistory: updatedCompletionHistory,
         status: 'pending',
         updatedAt: new Date(),
       };
       
-      console.log('반복 태스크 이전 일정으로 되돌림:', previousDue);
+      console.log('반복 태스크 이전 일정으로 되돌림:', {
+        taskTitle: task.title,
+        currentDue: currentDue.toISOString(),
+        previousDue: previousDue.toISOString(),
+        interval,
+        unit,
+        completionDates
+      });
     } else {
       // 일회성 Task: 완료 취소
       updatedTask = {
@@ -621,6 +879,76 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     
     // Alert 없이 조용히 취소 (즉시 UI 피드백이 충분함)
     // 전체 데이터 새로고침은 제거 - 즉시 UI 업데이트로 충분함
+  };
+
+  const handleRevertToOriginalSchedule = async (task: Task) => {
+    if (!task.recurrence || task.recurrence.type !== 'fixed') {
+      Alert.alert('오류', '반복 할 일이 아닙니다.');
+      return;
+    }
+
+    Alert.alert(
+      '원래 일정으로 되돌리기',
+      `"${task.title}"을(를) 원래 일정으로 되돌리시겠습니까?\n\n모든 완료 기록이 초기화되고 오늘 또는 연체된 상태로 변경됩니다.`,
+      [
+        {
+          text: '취소',
+          style: 'cancel'
+        },
+        {
+          text: '되돌리기',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const taskId = String(task.id);
+              setTaskLoadingStates(prev => ({ ...prev, [taskId]: true }));
+
+              // 오늘 날짜로 설정
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+
+              const updatedTask: Partial<Task> = {
+                recurrence: {
+                  ...task.recurrence,
+                  nextDue: today, // 오늘로 되돌리기
+                },
+                lastCompletedAt: undefined, // 완료 기록 초기화
+                completionDates: [], // 완료 날짜 배열 초기화
+                completionHistory: [], // 완료 이력 초기화
+                status: 'pending',
+                updatedAt: new Date(),
+              };
+
+              console.log('원래 일정으로 되돌리기:', {
+                taskTitle: task.title,
+                originalNextDue: task.recurrence.nextDue,
+                newNextDue: today.toISOString(),
+              });
+
+              await updateTask(userId!, taskId, updatedTask);
+
+              // UI 즉시 업데이트
+              if (furnitureData) {
+                const updatedLinkedTasks = furnitureData.linkedTasks.map(t => 
+                  t.id === taskId ? { ...t, ...updatedTask } : t
+                );
+                setFurnitureData({
+                  ...furnitureData,
+                  linkedTasks: updatedLinkedTasks
+                });
+              }
+
+              Alert.alert('완료', '원래 일정으로 되돌렸습니다.');
+            } catch (error) {
+              console.error('Failed to revert to original schedule:', error);
+              Alert.alert('오류', '일정 되돌리기에 실패했습니다.\n' + (error instanceof Error ? error.message : String(error)));
+            } finally {
+              setTaskLoadingStates(prev => ({ ...prev, [String(task.id)]: false }));
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handlePostponeTask = async (task: Task) => {
@@ -746,11 +1074,12 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     );
   }
 
-  const { linkedTasks, linkedObjects, calculatedDirtyScore } = furnitureData || { 
-    linkedTasks: [], 
-    linkedObjects: [], 
-    calculatedDirtyScore: 0 
+  const { linkedTasks, linkedObjects, calculatedDirtyScore } = furnitureData || {
+    linkedTasks: [],
+    linkedObjects: [],
+    calculatedDirtyScore: 0
   };
+
 
   return (
     <View style={styles.container}>
@@ -766,15 +1095,20 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
           )}
 
-          {linkedTasks.length > 0 && (
+          {/* 연체된 할 일 */}
+          {categorizedTasks.overdue.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>할 일</Text>
-                <Text style={styles.taskCount}>{linkedTasks.length}</Text>
+                <View style={styles.sectionTitleContainer}>
+                  <Text style={[styles.sectionTitle, styles.overdueTitle]}>⚠️ 연체된 할 일</Text>
+                  <View style={styles.overdueBadge}>
+                    <Text style={styles.overdueBadgeText}>{categorizedTasks.overdue.length}</Text>
+                  </View>
+                </View>
               </View>
-              
-              {linkedTasks.map((task, index) => {
-                console.log(`렌더링 태스크 ${index}:`, {
+
+              {categorizedTasks.overdue.map((task, index) => {
+                console.log(`렌더링 연체 태스크 ${index}:`, {
                   id: task.id,
                   idType: typeof task.id,
                   title: task.title
@@ -790,30 +1124,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
                 
                 // 완료 상태 판단
-                const today = new Date().toDateString();
-                let isCompleted = false;
+                const isCompleted = isTaskCompleted(task);
                 
-                if (task.recurrence && task.recurrence.type === 'fixed') {
-                  // 반복 Task: 오늘 완료했는지 확인
-                  if (task.lastCompletedAt) {
-                    const lastCompletedDate = new Date(task.lastCompletedAt).toDateString();
-                    isCompleted = lastCompletedDate === today;
-                  }
-                } else {
-                  // 일회성 Task: isCompleted 또는 status 확인
-                  isCompleted = task.isCompleted || task.status === 'completed';
-                }
-                
-                console.log(`Task ${task.title} 완료 상태:`, {
-                  isRecurring: task.recurrence && task.recurrence.type === 'fixed',
-                  lastCompletedAt: task.lastCompletedAt,
-                  lastCompletedAtString: task.lastCompletedAt ? new Date(task.lastCompletedAt).toDateString() : null,
-                  todayString: today,
-                  isCompletedResult: isCompleted,
-                  taskIsCompleted: task.isCompleted,
-                  taskStatus: task.status
-                });
-
                 const isTaskLoading = taskLoadingStates[task.id] || false;
                 
                 return (
@@ -855,8 +1167,12 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                       ) : (
                         <Text style={[
                           styles.completeButtonIcon,
-                          isCompleted && styles.completeButtonIconCompleted
-                        ]}>✓</Text>
+                          isCompleted && styles.completeButtonIconCompleted,
+                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
+                          isToday && !isCompleted && styles.completeButtonIconToday
+                        ]}>
+                          {isCompleted ? '✓' : '○'}
+                        </Text>
                       )}
                     </TouchableOpacity>
 
@@ -925,7 +1241,300 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
           )}
 
-          {linkedTasks.length === 0 && (
+          {/* 오늘 할 일 */}
+          {categorizedTasks.today.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Text style={[styles.sectionTitle, styles.todayTitle]}>📅 오늘 할 일</Text>
+                  <View style={styles.todayBadge}>
+                    <Text style={styles.todayBadgeText}>{categorizedTasks.today.length}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {categorizedTasks.today.map((task, index) => {
+                console.log(`렌더링 오늘 태스크 ${index}:`, {
+                  id: task.id,
+                  idType: typeof task.id,
+                  title: task.title
+                });
+
+                if (!task || typeof task.id !== 'string') {
+                  console.error('렌더링 중 잘못된 task:', task);
+                  return null;
+                }
+
+                const isOverdue = task.recurrence && task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date();
+                const dueDate = task.recurrence && task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : null;
+                const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
+                
+                // 완료 상태 판단
+                const isCompleted = isTaskCompleted(task);
+                
+                const isTaskLoading = taskLoadingStates[task.id] || false;
+                
+                return (
+                  <TouchableOpacity 
+                    key={task.id} 
+                    style={[
+                      styles.taskItemEfficient,
+                      isCompleted && styles.taskItemCompleted,
+                      isOverdue && !isCompleted && styles.taskItemOverdue,
+                      isToday && !isCompleted && styles.taskItemToday
+                    ]}
+                    onPress={() => setTaskDetailModal({ visible: true, task })}
+                    activeOpacity={0.8}
+                  >
+                    {/* 좌측: 완료/완료취소 버튼 */}
+                    <TouchableOpacity 
+                      style={[
+                        styles.completeButtonEfficient,
+                        isCompleted && styles.completeButtonCompleted,
+                        isOverdue && !isCompleted && styles.completeButtonOverdue,
+                        isToday && !isCompleted && styles.completeButtonToday,
+                        isTaskLoading && styles.completeButtonLoading
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (!isTaskLoading) {
+                          handleCompleteTask(task);
+                        }
+                      }}
+                      activeOpacity={isTaskLoading ? 1 : 0.4}
+                      disabled={isTaskLoading}
+                    >
+                      {isTaskLoading ? (
+                        <ActivityIndicator 
+                          size="small" 
+                          color={Colors.white} 
+                          style={styles.completeButtonLoader}
+                        />
+                      ) : (
+                        <Text style={[
+                          styles.completeButtonIcon,
+                          isCompleted && styles.completeButtonIconCompleted,
+                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
+                          isToday && !isCompleted && styles.completeButtonIconToday
+                        ]}>
+                          {isCompleted ? '✓' : '○'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* 메인 콘텐츠 영역 */}
+                    <View style={styles.taskMainContent}>
+                      <View style={styles.taskHeader}>
+                        <Text 
+                          style={[
+                            styles.taskTitleEfficient, 
+                            isCompleted && styles.taskTitleCompleted,
+                            isOverdue && !isCompleted && styles.taskTitleOverdue,
+                            isToday && !isCompleted && styles.taskTitleToday
+                          ]} 
+                          numberOfLines={1}
+                        >
+                          {task.title}
+                        </Text>
+                        
+                        {/* 우선순위 표시 */}
+                        <View style={[
+                          styles.priorityIndicator,
+                          task.priority === 'high' && styles.priorityHigh,
+                          task.priority === 'medium' && styles.priorityMedium,
+                          task.priority === 'low' && styles.priorityLow,
+                        ]} />
+                      </View>
+                      
+                      {dueDate && (
+                        <View style={styles.taskMetaEfficient}>
+                          <Text style={[
+                            styles.taskDueDateEfficient,
+                            isOverdue && styles.taskDueDateOverdue,
+                            isToday && styles.taskDueDateToday
+                          ]}>
+                            {isToday ? '오늘 마감' : 
+                             isOverdue ? `${Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))}일 연체` :
+                             dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                          </Text>
+                          
+                          {task.recurrence.type === 'fixed' && (
+                            <Text style={styles.taskRecurrenceEfficient}>
+                              {task.recurrence.unit === 'day' ? '매일' :
+                               task.recurrence.unit === 'week' ? '매주' : '매월'} 반복
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* 우측: 상태 표시 */}
+                    <View style={styles.taskStatus}>
+                      {isOverdue && (
+                        <View style={styles.overdueStatus}>
+                          <Text style={styles.overdueText}>연체</Text>
+                        </View>
+                      )}
+                      {isToday && !isOverdue && (
+                        <View style={styles.todayStatus}>
+                          <Text style={styles.todayText}>오늘</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* 예정된 할 일 */}
+          {categorizedTasks.upcoming.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleContainer}>
+                  <Text style={[styles.sectionTitle, styles.upcomingTitle]}>📋 예정된 할 일</Text>
+                  <View style={styles.upcomingBadge}>
+                    <Text style={styles.upcomingBadgeText}>{categorizedTasks.upcoming.length}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {categorizedTasks.upcoming.map((task, index) => {
+                console.log(`렌더링 예정 태스크 ${index}:`, {
+                  id: task.id,
+                  idType: typeof task.id,
+                  title: task.title
+                });
+
+                if (!task || typeof task.id !== 'string') {
+                  console.error('렌더링 중 잘못된 task:', task);
+                  return null;
+                }
+
+                const isOverdue = task.recurrence && task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date();
+                const dueDate = task.recurrence && task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : null;
+                const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
+                
+                // 완료 상태 판단
+                const isCompleted = isTaskCompleted(task);
+                
+                const isTaskLoading = taskLoadingStates[task.id] || false;
+                
+                return (
+                  <TouchableOpacity 
+                    key={task.id} 
+                    style={[
+                      styles.taskItemEfficient,
+                      isCompleted && styles.taskItemCompleted,
+                      isOverdue && !isCompleted && styles.taskItemOverdue,
+                      isToday && !isCompleted && styles.taskItemToday,
+                      { opacity: 0.8 }, // 예정된 할 일은 살짝 투명
+                    ]}
+                    onPress={() => setTaskDetailModal({ visible: true, task })}
+                    activeOpacity={0.8}
+                  >
+                    {/* 좌측: 완료/완료취소 버튼 */}
+                    <TouchableOpacity 
+                      style={[
+                        styles.completeButtonEfficient,
+                        isCompleted && styles.completeButtonCompleted,
+                        isOverdue && !isCompleted && styles.completeButtonOverdue,
+                        isToday && !isCompleted && styles.completeButtonToday,
+                        isTaskLoading && styles.completeButtonLoading
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (!isTaskLoading) {
+                          handleCompleteTask(task);
+                        }
+                      }}
+                      activeOpacity={isTaskLoading ? 1 : 0.4}
+                      disabled={isTaskLoading}
+                    >
+                      {isTaskLoading ? (
+                        <ActivityIndicator 
+                          size="small" 
+                          color={Colors.white} 
+                          style={styles.completeButtonLoader}
+                        />
+                      ) : (
+                        <Text style={[
+                          styles.completeButtonIcon,
+                          isCompleted && styles.completeButtonIconCompleted,
+                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
+                          isToday && !isCompleted && styles.completeButtonIconToday
+                        ]}>
+                          {isCompleted ? '✓' : '○'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* 메인 콘텐츠 영역 */}
+                    <View style={styles.taskMainContent}>
+                      <View style={styles.taskHeader}>
+                        <Text 
+                          style={[
+                            styles.taskTitleEfficient, 
+                            isCompleted && styles.taskTitleCompleted,
+                            isOverdue && !isCompleted && styles.taskTitleOverdue,
+                            isToday && !isCompleted && styles.taskTitleToday
+                          ]} 
+                          numberOfLines={1}
+                        >
+                          {task.title}
+                        </Text>
+                        
+                        {/* 우선순위 표시 */}
+                        <View style={[
+                          styles.priorityIndicator,
+                          task.priority === 'high' && styles.priorityHigh,
+                          task.priority === 'medium' && styles.priorityMedium,
+                          task.priority === 'low' && styles.priorityLow,
+                        ]} />
+                      </View>
+                      
+                      {dueDate && (
+                        <View style={styles.taskMetaEfficient}>
+                          <Text style={[
+                            styles.taskDueDateEfficient,
+                            isOverdue && styles.taskDueDateOverdue,
+                            isToday && styles.taskDueDateToday
+                          ]}>
+                            {isToday ? '오늘 마감' : 
+                             isOverdue ? `${Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))}일 연체` :
+                             dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                          </Text>
+                          
+                          {task.recurrence.type === 'fixed' && (
+                            <Text style={styles.taskRecurrenceEfficient}>
+                              {task.recurrence.unit === 'day' ? '매일' :
+                               task.recurrence.unit === 'week' ? '매주' : '매월'} 반복
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* 우측: 상태 표시 */}
+                    <View style={styles.taskStatus}>
+                      {isOverdue && (
+                        <View style={styles.overdueStatus}>
+                          <Text style={styles.overdueText}>연체</Text>
+                        </View>
+                      )}
+                      {isToday && !isOverdue && (
+                        <View style={styles.todayStatus}>
+                          <Text style={styles.todayText}>오늘</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {(categorizedTasks.overdue.length === 0 && categorizedTasks.today.length === 0 && categorizedTasks.upcoming.length === 0) && (
             <View style={styles.emptyStateCompact}>
               <Text style={styles.emptyIcon}>📋</Text>
               <Text style={styles.emptyTextCompact}>할 일이 없습니다</Text>
@@ -1183,41 +1792,82 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   </View>
                 </View>
 
-                {/* 액션 버튼들 */}
-                <View style={styles.detailActions}>
-                  <TouchableOpacity
-                    style={[styles.detailActionButton, styles.detailCompleteButton]}
-                    onPress={() => {
-                      handleCompleteTask(taskDetailModal.task!);
-                      setTaskDetailModal({ visible: false, task: null });
-                    }}
-                  >
-                    <Text style={styles.detailActionText}>완료</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.detailActionButton, styles.detailPostponeButton]}
-                    onPress={() => {
-                      setTaskDetailModal({ visible: false, task: null });
-                      setTaskActionModal({ 
-                        visible: true, 
-                        task: taskDetailModal.task, 
-                        action: 'postpone' 
-                      });
-                    }}
-                  >
-                    <Text style={styles.detailActionText}>미루기</Text>
-                  </TouchableOpacity>
+                {/* 액션 버튼들 - 1행 배치 */}
+                <View style={styles.detailActionsContainer}>
+                  <View style={styles.detailActions}>
+                    {(() => {
+                      const isCompleted = isTaskCompleted(taskDetailModal.task);
+                      return (
+                        <TouchableOpacity
+                          style={[
+                            styles.detailActionButtonCompact, 
+                            isCompleted ? styles.detailUncompleteButton : styles.detailCompleteButton
+                          ]}
+                          onPress={() => {
+                            handleCompleteTask(taskDetailModal.task!);
+                            setTaskDetailModal({ visible: false, task: null });
+                          }}
+                        >
+                          <Text style={styles.detailActionTextCompact}>
+                            {isCompleted ? '완료취소' : '완료'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
+                    
+                    <TouchableOpacity
+                      style={[styles.detailActionButtonCompact, styles.detailPostponeButton]}
+                      onPress={() => {
+                        setTaskDetailModal({ visible: false, task: null });
+                        setTaskActionModal({ 
+                          visible: true, 
+                          task: taskDetailModal.task, 
+                          action: 'postpone' 
+                        });
+                      }}
+                    >
+                      <Text style={styles.detailActionTextCompact}>미루기</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.detailActionButton, styles.detailDeleteButton]}
-                    onPress={() => {
-                      setTaskDetailModal({ visible: false, task: null });
-                      handleDeleteTask(taskDetailModal.task!);
-                    }}
-                  >
-                    <Text style={styles.detailActionText}>삭제</Text>
-                  </TouchableOpacity>
+                    {/* 반복 할 일이고 원래 일정에서 밀린 경우에만 표시 */}
+                    {(() => {
+                      const task = taskDetailModal.task;
+                      if (task?.recurrence?.type === 'fixed' && task.recurrence.nextDue) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const nextDue = new Date(task.recurrence.nextDue);
+                        nextDue.setHours(0, 0, 0, 0);
+                        
+                        // 오늘보다 미래이고 완료 기록이 있으면 (밀린 상태)
+                        const hasPushedSchedule = nextDue > today && task.completionHistory && task.completionHistory.length > 0;
+                        
+                        if (hasPushedSchedule) {
+                          return (
+                            <TouchableOpacity
+                              style={[styles.detailActionButtonCompact, styles.detailRevertButton]}
+                              onPress={() => {
+                                handleRevertToOriginalSchedule(taskDetailModal.task!);
+                                setTaskDetailModal({ visible: false, task: null });
+                              }}
+                            >
+                              <Text style={styles.detailActionTextCompact}>복원</Text>
+                            </TouchableOpacity>
+                          );
+                        }
+                      }
+                      return null; // 빈 공간 유지하지 않음
+                    })()}
+
+                    <TouchableOpacity
+                      style={[styles.detailActionButtonCompact, styles.detailDeleteButton]}
+                      onPress={() => {
+                        setTaskDetailModal({ visible: false, task: null });
+                        handleDeleteTask(taskDetailModal.task!);
+                      }}
+                    >
+                      <Text style={styles.detailActionTextCompact}>삭제</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -1276,13 +1926,23 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     <Text style={styles.modalCancelButtonText}>취소</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={styles.modalConfirmButton} 
+                    style={[
+                      styles.modalConfirmButton,
+                      loading && styles.modalConfirmButtonDisabled
+                    ]} 
                     onPress={() => {
+                      if (loading) return;
+                      console.log('추가 버튼 클릭됨');
                       handleConfirmTask();
                       setTaskAddModal({ visible: false, template: null });
                     }}
+                    disabled={loading}
                   >
-                    <Text style={styles.modalConfirmButtonText}>추가</Text>
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.modalConfirmButtonText}>추가</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </>
@@ -2268,6 +2928,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  modalConfirmButtonDisabled: {
+    backgroundColor: Colors.gray,
+    opacity: 0.6,
+  },
   formSection: {
     marginBottom: Spacing.lg,
   },
@@ -2471,6 +3135,12 @@ const styles = StyleSheet.create({
   },
   completeButtonIconCompleted: {
     color: Colors.white, // 완료 시 흰색 체크마크
+  },
+  completeButtonIconOverdue: {
+    color: Colors.error, // 연체 시 빨간색
+  },
+  completeButtonIconToday: {
+    color: Colors.warning, // 오늘 할 일 시 주황색
   },
 
   // 메인 콘텐츠 영역
@@ -2841,12 +3511,15 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 8,
   },
-  detailActions: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+  detailActionsContainer: {
     borderTopWidth: 1,
     borderTopColor: Colors.veryLightGray,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  detailActions: {
+    flexDirection: 'row',
   },
   detailActionButton: {
     flex: 1,
@@ -2855,8 +3528,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  detailActionButtonCompact: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    marginHorizontal: 2,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
   detailCompleteButton: {
     backgroundColor: Colors.success,
+  },
+  detailUncompleteButton: {
+    backgroundColor: Colors.warning,
+  },
+  detailRevertButton: {
+    backgroundColor: '#6B46C1', // 보라색 (되돌리기 의미)
   },
   detailPostponeButton: {
     backgroundColor: Colors.warning,
@@ -2868,6 +3554,11 @@ const styles = StyleSheet.create({
     ...Typography.label,
     color: Colors.white,
     fontWeight: '600',
+  },
+  detailActionTextCompact: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.white,
   },
 
   // 모달 관련 스타일
@@ -2983,5 +3674,87 @@ const styles = StyleSheet.create({
   calendarDayText: {
     fontSize: 12,
     fontWeight: '400',
+  },
+  
+  // 카테고리별 섹션 스타일
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  overdueTitle: {
+    color: Colors.error,
+  },
+  todayTitle: {
+    color: Colors.primary,
+  },
+  upcomingTitle: {
+    color: Colors.textSecondary,
+  },
+  
+  // 카테고리별 배지 스타일
+  overdueBadge: {
+    backgroundColor: Colors.error,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  overdueBadgeText: {
+    ...Typography.caption,
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  todayBadge: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  todayBadgeText: {
+    ...Typography.caption,
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  upcomingBadge: {
+    backgroundColor: Colors.lightGray,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  upcomingBadgeText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  
+  upcomingDateText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  
+  // 간단한 Task 아이템 스타일
+  taskItemSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    marginBottom: Spacing.xs,
+  },
+  
+  taskCheckboxText: {
+    fontSize: 16,
   },
 });
