@@ -4,9 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   ActivityIndicator,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -28,12 +26,6 @@ interface FurnitureTaskCounts {
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
 
-interface ModalData {
-  visible: boolean;
-  item: { type: 'room'; room: Room } | null;
-}
-
-
 interface HouseMapScreenProps {
   layout?: HouseLayout;
 }
@@ -42,10 +34,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const { userId } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [layout, setLayout] = useState<HouseLayout | null>(propsLayout || null);
-  const [modalData, setModalData] = useState<ModalData>({
-    visible: false,
-    item: null,
-  });
   const [loading, setLoading] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [furnitureTaskCounts, setFurnitureTaskCounts] = useState<FurnitureTaskCounts>({});
@@ -160,10 +148,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
 
 
-  const handleRoomPress = (room: Room) => {
-    setModalData({ visible: true, item: { type: 'room', room } });
-  };
-
   const handleFurniturePress = (room: Room, furniture: Furniture) => {
     // 세부 페이지로 네비게이션
     navigation.navigate('FurnitureDetail', {
@@ -172,11 +156,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       furnitureType: furniture.type,
     });
   };
-
-  const closeModal = () => {
-    setModalData({ visible: false, item: null });
-  };
-
 
   const renderRoom = (room: Room) => {
     if (!room || !layout) return null;
@@ -192,7 +171,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           stroke={Colors.darkGray}
           strokeWidth={2}
           rx={8}
-          onPress={() => handleRoomPress(room)}
         />
         <SvgText
           x={room.position.x + room.size.width / 2}
@@ -327,59 +305,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     );
   };
 
-  const getModalContent = () => {
-    if (!modalData.item) return null;
-
-    // furniture 모달 제거 - FurnitureDetailScreen으로 대체됨
-
-    if (modalData.item.type === 'room') {
-      const { room } = modalData.item;
-      const totalTasks = room.furnitures.reduce(
-        (sum, f) => sum + f.linkedObjectIds.length,
-        0
-      );
-
-      return (
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderText}>
-              <Text style={styles.modalTitle}>{room.name}</Text>
-              <Text style={styles.modalSubtitle}>
-                가구 {room.furnitures.length}개 · 할 일 {totalTasks}개
-              </Text>
-            </View>
-            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.taskList}>
-            {room.furnitures.map((furniture) => (
-              <TouchableOpacity
-                key={furniture.id}
-                style={styles.taskItem}
-                onPress={() => handleFurniturePress(room, furniture)}
-              >
-                <Text style={styles.furnitureEmoji}>{furniture.emoji}</Text>
-                <Text style={styles.taskText}>{furniture.name}</Text>
-                {furniture.linkedObjectIds.length > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {furniture.linkedObjectIds.length}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -487,27 +412,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           )}
         </View>
       </View>
-
-      <Modal
-        visible={modalData.visible}
-        animationType="none"
-        transparent={true}
-        onRequestClose={closeModal}
-      >
-        <TouchableOpacity 
-          style={styles.modalBackdrop} 
-          activeOpacity={1}
-          onPress={closeModal}
-        >
-          <TouchableOpacity 
-            style={styles.modalContainer}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            {getModalContent()}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 };
@@ -579,61 +483,6 @@ const styles = StyleSheet.create({
   characterEmoji: {
     fontSize: 40,
     pointerEvents: 'auto',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  modalContainer: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    width: '90%',
-    height: '75%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  modalContent: {
-    padding: Spacing.md,
-    height: '100%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  modalEmoji: {
-    fontSize: 36,
-    marginRight: Spacing.sm,
-  },
-  modalHeaderText: {
-    flex: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.veryLightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeButtonText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
   },
   warningBox: {
     backgroundColor: Colors.secondaryLight,
@@ -717,14 +566,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     paddingVertical: Spacing.lg,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.veryLightGray,
   },
   actionButton: {
     flex: 1,
