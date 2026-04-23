@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing } from '@/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { HouseLayout } from '@/types/house.types';
@@ -18,18 +20,75 @@ import {
 import { HouseLayoutSelectionScreen } from './HouseLayoutSelectionScreen';
 import { HouseEditorScreen } from './HouseEditorScreen';
 import { HouseMapScreen } from './HouseMapScreen';
+import { HouseStackParamList } from '@/navigation/HouseNavigator';
+
+type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
 
 type SetupStep = 'select_layout' | 'edit_layout' | 'view';
 
 export const HouseSetupFlow: React.FC = () => {
   const { userId } = useAuth();
+  const navigation = useNavigation<NavigationProp>();
   const [step, setStep] = useState<SetupStep>('select_layout');
   const [layout, setLayout] = useState<HouseLayout | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useLayoutEffect(() => {
+    if (step === 'view' && layout) {
+      navigation.setOptions({
+        title: '내 집',
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate('HouseEditor', { layout });
+            }}
+            style={{ marginRight: 16 }}
+          >
+            <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 16 }}>편집</Text>
+          </TouchableOpacity>
+        ),
+      });
+    } else if (step === 'select_layout') {
+      navigation.setOptions({
+        title: '집 구조 설정',
+        headerRight: undefined,
+      });
+    } else if (step === 'edit_layout') {
+      navigation.setOptions({
+        title: '집 편집',
+        headerRight: undefined,
+      });
+    } else {
+      navigation.setOptions({
+        title: '',
+        headerRight: undefined,
+      });
+    }
+  }, [navigation, step, layout]);
+
   useEffect(() => {
     loadHouseLayout();
   }, [userId]);
+
+  // 편집 화면에서 돌아올 때 최신 레이아웃을 다시 불러옴
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!userId || loading) return;
+      refreshLayoutIfNeeded();
+    }, [userId, step])
+  );
+
+  const refreshLayoutIfNeeded = async () => {
+    if (!userId || step !== 'view') return;
+    try {
+      const existingLayout = await getHouseLayout(userId);
+      if (existingLayout) {
+        setLayout(existingLayout);
+      }
+    } catch (error) {
+      console.error('Failed to refresh house layout:', error);
+    }
+  };
 
   const loadHouseLayout = async () => {
     if (!userId) return;
@@ -119,7 +178,7 @@ export const HouseSetupFlow: React.FC = () => {
   }
 
   if (step === 'view' && layout) {
-    return <HouseMapScreen layout={layout} onEdit={handleEditLayout} />;
+    return <HouseMapScreen layout={layout} />;
   }
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,11 @@ import {
   ScrollView,
   Modal,
   Alert,
-  Animated,
   PanResponder,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Rect, G, Text as SvgText, Circle } from 'react-native-svg';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing } from '@/constants';
 import {
   HouseLayout,
@@ -21,11 +21,16 @@ import {
   FURNITURE_DEFAULTS,
   ROOM_COLORS,
 } from '@/types/house.types';
+import { saveHouseLayout } from '@/services/houseService';
+import { HouseStackParamList } from '@/navigation/HouseNavigator';
+
+type HouseEditorRouteProp = RouteProp<HouseStackParamList, 'HouseEditor'>;
+type HouseEditorNavProp = StackNavigationProp<HouseStackParamList, 'HouseEditor'>;
 
 interface Props {
-  initialLayout: HouseLayout;
-  onSave: (updatedLayout: HouseLayout) => Promise<void>;
-  onCancel: () => void;
+  initialLayout?: HouseLayout;
+  onSave?: (updatedLayout: HouseLayout) => Promise<void>;
+  onCancel?: () => void;
 }
 
 type EditorMode = 'view' | 'move_furniture' | 'resize_room' | 'add_room' | 'add_furniture';
@@ -36,8 +41,11 @@ type SelectedItem =
   | { type: 'character' }
   | null;
 
-export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCancel }) => {
+export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout, onSave, onCancel }) => {
+  const navigation = useNavigation<HouseEditorNavProp>();
+  const route = useRoute<HouseEditorRouteProp>();
   
+  const initialLayout = propsLayout ?? route.params?.layout;
   const [layout, setLayout] = useState<HouseLayout>(initialLayout);
   const [mode, setMode] = useState<EditorMode>('view');
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
@@ -399,7 +407,12 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCa
 
   const handleSave = async () => {
     try {
-      await onSave(layout);
+      if (onSave) {
+        await onSave(layout);
+      } else {
+        await saveHouseLayout(layout);
+        navigation.goBack();
+      }
     } catch (error) {
       console.error('Failed to save layout:', error);
       Alert.alert('오류', '집 구조를 저장하는데 실패했습니다.');
@@ -409,9 +422,31 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCa
   const handleCancel = () => {
     Alert.alert('편집 취소', '변경사항이 저장되지 않습니다. 취소하시겠습니까?', [
       { text: '계속 편집', style: 'cancel' },
-      { text: '취소', style: 'destructive', onPress: onCancel }
+      { text: '취소', style: 'destructive', onPress: () => {
+        if (onCancel) {
+          onCancel();
+        } else {
+          navigation.goBack();
+        }
+      }},
     ]);
   };
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: '집 편집',
+      headerLeft: () => (
+        <TouchableOpacity onPress={handleCancel} style={{ marginLeft: 16 }}>
+          <Text style={{ color: Colors.primary, fontSize: 16 }}>취소</Text>
+        </TouchableOpacity>
+      ),
+      headerRight: () => (
+        <TouchableOpacity onPress={handleSave} style={{ marginRight: 16 }}>
+          <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 16 }}>저장</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, layout]);
 
   const handleAddRoom = () => {
     Alert.prompt(
@@ -982,17 +1017,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCa
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel}>
-          <Text style={styles.headerButton}>취소</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>집 편집</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={[styles.headerButton, styles.saveButton]}>저장</Text>
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.container}>
       <View 
         style={styles.canvasContainer}
         onLayout={(e) => {
@@ -1379,7 +1404,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout, onSave, onCa
 
       {renderFurnitureMenu()}
       {renderCanvasSizeModal()}
-    </SafeAreaView>
+    </View>
   );
 };
 

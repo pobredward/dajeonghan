@@ -9,16 +9,22 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
 import { HouseLayout, Room, Furniture } from '@/types/house.types';
+import { Task } from '@/types/task.types';
 import { getHouseLayout } from '@/services/houseService';
+import { getTasks } from '@/services/firestoreService';
 import { useAuth } from '@/contexts/AuthContext';
 import { PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
+
+// furnitureId별 오늘/연체 task 개수
+interface FurnitureTaskCounts {
+  [furnitureId: string]: { today: number; overdue: number };
+}
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
 
@@ -30,10 +36,9 @@ interface ModalData {
 
 interface HouseMapScreenProps {
   layout?: HouseLayout;
-  onEdit?: () => void;
 }
 
-export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLayout, onEdit }) => {
+export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLayout }) => {
   const { userId } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [layout, setLayout] = useState<HouseLayout | null>(propsLayout || null);
@@ -43,6 +48,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   });
   const [loading, setLoading] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [furnitureTaskCounts, setFurnitureTaskCounts] = useState<FurnitureTaskCounts>({});
+
   
   
   // 캔버스 스케일 계산 (화면에 맞게)
@@ -71,14 +78,61 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     }
   }, [userId, propsLayout]);
 
-  // 화면이 포커스될 때 가구 데이터만 조용히 새로고침
+  // 화면 포커스 시 task 카운트 로드
   useFocusEffect(
     React.useCallback(() => {
-      if (layout) {
-        // 필요시 미래에 데이터 새로고침 로직 추가 가능
+      if (userId && layout) {
+        loadTaskCounts();
       }
-    }, [layout])
+    }, [userId, layout])
   );
+
+  const loadTaskCounts = async () => {
+    if (!userId) return;
+    try {
+      // 인덱스 없이 전체 pending task를 가져와 클라이언트에서 분류
+      const allTasks = await getTasks(userId, { filter: { status: 'pending' } });
+
+      // objectId → furnitureId 역방향 매핑 빌드 (layout의 linkedObjectIds 기반)
+      const objectToFurniture: Record<string, string> = {};
+      layout?.rooms?.forEach(room => {
+        room.furnitures?.forEach(furniture => {
+          furniture.linkedObjectIds?.forEach(objectId => {
+            objectToFurniture[objectId] = furniture.id;
+          });
+        });
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const counts: FurnitureTaskCounts = {};
+      allTasks.forEach((task: Task) => {
+        const furnitureId = objectToFurniture[task.objectId];
+        if (!furnitureId) return;
+
+        if (!counts[furnitureId]) counts[furnitureId] = { today: 0, overdue: 0 };
+
+        const nextDue = task.recurrence?.nextDue
+          ? new Date(task.recurrence.nextDue)
+          : null;
+
+        if (nextDue) {
+          if (nextDue < today) {
+            counts[furnitureId].overdue += 1;
+          } else if (nextDue < tomorrow) {
+            counts[furnitureId].today += 1;
+          }
+        }
+      });
+
+      setFurnitureTaskCounts(counts);
+    } catch (error) {
+      console.error('Failed to load task counts:', error);
+    }
+  };
 
   const loadHouseLayout = async (forceReload = false) => {
     if (!userId) return;
@@ -159,8 +213,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const renderFurniture = (room: Room, furniture: Furniture) => {
     const hasDirt = furniture.dirtyScore > 30;
     const dirtOpacity = Math.min(furniture.dirtyScore / 100, 0.6);
-    const taskCount = furniture.linkedObjectIds.length;
-    const hasOverdueTasks = false; // 간소화: 세부 페이지에서 확인
+    const counts = furnitureTaskCounts[furniture.id] ?? { today: 0, overdue: 0 };
+    const hasOverdueTasks = counts.overdue > 0;
 
     const absoluteX = room.position.x + furniture.position.x;
     const absoluteY = room.position.y + furniture.position.y;
@@ -182,24 +236,21 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           opacity={0.9}
           onPress={() => handleFurniturePress(room, furniture)}
         />
-        
+
         {/* 먼지 효과 */}
         {hasDirt && (
-          <>
-            <Rect
-              x={absoluteX}
-              y={absoluteY}
-              width={furniture.size.width}
-              height={furniture.size.height}
-              fill="#8B7355"
-              rx={8}
-              opacity={dirtOpacity}
-            />
-            {/* DustParticles 제거됨 */}
-          </>
+          <Rect
+            x={absoluteX}
+            y={absoluteY}
+            width={furniture.size.width}
+            height={furniture.size.height}
+            fill="#8B7355"
+            rx={8}
+            opacity={dirtOpacity}
+          />
         )}
 
-        {/* 연체 작업 펄스 효과 */}
+        {/* 연체 펄스 효과 */}
         {hasOverdueTasks && (
           <PulseEffect
             x={centerX}
@@ -210,8 +261,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           />
         )}
 
-        {/* 작업 개수 뱃지 */}
-        {taskCount > 0 && (
+        {/* 연체 뱃지 (빨간 — 오른쪽 상단) */}
+        {counts.overdue > 0 && (
           <>
             <Circle
               cx={absoluteX + furniture.size.width - 10}
@@ -222,12 +273,34 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
             <SvgText
               x={absoluteX + furniture.size.width - 10}
               y={absoluteY + 14}
-              fontSize="12"
+              fontSize="11"
               fill="white"
               textAnchor="middle"
               fontWeight="bold"
             >
-              {taskCount}
+              {counts.overdue}
+            </SvgText>
+          </>
+        )}
+
+        {/* 오늘 뱃지 (주황 — 연체 뱃지 아래 or 단독 오른쪽 상단) */}
+        {counts.today > 0 && (
+          <>
+            <Circle
+              cx={absoluteX + furniture.size.width - 10}
+              cy={counts.overdue > 0 ? absoluteY + 28 : absoluteY + 10}
+              r={10}
+              fill="#FF8C00"
+            />
+            <SvgText
+              x={absoluteX + furniture.size.width - 10}
+              y={counts.overdue > 0 ? absoluteY + 32 : absoluteY + 14}
+              fontSize="11"
+              fill="white"
+              textAnchor="middle"
+              fontWeight="bold"
+            >
+              {counts.today}
             </SvgText>
           </>
         )}
@@ -306,67 +379,26 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     return null;
   };
 
-  const getTotalTasks = () => {
-    if (!layout || !layout.rooms) return 0;
-    let total = 0;
-    layout.rooms.forEach(room => {
-      if (room.furnitures) {
-        room.furnitures.forEach(furniture => {
-          total += furniture.linkedObjectIds?.length || 0;
-        });
-      }
-    });
-    return total;
-  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>데이터 불러오는 중...</Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
-        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>집 구조 불러오는 중...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!layout) {
     return (
-      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>집 구조가 없습니다.</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🏠 내 집</Text>
-        <View style={styles.headerStats}>
-          {layout && (
-            <TouchableOpacity 
-              onPress={onEdit || (() => {
-                if (layout) {
-                  navigation.navigate('HouseEditor', { layout });
-                } else {
-                  Alert.alert('알림', '집 구조를 먼저 설정해주세요.');
-                }
-              })} 
-              style={styles.editButton}
-            >
-              <Text style={styles.editButtonText}>✏️ 편집</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
+    <View style={styles.container}>
       <View 
         style={styles.mapContainer}
         onLayout={(e) => {
@@ -456,26 +488,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         </View>
       </View>
 
-      <View style={styles.quickSummary}>
-        <Text style={styles.summaryTitle}>오늘 할 일</Text>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryIcon}>📋</Text>
-            <Text style={styles.summaryText}>전체 {getTotalTasks()}개</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryIcon}>🏠</Text>
-            <Text style={styles.summaryText}>{layout.rooms.length}개 방</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryIcon}>🪑</Text>
-            <Text style={styles.summaryText}>
-              {layout.rooms.reduce((sum, r) => sum + r.furnitures.length, 0)}개 가구
-            </Text>
-          </View>
-        </View>
-      </View>
-
       <Modal
         visible={modalData.visible}
         animationType="none"
@@ -496,7 +508,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -567,32 +579,6 @@ const styles = StyleSheet.create({
   characterEmoji: {
     fontSize: 40,
     pointerEvents: 'auto',
-  },
-  quickSummary: {
-    padding: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.veryLightGray,
-  },
-  summaryTitle: {
-    ...Typography.h4,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryItem: {
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  summaryIcon: {
-    fontSize: 24,
-  },
-  summaryText: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
   },
   modalBackdrop: {
     flex: 1,
