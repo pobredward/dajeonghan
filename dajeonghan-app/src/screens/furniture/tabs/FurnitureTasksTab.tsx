@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Animated,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
@@ -31,7 +32,7 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 import { Room, Furniture } from '@/types/house.types';
 import { LifeObject } from '@/types/lifeobject.types';
-import { Task } from '@/types/task.types';
+import { Task, PriorityLevel } from '@/types/task.types';
 import { getLifeObjects, getTasks, updateTask, deleteTask } from '@/services/firestoreService';
 import { getTemplateByFurnitureType } from '@/data/furnitureTaskTemplates';
 import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
@@ -101,6 +102,18 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     template: null,
   });
   const [postponeDays, setPostponeDays] = useState<number>(1);
+  const [upcomingCollapsed, setUpcomingCollapsed] = useState<boolean>(false);
+
+  // Task 세부 모달 인라인 편집
+  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | null>(null);
+  const [editRecurrenceUnit, setEditRecurrenceUnit] = useState<'day' | 'week' | 'month'>('week');
+  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState<number>(1);
+  const [editStartDate, setEditStartDate] = useState<Date>(new Date());
+  const [editSelectedDays, setEditSelectedDays] = useState<DayOfWeek[]>([]);
+  const [editMinutes, setEditMinutes] = useState<number>(15);
+
+  // Task 세부 모달 애니메이션
+  const detailModalAnim = useRef(new Animated.Value(0)).current;
 
   // Task 추가 관련 state
   const [customization, setCustomization] = useState<TaskCustomization>({
@@ -1001,6 +1014,65 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     }
   };
 
+  const handleUpdateRecurrence = async (
+    task: Task,
+    unit: 'day' | 'week' | 'month',
+    interval: number,
+    startDate: Date,
+  ) => {
+    if (!userId || !task.id) return;
+    const nextDue = new Date(startDate);
+    nextDue.setHours(9, 0, 0, 0);
+    const updatedRecurrence = { ...task.recurrence, unit, interval, nextDue };
+    try {
+      await updateTask(userId, task.id, { recurrence: updatedRecurrence });
+      const updatedTask = { ...task, recurrence: updatedRecurrence };
+      setFurnitureData(prev => prev ? {
+        ...prev,
+        linkedTasks: prev.linkedTasks.map(t => t.id === task.id ? updatedTask : t),
+      } : prev);
+      setTaskDetailModal(prev => ({ ...prev, task: prev.task ? updatedTask : null }));
+      setEditingField(null);
+    } catch {
+      Alert.alert('오류', '반복 주기 변경에 실패했습니다.');
+    }
+  };
+
+  const handleUpdateMinutes = async (task: Task, minutes: number) => {
+    if (!userId || !task.id) return;
+    try {
+      await updateTask(userId, task.id, { estimatedMinutes: minutes });
+      const updatedTask = { ...task, estimatedMinutes: minutes };
+      setFurnitureData(prev => prev ? {
+        ...prev,
+        linkedTasks: prev.linkedTasks.map(t => t.id === task.id ? updatedTask : t),
+      } : prev);
+      setTaskDetailModal(prev => ({ ...prev, task: prev.task ? updatedTask : null }));
+      setEditingField(null);
+    } catch {
+      Alert.alert('오류', '소요 시간 변경에 실패했습니다.');
+    }
+  };
+
+  const handleUpdatePriority = async (task: Task, newPriority: PriorityLevel) => {
+    if (!userId || !task.id) return;
+    try {
+      await updateTask(userId, task.id, { priority: newPriority });
+      setFurnitureData(prev => prev ? {
+        ...prev,
+        linkedTasks: prev.linkedTasks.map(t =>
+          t.id === task.id ? { ...t, priority: newPriority } : t
+        ),
+      } : prev);
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, priority: newPriority } : null,
+      }));
+    } catch (error) {
+      Alert.alert('오류', '우선순위 변경에 실패했습니다.');
+    }
+  };
+
   const handleDeleteTask = async (task: Task) => {
     if (!task) {
       Alert.alert('오류', '유효하지 않은 할 일입니다.');
@@ -1086,154 +1158,204 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       {/* 컨텐츠 */}
       {activeTab === 'info' ? (
         // Task 확인 탭
-        <ScrollView style={styles.content}>
-          {calculatedDirtyScore > 30 && (
-            <View style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                🧹 청소가 필요해요 (더러움 {Math.round(calculatedDirtyScore)}%)
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
+          {/* ── 상단 요약 대시보드 ── */}
+          <View style={styles.dashboardCard}>
+            <View style={styles.dashboardRow}>
+              <View style={[styles.dashboardItem, styles.dashboardItemOverdue]}>
+                <Text style={[styles.dashboardCount, styles.dashboardCountOverdue]}>
+                  {categorizedTasks.overdue.length}
+                </Text>
+                <Text style={styles.dashboardLabel}>⚠️ 연체</Text>
+              </View>
+              <View style={styles.dashboardDivider} />
+              <View style={[styles.dashboardItem, styles.dashboardItemToday]}>
+                <Text style={[styles.dashboardCount, styles.dashboardCountToday]}>
+                  {categorizedTasks.today.length}
+                </Text>
+                <Text style={styles.dashboardLabel}>📅 오늘</Text>
+              </View>
+              <View style={styles.dashboardDivider} />
+              <View style={styles.dashboardItem}>
+                <Text style={styles.dashboardCount}>
+                  {categorizedTasks.upcoming.length}
+                </Text>
+                <Text style={styles.dashboardLabel}>📋 예정</Text>
+              </View>
+            </View>
+
+            {/* 더러움 게이지 */}
+            {calculatedDirtyScore > 0 && (
+              <View style={styles.dirtyGaugeContainer}>
+                <View style={styles.dirtyGaugeHeader}>
+                  <Text style={styles.dirtyGaugeLabel}>청결도</Text>
+                  <Text style={[
+                    styles.dirtyGaugePercent,
+                    calculatedDirtyScore > 60 && styles.dirtyGaugePercentHigh,
+                    calculatedDirtyScore > 30 && calculatedDirtyScore <= 60 && styles.dirtyGaugePercentMid,
+                  ]}>
+                    더러움 {Math.round(calculatedDirtyScore)}%
+                  </Text>
+                </View>
+                <View style={styles.dirtyGaugeTrack}>
+                  <View style={[
+                    styles.dirtyGaugeFill,
+                    { width: `${Math.min(calculatedDirtyScore, 100)}%` as any },
+                    calculatedDirtyScore > 60 && styles.dirtyGaugeFillHigh,
+                    calculatedDirtyScore > 30 && calculatedDirtyScore <= 60 && styles.dirtyGaugeFillMid,
+                  ]} />
+                </View>
+                {calculatedDirtyScore > 30 && (
+                  <TouchableOpacity
+                    style={styles.cleaningCta}
+                    onPress={() => {
+                      // Task 추가 탭으로 전환
+                      setActiveTab('add');
+                      setTaskAddState({ step: 'template', selectedTemplate: null });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cleaningCtaText}>🧹 청소 Task 추가하기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* ── 전체 빈 상태 ── */}
+          {categorizedTasks.overdue.length === 0 &&
+           categorizedTasks.today.length === 0 &&
+           categorizedTasks.upcoming.length === 0 && (
+            <View style={styles.fullEmptyState}>
+              <Text style={styles.fullEmptyIcon}>✅</Text>
+              <Text style={styles.fullEmptyTitle}>등록된 할 일이 없어요</Text>
+              <Text style={styles.fullEmptySubtext}>
+                이 가구에 대한 관리 Task를 추가하면{'\n'}일정을 체계적으로 관리할 수 있어요
               </Text>
+              <TouchableOpacity
+                style={styles.fullEmptyButton}
+                onPress={() => {
+                  setActiveTab('add');
+                  setTaskAddState({ step: 'template', selectedTemplate: null });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.fullEmptyButtonText}>+ Task 추가하기</Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* 연체된 할 일 */}
+          {/* ── 전체 완료 상태 ── */}
+          {categorizedTasks.overdue.length === 0 &&
+           categorizedTasks.today.length > 0 &&
+           categorizedTasks.today.every(t => isTaskCompleted(t)) && (
+            <View style={styles.allDoneState}>
+              <Text style={styles.allDoneIcon}>🎉</Text>
+              <Text style={styles.allDoneTitle}>오늘 할 일을 모두 완료했어요!</Text>
+              {categorizedTasks.upcoming.length > 0 && (
+                <Text style={styles.allDoneSubtext}>
+                  다음 예정일: {(() => {
+                    const next = categorizedTasks.upcoming[0];
+                    const d = next?.recurrence?.nextDue ? new Date(next.recurrence.nextDue) : null;
+                    return d ? d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '';
+                  })()}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* ── 연체된 할 일 ── */}
           {categorizedTasks.overdue.length > 0 && (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleContainer}>
-                  <Text style={[styles.sectionTitle, styles.overdueTitle]}>⚠️ 연체된 할 일</Text>
+              <View style={styles.sectionHeaderV2Overdue}>
+                <View style={styles.sectionHeaderV2Bar} />
+                <View style={styles.sectionHeaderV2Content}>
+                  <Text style={styles.sectionHeaderV2Title}>연체된 할 일</Text>
                   <View style={styles.overdueBadge}>
                     <Text style={styles.overdueBadgeText}>{categorizedTasks.overdue.length}</Text>
                   </View>
                 </View>
               </View>
 
-              {categorizedTasks.overdue.map((task, index) => {
-                console.log(`렌더링 연체 태스크 ${index}:`, {
-                  id: task.id,
-                  idType: typeof task.id,
-                  title: task.title
-                });
-
-                if (!task || typeof task.id !== 'string') {
-                  console.error('렌더링 중 잘못된 task:', task);
-                  return null;
-                }
-
-                const isOverdue = task.recurrence && task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date();
-                const dueDate = task.recurrence && task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : null;
-                const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
-                
-                // 완료 상태 판단
+              {categorizedTasks.overdue.map((task) => {
+                if (!task || typeof task.id !== 'string') return null;
+                const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
                 const isCompleted = isTaskCompleted(task);
-                
                 const isTaskLoading = taskLoadingStates[task.id] || false;
-                
+                const overdueDays = dueDate
+                  ? Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+                  : 0;
+
                 return (
-                  <TouchableOpacity 
-                    key={task.id} 
-                    style={[
-                      styles.taskItemEfficient,
-                      isCompleted && styles.taskItemCompleted,
-                      isOverdue && !isCompleted && styles.taskItemOverdue,
-                      isToday && !isCompleted && styles.taskItemToday
-                    ]}
-                    onPress={() => setTaskDetailModal({ visible: true, task })}
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.taskCard, styles.taskCardOverdue, isCompleted && styles.taskCardCompleted]}
+                    onPress={() => {
+                      detailModalAnim.setValue(0);
+                      setEditingField(null);
+                      setTaskDetailModal({ visible: true, task });
+                      Animated.timing(detailModalAnim, {
+                        toValue: 1,
+                        duration: 100,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
                     activeOpacity={0.8}
                   >
-                    {/* 좌측: 완료/완료취소 버튼 */}
-                    <TouchableOpacity 
-                      style={[
-                        styles.completeButtonEfficient,
-                        isCompleted && styles.completeButtonCompleted,
-                        isOverdue && !isCompleted && styles.completeButtonOverdue,
-                        isToday && !isCompleted && styles.completeButtonToday,
-                        isTaskLoading && styles.completeButtonLoading
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (!isTaskLoading) {
-                          handleCompleteTask(task);
-                        }
-                      }}
+                    <View style={styles.taskCardAccentOverdue} />
+                    {/* 체크박스 */}
+                    <TouchableOpacity
+                      style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
                       activeOpacity={isTaskLoading ? 1 : 0.4}
                       disabled={isTaskLoading}
                     >
-                      {isTaskLoading ? (
-                        <ActivityIndicator 
-                          size="small" 
-                          color={Colors.white} 
-                          style={styles.completeButtonLoader}
-                        />
-                      ) : (
-                        <Text style={[
-                          styles.completeButtonIcon,
-                          isCompleted && styles.completeButtonIconCompleted,
-                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
-                          isToday && !isCompleted && styles.completeButtonIconToday
-                        ]}>
-                          {isCompleted ? '✓' : '○'}
-                        </Text>
-                      )}
+                      {isTaskLoading
+                        ? <ActivityIndicator size="small" color={Colors.white} />
+                        : isCompleted
+                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                          : null
+                      }
                     </TouchableOpacity>
 
-                    {/* 메인 콘텐츠 영역 */}
-                    <View style={styles.taskMainContent}>
-                      <View style={styles.taskHeader}>
-                        <Text 
-                          style={[
-                            styles.taskTitleEfficient, 
-                            isCompleted && styles.taskTitleCompleted,
-                            isOverdue && !isCompleted && styles.taskTitleOverdue,
-                            isToday && !isCompleted && styles.taskTitleToday
-                          ]} 
+                    {/* 본문 */}
+                    <View style={styles.taskCardBody}>
+                      <View style={styles.taskCardTitleRow}>
+                        <Text
+                          style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
                           numberOfLines={1}
                         >
                           {task.title}
                         </Text>
-                        
-                        {/* 우선순위 표시 */}
                         <View style={[
-                          styles.priorityIndicator,
-                          task.priority === 'high' && styles.priorityHigh,
-                          task.priority === 'medium' && styles.priorityMedium,
-                          task.priority === 'low' && styles.priorityLow,
-                        ]} />
-                      </View>
-                      
-                      {dueDate && (
-                        <View style={styles.taskMetaEfficient}>
+                          styles.priorityPill,
+                          task.priority === 'high' && styles.priorityPillHigh,
+                          task.priority === 'medium' && styles.priorityPillMedium,
+                          task.priority === 'low' && styles.priorityPillLow,
+                        ]}>
                           <Text style={[
-                            styles.taskDueDateEfficient,
-                            isOverdue && styles.taskDueDateOverdue,
-                            isToday && styles.taskDueDateToday
+                            styles.priorityPillText,
+                            task.priority === 'high' && styles.priorityPillTextHigh,
+                            task.priority === 'medium' && styles.priorityPillTextMedium,
+                            task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {isToday ? '오늘 마감' : 
-                             isOverdue ? `${Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))}일 연체` :
-                             dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
-                          
-                          {task.recurrence.type === 'fixed' && (
-                            <Text style={styles.taskRecurrenceEfficient}>
-                              {task.recurrence.unit === 'day' ? '매일' :
-                               task.recurrence.unit === 'week' ? '매주' : '매월'} 반복
+                        </View>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
+                        <View style={styles.taskChipOverdue}>
+                          <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
+                        </View>
+                        {task.recurrence?.type === 'fixed' && (
+                          <View style={styles.taskChipRecurrence}>
+                            <Text style={styles.taskChipTextRecurrence}>
+                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
                             </Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
-
-                    {/* 우측: 상태 표시 */}
-                    <View style={styles.taskStatus}>
-                      {isOverdue && (
-                        <View style={styles.overdueStatus}>
-                          <Text style={styles.overdueText}>연체</Text>
-                        </View>
-                      )}
-                      {isToday && !isOverdue && (
-                        <View style={styles.todayStatus}>
-                          <Text style={styles.todayText}>오늘</Text>
-                        </View>
-                      )}
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1241,145 +1363,101 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
           )}
 
-          {/* 오늘 할 일 */}
+          {/* ── 오늘 할 일 ── */}
           {categorizedTasks.today.length > 0 && (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleContainer}>
-                  <Text style={[styles.sectionTitle, styles.todayTitle]}>📅 오늘 할 일</Text>
+              <View style={styles.sectionHeaderV2Today}>
+                <View style={styles.sectionHeaderV2BarToday} />
+                <View style={styles.sectionHeaderV2Content}>
+                  <Text style={styles.sectionHeaderV2TitleToday}>오늘 할 일</Text>
                   <View style={styles.todayBadge}>
                     <Text style={styles.todayBadgeText}>{categorizedTasks.today.length}</Text>
                   </View>
                 </View>
               </View>
 
-              {categorizedTasks.today.map((task, index) => {
-                console.log(`렌더링 오늘 태스크 ${index}:`, {
-                  id: task.id,
-                  idType: typeof task.id,
-                  title: task.title
-                });
-
-                if (!task || typeof task.id !== 'string') {
-                  console.error('렌더링 중 잘못된 task:', task);
-                  return null;
-                }
-
-                const isOverdue = task.recurrence && task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date();
-                const dueDate = task.recurrence && task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : null;
-                const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
-                
-                // 완료 상태 판단
+              {categorizedTasks.today.map((task) => {
+                if (!task || typeof task.id !== 'string') return null;
+                const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
                 const isCompleted = isTaskCompleted(task);
-                
                 const isTaskLoading = taskLoadingStates[task.id] || false;
-                
+
                 return (
-                  <TouchableOpacity 
-                    key={task.id} 
-                    style={[
-                      styles.taskItemEfficient,
-                      isCompleted && styles.taskItemCompleted,
-                      isOverdue && !isCompleted && styles.taskItemOverdue,
-                      isToday && !isCompleted && styles.taskItemToday
-                    ]}
-                    onPress={() => setTaskDetailModal({ visible: true, task })}
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.taskCard, styles.taskCardToday, isCompleted && styles.taskCardCompleted]}
+                    onPress={() => {
+                      detailModalAnim.setValue(0);
+                      setEditingField(null);
+                      setTaskDetailModal({ visible: true, task });
+                      Animated.timing(detailModalAnim, {
+                        toValue: 1,
+                        duration: 100,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
                     activeOpacity={0.8}
                   >
-                    {/* 좌측: 완료/완료취소 버튼 */}
-                    <TouchableOpacity 
-                      style={[
-                        styles.completeButtonEfficient,
-                        isCompleted && styles.completeButtonCompleted,
-                        isOverdue && !isCompleted && styles.completeButtonOverdue,
-                        isToday && !isCompleted && styles.completeButtonToday,
-                        isTaskLoading && styles.completeButtonLoading
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (!isTaskLoading) {
-                          handleCompleteTask(task);
-                        }
-                      }}
+                    <View style={styles.taskCardAccentToday} />
+                    {/* 체크박스 */}
+                    <TouchableOpacity
+                      style={[styles.taskCheckboxNew, styles.taskCheckboxNewToday, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
                       activeOpacity={isTaskLoading ? 1 : 0.4}
                       disabled={isTaskLoading}
                     >
-                      {isTaskLoading ? (
-                        <ActivityIndicator 
-                          size="small" 
-                          color={Colors.white} 
-                          style={styles.completeButtonLoader}
-                        />
-                      ) : (
-                        <Text style={[
-                          styles.completeButtonIcon,
-                          isCompleted && styles.completeButtonIconCompleted,
-                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
-                          isToday && !isCompleted && styles.completeButtonIconToday
-                        ]}>
-                          {isCompleted ? '✓' : '○'}
-                        </Text>
-                      )}
+                      {isTaskLoading
+                        ? <ActivityIndicator size="small" color={Colors.white} />
+                        : isCompleted
+                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                          : null
+                      }
                     </TouchableOpacity>
 
-                    {/* 메인 콘텐츠 영역 */}
-                    <View style={styles.taskMainContent}>
-                      <View style={styles.taskHeader}>
-                        <Text 
-                          style={[
-                            styles.taskTitleEfficient, 
-                            isCompleted && styles.taskTitleCompleted,
-                            isOverdue && !isCompleted && styles.taskTitleOverdue,
-                            isToday && !isCompleted && styles.taskTitleToday
-                          ]} 
+                    {/* 본문 */}
+                    <View style={styles.taskCardBody}>
+                      <View style={styles.taskCardTitleRow}>
+                        <Text
+                          style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
                           numberOfLines={1}
                         >
                           {task.title}
                         </Text>
-                        
-                        {/* 우선순위 표시 */}
                         <View style={[
-                          styles.priorityIndicator,
-                          task.priority === 'high' && styles.priorityHigh,
-                          task.priority === 'medium' && styles.priorityMedium,
-                          task.priority === 'low' && styles.priorityLow,
-                        ]} />
-                      </View>
-                      
-                      {dueDate && (
-                        <View style={styles.taskMetaEfficient}>
+                          styles.priorityPill,
+                          task.priority === 'high' && styles.priorityPillHigh,
+                          task.priority === 'medium' && styles.priorityPillMedium,
+                          task.priority === 'low' && styles.priorityPillLow,
+                        ]}>
                           <Text style={[
-                            styles.taskDueDateEfficient,
-                            isOverdue && styles.taskDueDateOverdue,
-                            isToday && styles.taskDueDateToday
+                            styles.priorityPillText,
+                            task.priority === 'high' && styles.priorityPillTextHigh,
+                            task.priority === 'medium' && styles.priorityPillTextMedium,
+                            task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {isToday ? '오늘 마감' : 
-                             isOverdue ? `${Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))}일 연체` :
-                             dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
-                          
-                          {task.recurrence.type === 'fixed' && (
-                            <Text style={styles.taskRecurrenceEfficient}>
-                              {task.recurrence.unit === 'day' ? '매일' :
-                               task.recurrence.unit === 'week' ? '매주' : '매월'} 반복
+                        </View>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
+                        <View style={isCompleted ? styles.taskChipCompleted : styles.taskChipToday}>
+                          <Text style={isCompleted ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
+                            {isCompleted ? '완료됨' : '오늘 마감'}
+                          </Text>
+                        </View>
+                        {task.recurrence?.type === 'fixed' && (
+                          <View style={styles.taskChipRecurrence}>
+                            <Text style={styles.taskChipTextRecurrence}>
+                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
                             </Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
-
-                    {/* 우측: 상태 표시 */}
-                    <View style={styles.taskStatus}>
-                      {isOverdue && (
-                        <View style={styles.overdueStatus}>
-                          <Text style={styles.overdueText}>연체</Text>
-                        </View>
-                      )}
-                      {isToday && !isOverdue && (
-                        <View style={styles.todayStatus}>
-                          <Text style={styles.todayText}>오늘</Text>
-                        </View>
-                      )}
+                          </View>
+                        )}
+                        {dueDate && task.estimatedMinutes && (
+                          <View style={styles.taskChipTime}>
+                            <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1387,146 +1465,103 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
           )}
 
-          {/* 예정된 할 일 */}
+          {/* ── 예정된 할 일 ── */}
           {categorizedTasks.upcoming.length > 0 && (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleContainer}>
-                  <Text style={[styles.sectionTitle, styles.upcomingTitle]}>📋 예정된 할 일</Text>
+              <TouchableOpacity
+                style={styles.sectionHeaderV2Upcoming}
+                onPress={() => setUpcomingCollapsed(prev => !prev)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.sectionHeaderV2BarUpcoming} />
+                <View style={styles.sectionHeaderV2Content}>
+                  <Text style={styles.sectionHeaderV2TitleUpcoming}>예정된 할 일</Text>
                   <View style={styles.upcomingBadge}>
                     <Text style={styles.upcomingBadgeText}>{categorizedTasks.upcoming.length}</Text>
                   </View>
                 </View>
-              </View>
+                <Text style={styles.sectionCollapseIcon}>{upcomingCollapsed ? '▶' : '▼'}</Text>
+              </TouchableOpacity>
 
-              {categorizedTasks.upcoming.map((task, index) => {
-                console.log(`렌더링 예정 태스크 ${index}:`, {
-                  id: task.id,
-                  idType: typeof task.id,
-                  title: task.title
-                });
-
-                if (!task || typeof task.id !== 'string') {
-                  console.error('렌더링 중 잘못된 task:', task);
-                  return null;
-                }
-
-                const isOverdue = task.recurrence && task.recurrence.nextDue && new Date(task.recurrence.nextDue) < new Date();
-                const dueDate = task.recurrence && task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : null;
-                const isToday = dueDate && dueDate.toDateString() === new Date().toDateString();
-                
-                // 완료 상태 판단
+              {!upcomingCollapsed && categorizedTasks.upcoming.map((task) => {
+                if (!task || typeof task.id !== 'string') return null;
+                const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
                 const isCompleted = isTaskCompleted(task);
-                
                 const isTaskLoading = taskLoadingStates[task.id] || false;
-                
+
                 return (
-                  <TouchableOpacity 
-                    key={task.id} 
-                    style={[
-                      styles.taskItemEfficient,
-                      isCompleted && styles.taskItemCompleted,
-                      isOverdue && !isCompleted && styles.taskItemOverdue,
-                      isToday && !isCompleted && styles.taskItemToday,
-                      { opacity: 0.8 }, // 예정된 할 일은 살짝 투명
-                    ]}
-                    onPress={() => setTaskDetailModal({ visible: true, task })}
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.taskCard, isCompleted && styles.taskCardCompleted]}
+                    onPress={() => {
+                      detailModalAnim.setValue(0);
+                      setEditingField(null);
+                      setTaskDetailModal({ visible: true, task });
+                      Animated.timing(detailModalAnim, {
+                        toValue: 1,
+                        duration: 100,
+                        useNativeDriver: true,
+                      }).start();
+                    }}
                     activeOpacity={0.8}
                   >
-                    {/* 좌측: 완료/완료취소 버튼 */}
-                    <TouchableOpacity 
-                      style={[
-                        styles.completeButtonEfficient,
-                        isCompleted && styles.completeButtonCompleted,
-                        isOverdue && !isCompleted && styles.completeButtonOverdue,
-                        isToday && !isCompleted && styles.completeButtonToday,
-                        isTaskLoading && styles.completeButtonLoading
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (!isTaskLoading) {
-                          handleCompleteTask(task);
-                        }
-                      }}
+                    <View style={styles.taskCardAccentUpcoming} />
+                    {/* 체크박스 */}
+                    <TouchableOpacity
+                      style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
                       activeOpacity={isTaskLoading ? 1 : 0.4}
                       disabled={isTaskLoading}
                     >
-                      {isTaskLoading ? (
-                        <ActivityIndicator 
-                          size="small" 
-                          color={Colors.white} 
-                          style={styles.completeButtonLoader}
-                        />
-                      ) : (
-                        <Text style={[
-                          styles.completeButtonIcon,
-                          isCompleted && styles.completeButtonIconCompleted,
-                          isOverdue && !isCompleted && styles.completeButtonIconOverdue,
-                          isToday && !isCompleted && styles.completeButtonIconToday
-                        ]}>
-                          {isCompleted ? '✓' : '○'}
-                        </Text>
-                      )}
+                      {isTaskLoading
+                        ? <ActivityIndicator size="small" color={Colors.white} />
+                        : isCompleted
+                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                          : null
+                      }
                     </TouchableOpacity>
 
-                    {/* 메인 콘텐츠 영역 */}
-                    <View style={styles.taskMainContent}>
-                      <View style={styles.taskHeader}>
-                        <Text 
-                          style={[
-                            styles.taskTitleEfficient, 
-                            isCompleted && styles.taskTitleCompleted,
-                            isOverdue && !isCompleted && styles.taskTitleOverdue,
-                            isToday && !isCompleted && styles.taskTitleToday
-                          ]} 
+                    {/* 본문 */}
+                    <View style={styles.taskCardBody}>
+                      <View style={styles.taskCardTitleRow}>
+                        <Text
+                          style={[styles.taskCardTitle, styles.taskCardTitleUpcoming, isCompleted && styles.taskCardTitleCompleted]}
                           numberOfLines={1}
                         >
                           {task.title}
                         </Text>
-                        
-                        {/* 우선순위 표시 */}
                         <View style={[
-                          styles.priorityIndicator,
-                          task.priority === 'high' && styles.priorityHigh,
-                          task.priority === 'medium' && styles.priorityMedium,
-                          task.priority === 'low' && styles.priorityLow,
-                        ]} />
-                      </View>
-                      
-                      {dueDate && (
-                        <View style={styles.taskMetaEfficient}>
+                          styles.priorityPill,
+                          task.priority === 'high' && styles.priorityPillHigh,
+                          task.priority === 'medium' && styles.priorityPillMedium,
+                          task.priority === 'low' && styles.priorityPillLow,
+                        ]}>
                           <Text style={[
-                            styles.taskDueDateEfficient,
-                            isOverdue && styles.taskDueDateOverdue,
-                            isToday && styles.taskDueDateToday
+                            styles.priorityPillText,
+                            task.priority === 'high' && styles.priorityPillTextHigh,
+                            task.priority === 'medium' && styles.priorityPillTextMedium,
+                            task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {isToday ? '오늘 마감' : 
-                             isOverdue ? `${Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))}일 연체` :
-                             dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
-                          
-                          {task.recurrence.type === 'fixed' && (
-                            <Text style={styles.taskRecurrenceEfficient}>
-                              {task.recurrence.unit === 'day' ? '매일' :
-                               task.recurrence.unit === 'week' ? '매주' : '매월'} 반복
+                        </View>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
+                        {dueDate && (
+                          <View style={styles.taskChipUpcoming}>
+                            <Text style={styles.taskChipTextUpcoming}>
+                              {dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
                             </Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
-
-                    {/* 우측: 상태 표시 */}
-                    <View style={styles.taskStatus}>
-                      {isOverdue && (
-                        <View style={styles.overdueStatus}>
-                          <Text style={styles.overdueText}>연체</Text>
-                        </View>
-                      )}
-                      {isToday && !isOverdue && (
-                        <View style={styles.todayStatus}>
-                          <Text style={styles.todayText}>오늘</Text>
-                        </View>
-                      )}
+                          </View>
+                        )}
+                        {task.recurrence?.type === 'fixed' && (
+                          <View style={styles.taskChipRecurrence}>
+                            <Text style={styles.taskChipTextRecurrence}>
+                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1534,13 +1569,9 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
           )}
 
-          {(categorizedTasks.overdue.length === 0 && categorizedTasks.today.length === 0 && categorizedTasks.upcoming.length === 0) && (
-            <View style={styles.emptyStateCompact}>
-              <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyTextCompact}>할 일이 없습니다</Text>
-              <Text style={styles.emptySubtextCompact}>Task 추가에서 새로운 할 일을 만들어보세요</Text>
-            </View>
-          )}
+          {/* 더미 섹션 — 아래 스크롤 공간 */}
+          <View style={{ height: 40 }} />
+
         </ScrollView>
       ) : (
         // Task 추가 탭
@@ -1679,199 +1710,401 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       <Modal
         visible={taskDetailModal.visible}
         transparent={true}
-        animationType="slide"
+        animationType="none"
         onRequestClose={() => setTaskDetailModal({ visible: false, task: null })}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.detailModalOverlay}>
           <TouchableOpacity 
-            style={styles.modalBackdrop}
+            style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={() => setTaskDetailModal({ visible: false, task: null })}
           />
-          
-          <View style={styles.taskDetailModal}>
-            {taskDetailModal.task && (
-              <>
-                <View style={styles.detailHeader}>
-                  <Text style={styles.detailTitle} numberOfLines={2}>
-                    {taskDetailModal.task.title}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={() => setTaskDetailModal({ visible: false, task: null })}
+          <Animated.View style={[
+            styles.taskDetailModal,
+            {
+              opacity: detailModalAnim,
+              transform: [{ scale: detailModalAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] }) }],
+            }
+          ]}>
+            {taskDetailModal.task && (() => {
+              const task = taskDetailModal.task!;
+              const isCompleted = isTaskCompleted(task);
+              const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const nextDue = dueDate ? new Date(dueDate) : null;
+              if (nextDue) nextDue.setHours(0, 0, 0, 0);
+              const hasPushedSchedule = nextDue && nextDue > today && task.completionHistory && task.completionHistory.length > 0;
+
+              // D-day 계산
+              const diffMs = nextDue && !isNaN(nextDue.getTime()) ? nextDue.getTime() - today.getTime() : null;
+              const diffDays = diffMs !== null ? Math.round(diffMs / (1000 * 60 * 60 * 24)) : null;
+              const isOverdue = diffDays !== null && diffDays < 0;
+              const isDueToday = diffDays === 0;
+
+              // 상태 배너 설정
+              let bannerBg = 'transparent';
+              let bannerText = '';
+              if (isCompleted) {
+                bannerBg = Colors.success + '18';
+                bannerText = '완료됨';
+              } else if (isOverdue) {
+                bannerBg = Colors.error + '18';
+                bannerText = `${Math.abs(diffDays!)}일 연체 중`;
+              } else if (isDueToday) {
+                bannerBg = Colors.warning + '18';
+                bannerText = '오늘 마감';
+              } else if (diffDays !== null && diffDays <= 3) {
+                bannerBg = Colors.primary + '12';
+                bannerText = `D-${diffDays}`;
+              }
+
+              const bannerTextColor = isCompleted
+                ? Colors.success
+                : isOverdue
+                ? Colors.error
+                : isDueToday
+                ? Colors.warning
+                : Colors.primary;
+
+              return (
+                <>
+                  {/* ── 고정 헤더 ── */}
+                  <View style={styles.detailHeaderFixed}>
+                    {/* 상태 배너 */}
+                    {bannerText !== '' && (
+                      <View style={[styles.detailStatusBanner, { backgroundColor: bannerBg }]}>
+                        <Text style={[styles.detailStatusBannerText, { color: bannerTextColor }]}>
+                          {bannerText}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.detailHeaderRow}>
+                      <Text style={styles.detailTitle} numberOfLines={2}>{task.title}</Text>
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setTaskDetailModal({ visible: false, task: null })}
+                      >
+                        <Text style={styles.closeButtonText}>×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* ── 스크롤 콘텐츠 ── */}
+                  <ScrollView
+                    style={styles.detailScrollContent}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: Spacing.md }}
                   >
-                    <Text style={styles.closeButtonText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.detailContent}>
-                  {/* 기본 정보 */}
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailSectionTitle}>기본 정보</Text>
-                    
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>우선순위</Text>
-                      <View style={styles.detailValue}>
-                        <View style={[
-                          styles.priorityDot,
-                          taskDetailModal.task.priority === 'high' && styles.priorityHigh,
-                          taskDetailModal.task.priority === 'medium' && styles.priorityMedium,
-                          taskDetailModal.task.priority === 'low' && styles.priorityLow,
-                        ]} />
-                        <Text style={styles.detailText}>
-                          {taskDetailModal.task.priority === 'high' ? '높음' :
-                           taskDetailModal.task.priority === 'medium' ? '보통' : '낮음'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {taskDetailModal.task.recurrence.nextDue && (
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>예정일</Text>
-                        <Text style={styles.detailText}>
-                          {new Date(taskDetailModal.task.recurrence.nextDue).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            weekday: 'short'
-                          })}
-                        </Text>
-                      </View>
-                    )}
-
-                    {taskDetailModal.task.recurrence.type === 'fixed' && (
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>반복</Text>
-                        <Text style={styles.detailText}>
-                          {taskDetailModal.task.recurrence.interval === 1 ? '' : `${taskDetailModal.task.recurrence.interval}`}
-                          {taskDetailModal.task.recurrence.unit === 'day' ? '매일' :
-                           taskDetailModal.task.recurrence.unit === 'week' ? '매주' : '매월'}
-                        </Text>
-                      </View>
-                    )}
-
-                    {taskDetailModal.task.estimatedMinutes && (
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>예상 소요시간</Text>
-                        <Text style={styles.detailText}>
-                          {taskDetailModal.task.estimatedMinutes}분
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* 설명 */}
-                  {taskDetailModal.task.description && (
-                    <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionTitle}>설명</Text>
-                      <Text style={styles.detailDescription}>
-                        {taskDetailModal.task.description}
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* 생성/수정 정보 */}
-                  <View style={styles.detailSection}>
-                    <Text style={styles.detailSectionTitle}>기타 정보</Text>
-                    
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>생성일</Text>
-                      <Text style={styles.detailText}>
-                        {taskDetailModal.task.createdAt.toLocaleDateString('ko-KR')}
-                      </Text>
-                    </View>
-
-                    {taskDetailModal.task.updatedAt && (
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>최근 수정</Text>
-                        <Text style={styles.detailText}>
-                          {taskDetailModal.task.updatedAt.toLocaleDateString('ko-KR')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                {/* 액션 버튼들 - 1행 배치 */}
-                <View style={styles.detailActionsContainer}>
-                  <View style={styles.detailActions}>
-                    {(() => {
-                      const isCompleted = isTaskCompleted(taskDetailModal.task);
-                      return (
+                    {/* 요약 정보 카드 — 항상 compact */}
+                    <View style={styles.detailSummaryCardV2}>
+                      {dueDate && (
+                        <View style={styles.detailSummaryRowItem}>
+                          <Text style={styles.detailSummaryIcon}>📅</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.detailSummaryLabel}>다음 예정일</Text>
+                            <Text style={[
+                              styles.detailSummaryValue,
+                              isOverdue && { color: Colors.error },
+                              isDueToday && { color: Colors.warning },
+                            ]}>
+                              {dueDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+                            </Text>
+                          </View>
+                          {diffDays !== null && (
+                            <View style={[
+                              styles.detailDdayBadge,
+                              isOverdue && { backgroundColor: Colors.error + '18' },
+                              isDueToday && { backgroundColor: Colors.warning + '18' },
+                              !isOverdue && !isDueToday && { backgroundColor: Colors.primary + '12' },
+                            ]}>
+                              <Text style={[
+                                styles.detailDdayText,
+                                isOverdue && { color: Colors.error },
+                                isDueToday && { color: Colors.warning },
+                                !isOverdue && !isDueToday && { color: Colors.primary },
+                              ]}>
+                                {isCompleted ? '완료' : isOverdue ? `+${Math.abs(diffDays)}` : isDueToday ? 'D-Day' : `D-${diffDays}`}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                      {task.recurrence?.type === 'fixed' && (
                         <TouchableOpacity
                           style={[
-                            styles.detailActionButtonCompact, 
-                            isCompleted ? styles.detailUncompleteButton : styles.detailCompleteButton
+                            styles.detailSummaryRowItem,
+                            styles.detailSummaryRowItemBorder,
+                            editingField === 'recurrence' && styles.detailSummaryRowItemActive,
                           ]}
                           onPress={() => {
-                            handleCompleteTask(taskDetailModal.task!);
-                            setTaskDetailModal({ visible: false, task: null });
+                            if (editingField === 'recurrence') {
+                              setEditingField(null);
+                            } else {
+                              setEditRecurrenceUnit(task.recurrence.unit as 'day' | 'week' | 'month');
+                              setEditRecurrenceInterval(task.recurrence.interval || 1);
+                              const initialStart = task.recurrence.nextDue
+                                ? new Date(task.recurrence.nextDue)
+                                : new Date();
+                              initialStart.setHours(9, 0, 0, 0);
+                              setEditStartDate(initialStart);
+                              setEditSelectedDays([]);
+                              setEditingField('recurrence');
+                            }
                           }}
+                          activeOpacity={0.8}
                         >
-                          <Text style={styles.detailActionTextCompact}>
-                            {isCompleted ? '완료취소' : '완료'}
+                          <Text style={styles.detailSummaryIcon}>🔁</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.detailSummaryLabel}>반복 주기</Text>
+                            <Text style={[
+                              styles.detailSummaryValue,
+                              editingField === 'recurrence' && { color: Colors.primary },
+                            ]}>
+                              {task.recurrence.interval && task.recurrence.interval > 1 ? `${task.recurrence.interval} ` : ''}
+                              {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                            </Text>
+                          </View>
+                          <Text style={[
+                            styles.detailEditIcon,
+                            editingField === 'recurrence' && { color: Colors.primary, opacity: 1 },
+                          ]}>
+                            {editingField === 'recurrence' ? '▲' : '✏️'}
                           </Text>
                         </TouchableOpacity>
-                      );
-                    })()}
-                    
-                    <TouchableOpacity
-                      style={[styles.detailActionButtonCompact, styles.detailPostponeButton]}
-                      onPress={() => {
-                        setTaskDetailModal({ visible: false, task: null });
-                        setTaskActionModal({ 
-                          visible: true, 
-                          task: taskDetailModal.task, 
-                          action: 'postpone' 
-                        });
-                      }}
-                    >
-                      <Text style={styles.detailActionTextCompact}>미루기</Text>
-                    </TouchableOpacity>
+                      )}
+                      {task.estimatedMinutes !== undefined && (
+                        <TouchableOpacity
+                          style={[
+                            styles.detailSummaryRowItem,
+                            styles.detailSummaryRowItemBorder,
+                            editingField === 'minutes' && styles.detailSummaryRowItemActiveOrange,
+                          ]}
+                          onPress={() => {
+                            if (editingField === 'minutes') {
+                              setEditingField(null);
+                            } else {
+                              setEditMinutes(task.estimatedMinutes || 15);
+                              setEditingField('minutes');
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.detailSummaryIcon}>⏱</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.detailSummaryLabel}>예상 소요</Text>
+                            <Text style={[
+                              styles.detailSummaryValue,
+                              editingField === 'minutes' && { color: Colors.warning },
+                            ]}>
+                              {task.estimatedMinutes}분
+                            </Text>
+                          </View>
+                          <Text style={[
+                            styles.detailEditIcon,
+                            editingField === 'minutes' && { color: Colors.warning, opacity: 1 },
+                          ]}>
+                            {editingField === 'minutes' ? '▲' : '✏️'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
 
-                    {/* 반복 할 일이고 원래 일정에서 밀린 경우에만 표시 */}
-                    {(() => {
-                      const task = taskDetailModal.task;
-                      if (task?.recurrence?.type === 'fixed' && task.recurrence.nextDue) {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const nextDue = new Date(task.recurrence.nextDue);
-                        nextDue.setHours(0, 0, 0, 0);
-                        
-                        // 오늘보다 미래이고 완료 기록이 있으면 (밀린 상태)
-                        const hasPushedSchedule = nextDue > today && task.completionHistory && task.completionHistory.length > 0;
-                        
-                        if (hasPushedSchedule) {
+                    {/* 반복 주기 편집 패널 — 카드 바깥 */}
+                    {editingField === 'recurrence' && (
+                      <View style={styles.detailEditPanel}>
+                        <View style={styles.detailEditPanelHeaderRecurrence}>
+                          <View style={styles.detailEditPanelBar} />
+                          <Text style={[styles.detailEditPanelTitle, { color: Colors.primary }]}>반복 주기 편집</Text>
+                        </View>
+                        <View style={styles.detailEditPanelBody}>
+                          <RecurrenceEditor
+                            unit={editRecurrenceUnit}
+                            interval={editRecurrenceInterval}
+                            selectedDays={editSelectedDays}
+                            startDate={editStartDate}
+                            onUnitChange={setEditRecurrenceUnit}
+                            onIntervalChange={setEditRecurrenceInterval}
+                            onToggleDayOfWeek={(day) => {
+                              setEditSelectedDays(prev =>
+                                prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                              );
+                            }}
+                            onStartDateChange={setEditStartDate}
+                            getNextOccurrences={getNextOccurrences}
+                          />
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateRecurrence(task, editRecurrenceUnit, editRecurrenceInterval, editStartDate)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 예상 소요 편집 패널 — 카드 바깥 */}
+                    {editingField === 'minutes' && (
+                      <View style={styles.detailEditPanel}>
+                        <View style={styles.detailEditPanelHeaderMinutes}>
+                          <View style={[styles.detailEditPanelBar, { backgroundColor: Colors.warning }]} />
+                          <Text style={[styles.detailEditPanelTitle, { color: Colors.warning }]}>예상 소요 시간 편집</Text>
+                        </View>
+                        <View style={styles.detailEditPanelBody}>
+                          <View style={styles.detailInlineIntervalRow}>
+                            <TouchableOpacity
+                              style={styles.detailInlineStepBtn}
+                              onPress={() => setEditMinutes(v => Math.max(5, v - 5))}
+                            >
+                              <Text style={styles.detailInlineStepText}>−</Text>
+                            </TouchableOpacity>
+                            <View style={styles.detailInlineValueBox}>
+                              <Text style={styles.detailInlineNumber}>{editMinutes}</Text>
+                              <Text style={styles.detailInlineUnit}>분</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.detailInlineStepBtn}
+                              onPress={() => setEditMinutes(v => Math.min(120, v + 5))}
+                            >
+                              <Text style={styles.detailInlineStepText}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={[styles.detailInlineSaveBtn, { backgroundColor: Colors.warning }]}
+                              onPress={() => handleUpdateMinutes(task, editMinutes)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 설명 */}
+                    {task.description && (
+                      <View style={styles.detailDescBox}>
+                        <Text style={styles.detailDescription}>{task.description}</Text>
+                      </View>
+                    )}
+
+                    {/* 우선순위 선택 */}
+                    <View style={styles.detailPrioritySection}>
+                      <Text style={styles.detailPrioritySectionLabel}>우선순위</Text>
+                      <View style={styles.detailPriorityRow}>
+                        {(['low', 'medium', 'high'] as const).map((level) => {
+                          const isActive = task.priority === level;
+                          const label = level === 'low' ? '낮음' : level === 'medium' ? '보통' : '높음';
                           return (
                             <TouchableOpacity
-                              style={[styles.detailActionButtonCompact, styles.detailRevertButton]}
-                              onPress={() => {
-                                handleRevertToOriginalSchedule(taskDetailModal.task!);
-                                setTaskDetailModal({ visible: false, task: null });
-                              }}
+                              key={level}
+                              style={[
+                                styles.formPriorityBtn,
+                                level === 'high' && styles.formPriorityBtnHigh,
+                                level === 'medium' && styles.formPriorityBtnMedium,
+                                level === 'low' && styles.formPriorityBtnLow,
+                                isActive && styles.formPriorityBtnActive,
+                                isActive && level === 'high' && styles.formPriorityBtnActiveHigh,
+                                isActive && level === 'medium' && styles.formPriorityBtnActiveMedium,
+                                isActive && level === 'low' && styles.formPriorityBtnActiveLow,
+                              ]}
+                              onPress={() => handleUpdatePriority(task, level)}
+                              activeOpacity={0.75}
                             >
-                              <Text style={styles.detailActionTextCompact}>복원</Text>
+                              <Text style={[
+                                styles.formPriorityBtnText,
+                                isActive && styles.formPriorityBtnTextActive,
+                              ]}>{label}</Text>
                             </TouchableOpacity>
                           );
-                        }
-                      }
-                      return null; // 빈 공간 유지하지 않음
-                    })()}
+                        })}
+                      </View>
+                    </View>
+                  </ScrollView>
 
-                    <TouchableOpacity
-                      style={[styles.detailActionButtonCompact, styles.detailDeleteButton]}
-                      onPress={() => {
-                        setTaskDetailModal({ visible: false, task: null });
-                        handleDeleteTask(taskDetailModal.task!);
-                      }}
-                    >
-                      <Text style={styles.detailActionTextCompact}>삭제</Text>
-                    </TouchableOpacity>
+                  {/* ── 고정 액션 버튼 ── */}
+                  <View style={styles.detailActionsFixed}>
+                    <View style={styles.detailActionsRow}>
+                      {/* 완료 / 완료취소 */}
+                      <TouchableOpacity
+                        style={[
+                          styles.detailActionCompactBtn,
+                          isCompleted ? styles.detailCompleteBtnUndo : styles.detailCompleteBtnDone,
+                        ]}
+                        onPress={() => {
+                          handleCompleteTask(task);
+                          setTaskDetailModal({ visible: false, task: null });
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.detailActionCompactIcon}>{isCompleted ? '↩' : '✓'}</Text>
+                        <Text style={styles.detailActionCompactText}>{isCompleted ? '완료 취소' : '완료'}</Text>
+                      </TouchableOpacity>
+
+                      {/* 미루기 */}
+                      <TouchableOpacity
+                        style={[styles.detailActionCompactBtn, styles.detailSubBtn]}
+                        onPress={() => {
+                          setTaskDetailModal({ visible: false, task: null });
+                          setTaskActionModal({ visible: true, task, action: 'postpone' });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.detailActionCompactIcon}>⏰</Text>
+                        <Text style={[styles.detailActionCompactText, { color: Colors.primary }]}>미루기</Text>
+                      </TouchableOpacity>
+
+                      {/* 삭제 */}
+                      <TouchableOpacity
+                        style={[styles.detailActionCompactBtn, styles.detailDeleteBtn]}
+                        onPress={() => {
+                          setTaskDetailModal({ visible: false, task: null });
+                          handleDeleteTask(task);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.detailActionCompactIcon}>🗑</Text>
+                        <Text style={[styles.detailActionCompactText, styles.detailDeleteBtnText]}>삭제</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* 일정 복원 (조건부 — 미뤄진 경우에만 별도 표시) */}
+                    {hasPushedSchedule && (
+                      <TouchableOpacity
+                        style={styles.detailRevertBtn}
+                        onPress={() => {
+                          handleRevertToOriginalSchedule(task);
+                          setTaskDetailModal({ visible: false, task: null });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.detailRevertBtnText}>📌  원래 일정으로 복원</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                </View>
-              </>
-            )}
-          </View>
+                </>
+              );
+            })()}
+          </Animated.View>
         </View>
       </Modal>
 
@@ -1970,30 +2203,65 @@ const TaskTemplateSelection: React.FC<{
   }
 
   return (
-    <View>
-      <Text style={styles.templateTitle}>{template.furnitureName} 관리</Text>
-      <Text style={styles.templateSubtitle}>추가할 Task를 선택하세요</Text>
+    <View style={styles.templateSelectionWrapper}>
+      {/* 섹션 헤더 V2 */}
+      <View style={styles.templateSelectionHeader}>
+        <View style={styles.templateSelectionHeaderBar} />
+        <View style={styles.templateSelectionHeaderContent}>
+          <Text style={styles.templateSelectionHeaderTitle}>
+            {template.furnitureName} 관리
+          </Text>
+          <Text style={styles.templateSelectionHeaderSub}>
+            추가할 Task를 선택하세요
+          </Text>
+        </View>
+      </View>
 
+      {/* 템플릿 카드 그리드 */}
       <View style={styles.templateGrid}>
         {template.tasks.map((task) => (
           <TouchableOpacity
             key={task.id}
-            style={styles.templateItemCompact}
+            style={styles.templateCardNew}
             onPress={() => onSelectTemplate(task)}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
           >
-            <View style={styles.templateItemHeader}>
-              <Text style={styles.templateItemTitleCompact} numberOfLines={1}>
+            {/* 제목 + 우선순위 pill */}
+            <View style={styles.templateCardTitleRow}>
+              <Text style={styles.templateCardTitle} numberOfLines={1}>
                 {task.title}
               </Text>
               <View style={[
-                styles.priorityDot,
-                task.priority === 'high' && styles.priorityHigh,
-                task.priority === 'medium' && styles.priorityMedium,
-                task.priority === 'low' && styles.priorityLow,
-              ]} />
+                styles.priorityPill,
+                task.priority === 'high' && styles.priorityPillHigh,
+                task.priority === 'medium' && styles.priorityPillMedium,
+                task.priority === 'low' && styles.priorityPillLow,
+              ]}>
+                <Text style={[
+                  styles.priorityPillText,
+                  task.priority === 'high' && styles.priorityPillTextHigh,
+                  task.priority === 'medium' && styles.priorityPillTextMedium,
+                  task.priority === 'low' && styles.priorityPillTextLow,
+                ]}>
+                  {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.templateEstimateCompact}>{task.estimatedMinutes}분</Text>
+
+            {/* 설명 미리보기 */}
+            {task.description ? (
+              <Text style={styles.templateCardDesc} numberOfLines={1}>
+                {task.description}
+              </Text>
+            ) : null}
+
+            {/* 하단: 소요시간 칩 + 화살표 */}
+            <View style={styles.templateCardFooter}>
+              <View style={styles.taskChipTime}>
+                <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
+              </View>
+              <Text style={styles.templateCardArrow}>›</Text>
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -2002,6 +2270,239 @@ const TaskTemplateSelection: React.FC<{
 };
 
 // Task 커스터마이징 폼 컴포넌트 (전면 개편)
+// ── 반복 설정 + 시작일 재사용 컴포넌트 ──
+const RecurrenceEditor: React.FC<{
+  unit: 'day' | 'week' | 'month';
+  interval: number;
+  selectedDays: DayOfWeek[];
+  startDate: Date;
+  onUnitChange: (unit: 'day' | 'week' | 'month') => void;
+  onIntervalChange: (interval: number) => void;
+  onToggleDayOfWeek: (day: DayOfWeek) => void;
+  onStartDateChange: (date: Date) => void;
+  getNextOccurrences: (startDate: Date, customization: TaskCustomization, selectedDays: DayOfWeek[], count: number) => Date[];
+}> = ({
+  unit,
+  interval,
+  selectedDays,
+  startDate,
+  onUnitChange,
+  onIntervalChange,
+  onToggleDayOfWeek,
+  onStartDateChange,
+  getNextOccurrences,
+}) => {
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
+
+  // getNextOccurrences 호환을 위한 customization 객체 구성
+  const pseudoCustomization: TaskCustomization = {
+    recurrenceType: unit === 'day' ? 'daily' : unit === 'week' ? 'weekly' : 'monthly',
+    interval,
+  };
+
+  return (
+    <>
+      {/* ── 반복 설정 섹션 ── */}
+      <View style={styles.formSectionHeaderUpcoming}>
+        <View style={styles.formSectionHeaderBar} />
+        <Text style={styles.formSectionHeaderTitle}>반복 설정</Text>
+      </View>
+
+      <View style={styles.formSettingCard}>
+        {/* 반복 주기 선택 */}
+        <View style={styles.recurrenceGrid}>
+          {(['day', 'week', 'month'] as const).map((u) => (
+            <TouchableOpacity
+              key={u}
+              style={[
+                styles.modernRecurrenceCard,
+                unit === u && styles.modernRecurrenceCardActive,
+              ]}
+              onPress={() => onUnitChange(u)}
+            >
+              <Text style={styles.recurrenceIcon}>
+                {u === 'day' ? '📅' : u === 'week' ? '📆' : '🗓️'}
+              </Text>
+              <Text style={[
+                styles.modernRecurrenceText,
+                unit === u && styles.modernRecurrenceTextActive,
+              ]}>
+                {u === 'day' ? '매일' : u === 'week' ? '매주' : '매월'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 간격 설정 */}
+        <View style={styles.formIntervalRow}>
+          <Text style={styles.formIntervalLabel}>간격</Text>
+          <View style={styles.formIntervalControls}>
+            <TouchableOpacity
+              style={styles.formIntervalBtn}
+              onPress={() => onIntervalChange(Math.max(1, interval - 1))}
+            >
+              <Text style={styles.formIntervalBtnText}>−</Text>
+            </TouchableOpacity>
+            <View style={styles.formIntervalValueBox}>
+              <Text style={styles.formIntervalNumber}>{interval}</Text>
+              <Text style={styles.formIntervalUnit}>
+                {unit === 'day' ? '일마다' : unit === 'week' ? '주마다' : '개월마다'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.formIntervalBtn}
+              onPress={() => onIntervalChange(Math.min(30, interval + 1))}
+            >
+              <Text style={styles.formIntervalBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 요일 선택 (주간 반복 시) */}
+        {unit === 'week' && (
+          <View style={styles.formDayPickerRow}>
+            <Text style={styles.formIntervalLabel}>요일</Text>
+            <View style={styles.formDayPicker}>
+              {dayNames.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.formDayBtn,
+                    selectedDays.includes(index as DayOfWeek) && styles.formDayBtnActive,
+                  ]}
+                  onPress={() => onToggleDayOfWeek(index as DayOfWeek)}
+                >
+                  <Text style={[
+                    styles.formDayBtnText,
+                    selectedDays.includes(index as DayOfWeek) && styles.formDayBtnTextActive,
+                  ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* ── 시작일 섹션 ── */}
+      <View style={styles.formSectionHeaderUpcoming}>
+        <View style={styles.formSectionHeaderBar} />
+        <Text style={styles.formSectionHeaderTitle}>시작일</Text>
+      </View>
+
+      <View style={styles.formSettingCard}>
+        {/* 시작일 선택 */}
+        <View style={styles.formStartDateRow}>
+          <TouchableOpacity
+            style={styles.formDateBtn}
+            onPress={() => {
+              const d = new Date(startDate);
+              d.setDate(d.getDate() - 1);
+              onStartDateChange(d);
+            }}
+          >
+            <Text style={styles.formDateBtnText}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.formDateDisplay}>
+            <Text style={styles.formDateText}>
+              {startDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
+            </Text>
+            <Text style={styles.formDateWeekday}>
+              {startDate.toLocaleDateString('ko-KR', { weekday: 'long' })}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.formDateBtn}
+            onPress={() => {
+              const d = new Date(startDate);
+              d.setDate(d.getDate() + 1);
+              onStartDateChange(d);
+            }}
+          >
+            <Text style={styles.formDateBtnText}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 달력 */}
+        <View style={styles.calendarContainer}>
+          <Calendar
+            style={styles.calendar}
+            current={startDate.toISOString().split('T')[0]}
+            markedDates={(() => {
+              const marked: { [key: string]: any } = {};
+              const nextDates = getNextOccurrences(startDate, pseudoCustomization, selectedDays, 10);
+              nextDates.forEach((date, index) => {
+                const dateString = date.toISOString().split('T')[0];
+                if (index < 3) {
+                  marked[dateString] = {
+                    selected: true,
+                    selectedColor: Colors.primary,
+                    selectedTextColor: Colors.white,
+                  };
+                } else {
+                  marked[dateString] = { marked: true, dotColor: Colors.textSecondary };
+                }
+              });
+              return marked;
+            })()}
+            dayComponent={({ date, state }) => {
+              if (!date) return null;
+              const dateObj = new Date(date.year, date.month - 1, date.day);
+              const dayOfWeek = dateObj.getDay();
+              const isHoliday = KoreanHolidays.isHoliday(dateObj);
+              const nextDates = getNextOccurrences(startDate, pseudoCustomization, selectedDays, 50);
+              const hasSchedule = nextDates.some(d => d.toISOString().split('T')[0] === date.dateString);
+              let textColor: any = Colors.textPrimary;
+              if (isHoliday || dayOfWeek === 0) textColor = '#FF3B30';
+              else if (dayOfWeek === 6) textColor = '#007AFF';
+              return (
+                <View style={hasSchedule ? [styles.calendarDay, styles.calendarDayMarked] : styles.calendarDay}>
+                  <Text style={[styles.calendarDayText, { color: textColor }]}>{date.day}</Text>
+                </View>
+              );
+            }}
+            theme={{
+              backgroundColor: Colors.white,
+              calendarBackground: Colors.white,
+              textSectionTitleColor: Colors.textSecondary,
+              selectedDayBackgroundColor: Colors.primary,
+              selectedDayTextColor: Colors.white,
+              todayTextColor: Colors.primary,
+              dayTextColor: Colors.textPrimary,
+              textDisabledColor: Colors.lightGray,
+              dotColor: Colors.primary,
+              selectedDotColor: Colors.white,
+              arrowColor: Colors.primary,
+              disabledArrowColor: Colors.lightGray,
+              monthTextColor: Colors.textPrimary,
+              indicatorColor: Colors.primary,
+              textDayFontWeight: '400',
+              textMonthFontWeight: '600',
+              textDayHeaderFontWeight: '500',
+              textDayFontSize: 12,
+              textMonthFontSize: 14,
+              textDayHeaderFontSize: 10,
+            }}
+            hideExtraDays={true}
+            disableMonthChange={false}
+            firstDay={1}
+            hideDayNames={false}
+            showWeekNumbers={false}
+            disableArrowLeft={false}
+            disableArrowRight={false}
+            onMonthChange={(month) => {
+              setCurrentCalendarMonth(new Date(month.year, month.month - 1, 1));
+            }}
+          />
+        </View>
+        <Text style={styles.formCalendarHint}>파란 테두리 = 반복 예정일</Text>
+      </View>
+    </>
+  );
+};
+
 const TaskCustomizationForm: React.FC<{
   template: TaskTemplateItem;
   customization: TaskCustomization;
@@ -2043,258 +2544,63 @@ const TaskCustomizationForm: React.FC<{
 
   return (
     <View style={styles.modernForm}>
-      {/* 헤더 */}
-      <View style={styles.modernHeader}>
-        <View style={styles.taskInfoCard}>
-          <Text style={styles.modernSubtitle}>{template.description}</Text>
-          <Text style={styles.estimateText}>⏱️ 예상 시간: {template.estimatedMinutes}분</Text>
-        </View>
-      </View>
 
-      {/* 달력 */}
-      <View style={styles.modernSection}>
-        <View style={styles.calendarContainer}>
-          <Calendar
-            style={styles.calendar}
-            current={startDate.toISOString().split('T')[0]}
-            markedDates={(() => {
-              const marked: { [key: string]: any } = {};
-              const nextDates = getNextOccurrences(startDate, customization, selectedDays, 10);
-              
-              // 일정이 있는 날짜에 표시
-              nextDates.forEach((date, index) => {
-                const dateString = date.toISOString().split('T')[0];
-                
-                // 앞의 3개 일정은 파란 배경, 나머지는 점 표시
-                if (index < 3) {
-                  marked[dateString] = {
-                    selected: true,
-                    selectedColor: Colors.primary,
-                    selectedTextColor: Colors.white,
-                  };
-                } else {
-                  marked[dateString] = {
-                    marked: true,
-                    dotColor: Colors.textSecondary,
-                  };
-                }
-              });
-              
-              return marked;
-            })()}
-            dayComponent={({date, state}) => {
-              if (!date) return null;
-              
-              const dateObj = new Date(date.year, date.month - 1, date.day);
-              const dayOfWeek = dateObj.getDay();
-              const isHoliday = KoreanHolidays.isHoliday(dateObj);
-              const dateString = date.dateString;
-              const nextDates = getNextOccurrences(startDate, customization, selectedDays, 50);
-              const hasSchedule = nextDates.some(d => d.toISOString().split('T')[0] === dateString);
-              const scheduleIndex = nextDates.findIndex(d => d.toISOString().split('T')[0] === dateString);
-              
-              // 색상 결정
-              let textColor: any = Colors.textPrimary;
-              if (isHoliday || dayOfWeek === 0) {
-                textColor = '#FF3B30'; // 공휴일/일요일 - 빨간색
-              } else if (dayOfWeek === 6) {
-                textColor = '#007AFF'; // 토요일 - 파란색
-              }
-              
-              // 일정이 있는 경우 스타일링
-              let containerStyle: any = styles.calendarDay;
-              let textStyle: any = [styles.calendarDayText, { color: textColor }];
-              
-              if (hasSchedule) {
-                // 모든 일정은 파란 테두리로만 표시
-                containerStyle = [styles.calendarDay, styles.calendarDayMarked];
-              }
-              
+      {/* ── Task 요약 정보 카드 ── */}
+      <View style={styles.formSummaryCard}>
+        <Text style={styles.formSummaryDesc}>{template.description}</Text>
+        <View style={styles.formSummaryBottom}>
+          <View style={styles.taskChipTime}>
+            <Text style={styles.taskChipTextTime}>⏱ 예상 {template.estimatedMinutes}분</Text>
+          </View>
+          {/* 우선순위 선택 */}
+          <View style={styles.formPriorityRow}>
+            {(['low', 'medium', 'high'] as const).map((level) => {
+              const isActive = (customization.priority || template.priority) === level;
+              const label = level === 'low' ? '낮음' : level === 'medium' ? '보통' : '높음';
               return (
-                <View style={containerStyle}>
-                  <Text style={textStyle}>{date.day}</Text>
-                </View>
-              );
-            }}
-            theme={{
-              backgroundColor: Colors.white,
-              calendarBackground: Colors.white,
-              textSectionTitleColor: Colors.textSecondary,
-              selectedDayBackgroundColor: Colors.primary,
-              selectedDayTextColor: Colors.white,
-              todayTextColor: Colors.primary,
-              dayTextColor: Colors.textPrimary,
-              textDisabledColor: Colors.lightGray,
-              dotColor: Colors.primary,
-              selectedDotColor: Colors.white,
-              arrowColor: Colors.primary,
-              disabledArrowColor: Colors.lightGray,
-              monthTextColor: Colors.textPrimary,
-              indicatorColor: Colors.primary,
-              textDayFontWeight: '400',
-              textMonthFontWeight: '600',
-              textDayHeaderFontWeight: '500',
-              textDayFontSize: 12,
-              textMonthFontSize: 14,
-              textDayHeaderFontSize: 10,
-            }}
-            hideExtraDays={true}
-            disableMonthChange={false}
-            firstDay={1}
-            hideDayNames={false}
-            showWeekNumbers={false}
-            disableArrowLeft={false}
-            disableArrowRight={false}
-            onMonthChange={(month) => {
-              // 월이 변경될 때마다 재렌더링하여 공휴일 색상 업데이트
-              setCurrentCalendarMonth(new Date(month.year, month.month - 1, 1));
-            }}
-            />
-          </View>
-      </View>
-
-      {/* 일정 설정 */}
-      <View style={styles.modernSection}>
-        <Text style={styles.modernSectionTitle}>📅 일정 설정</Text>
-        
-        {/* 시작일 선택 - 인라인 스타일 */}
-        <View style={styles.inlineCard}>
-          <Text style={styles.inlineLabel}>시작일</Text>
-          <View style={styles.inlineDateSelector}>
-            <TouchableOpacity 
-              style={styles.compactArrowButton}
-              onPress={() => {
-                const newDate = new Date(startDate);
-                newDate.setDate(newDate.getDate() - 1);
-                onStartDateChange(newDate);
-              }}
-            >
-              <Text style={styles.compactArrow}>‹</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.inlineDateText}>
-              {startDate.toLocaleDateString('ko-KR', { 
-                month: 'short', 
-                day: 'numeric',
-              })} {(() => {
-                const today = new Date();
-                const diffTime = startDate.getTime() - today.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const weekday = startDate.toLocaleDateString('ko-KR', { weekday: 'short' });
-                
-                if (diffDays === 0) {
-                  return `${weekday}`;
-                } else if (diffDays === 1) {
-                  return `${weekday}`;
-                } else if (diffDays === -1) {
-                  return `${weekday}`;
-                } else {
-                  return `${weekday}`;
-                }
-              })()}
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.compactArrowButton}
-              onPress={() => {
-                const newDate = new Date(startDate);
-                newDate.setDate(newDate.getDate() + 1);
-                onStartDateChange(newDate);
-              }}
-            >
-              <Text style={styles.compactArrow}>›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 반복 주기 선택 */}
-        <View style={styles.compactCard}>
-          <Text style={styles.compactLabel}>반복 주기</Text>
-          <View style={styles.recurrenceGrid}>
-            {(['daily', 'weekly', 'monthly'] as const).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.modernRecurrenceCard,
-                  customization.recurrenceType === type && styles.modernRecurrenceCardActive
-                ]}
-                onPress={() => onCustomizationChange({ ...customization, recurrenceType: type })}
-              >
-                <Text style={styles.recurrenceIcon}>
-                  {type === 'daily' ? '📅' : type === 'weekly' ? '📆' : '🗓️'}
-                </Text>
-                <Text style={[
-                  styles.modernRecurrenceText,
-                  customization.recurrenceType === type && styles.modernRecurrenceTextActive
-                ]}>
-                  {type === 'daily' ? '매일' : type === 'weekly' ? '매주' : '매월'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          
-          {/* 간격 설정 - 인라인 스타일 */}
-          <View style={styles.inlineCard}>
-            <Text style={styles.inlineLabel}>간격</Text>
-            <View style={styles.inlineIntervalSelector}>
-              <TouchableOpacity 
-                style={styles.compactIntervalButton}
-                onPress={() => onCustomizationChange({ 
-                  ...customization, 
-                  interval: Math.max(1, (customization.interval || 1) - 1)
-                })}
-              >
-                <Text style={styles.compactIntervalIcon}>−</Text>
-              </TouchableOpacity>
-              
-              <Text style={styles.inlineIntervalText}>
-                {customization.interval || 1}
-                {customization.recurrenceType === 'daily' ? '일마다' : 
-                 customization.recurrenceType === 'weekly' ? '주마다' : '개월마다'}
-              </Text>
-              
-              <TouchableOpacity 
-                style={styles.compactIntervalButton}
-                onPress={() => onCustomizationChange({ 
-                  ...customization, 
-                  interval: Math.min(30, (customization.interval || 1) + 1)
-                })}
-              >
-                <Text style={styles.compactIntervalIcon}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* 요일 선택 (주간 반복시) - 인라인 스타일 */}
-        {customization.recurrenceType === 'weekly' && (
-          <View style={styles.inlineCard}>
-            <Text style={styles.inlineLabel}>요일</Text>
-            <View style={styles.inlineDayPicker}>
-              {dayNames.map((day, index) => (
                 <TouchableOpacity
-                  key={index}
+                  key={level}
                   style={[
-                    styles.compactDayButton,
-                    selectedDays.includes(index as DayOfWeek) && styles.compactDayButtonActive
+                    styles.formPriorityBtn,
+                    level === 'high' && styles.formPriorityBtnHigh,
+                    level === 'medium' && styles.formPriorityBtnMedium,
+                    level === 'low' && styles.formPriorityBtnLow,
+                    isActive && styles.formPriorityBtnActive,
+                    isActive && level === 'high' && styles.formPriorityBtnActiveHigh,
+                    isActive && level === 'medium' && styles.formPriorityBtnActiveMedium,
+                    isActive && level === 'low' && styles.formPriorityBtnActiveLow,
                   ]}
-                  onPress={() => onToggleDayOfWeek(index as DayOfWeek)}
+                  onPress={() => onCustomizationChange({ ...customization, priority: level })}
+                  activeOpacity={0.75}
                 >
                   <Text style={[
-                    styles.compactDayButtonText,
-                    selectedDays.includes(index as DayOfWeek) && styles.compactDayButtonTextActive
-                  ]}>
-                    {day}
-                  </Text>
+                    styles.formPriorityBtnText,
+                    isActive && styles.formPriorityBtnTextActive,
+                  ]}>{label}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+              );
+            })}
           </View>
-        )}
+        </View>
       </View>
 
+      <RecurrenceEditor
+        unit={customization.recurrenceType === 'daily' ? 'day' : customization.recurrenceType === 'weekly' ? 'week' : 'month'}
+        interval={customization.interval || 1}
+        selectedDays={selectedDays}
+        startDate={startDate}
+        onUnitChange={(u) => onCustomizationChange({
+          ...customization,
+          recurrenceType: u === 'day' ? 'daily' : u === 'week' ? 'weekly' : 'monthly',
+        })}
+        onIntervalChange={(v) => onCustomizationChange({ ...customization, interval: v })}
+        onToggleDayOfWeek={onToggleDayOfWeek}
+        onStartDateChange={onStartDateChange}
+        getNextOccurrences={getNextOccurrences}
+      />
 
-
+      {/* 하단 여백 */}
+      <View style={{ height: Spacing.lg }} />
     </View>
   );
 };
@@ -2358,6 +2664,325 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textSecondary,
   },
+  // ── TaskTemplateSelection 새 스타일 ──
+  templateSelectionWrapper: {
+    paddingBottom: Spacing.md,
+  },
+  templateSelectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 10,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  templateSelectionHeaderBar: {
+    width: 4,
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  templateSelectionHeaderContent: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  templateSelectionHeaderTitle: {
+    ...Typography.label,
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  templateSelectionHeaderSub: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  templateCardNew: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: Spacing.md,
+    margin: 4,
+    flex: 1,
+    minWidth: '45%',
+    maxWidth: '48%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  templateCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    gap: 4,
+  },
+  templateCardTitle: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+    lineHeight: 18,
+  },
+  templateCardDesc: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: Spacing.sm,
+  },
+  templateCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  templateCardArrow: {
+    fontSize: 18,
+    color: Colors.lightGray,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+
+  // ── TaskCustomizationForm 새 스타일 ──
+  formSummaryCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'column',
+    gap: Spacing.sm,
+  },
+  formSummaryBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  formPriorityRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  formPriorityBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Colors.veryLightGray,
+    backgroundColor: Colors.background,
+  },
+  formPriorityBtnHigh: {
+    borderColor: Colors.error + '40',
+  },
+  formPriorityBtnMedium: {
+    borderColor: Colors.warning + '40',
+  },
+  formPriorityBtnLow: {
+    borderColor: Colors.success + '40',
+  },
+  formPriorityBtnActive: {
+    borderWidth: 1.5,
+  },
+  formPriorityBtnActiveHigh: {
+    backgroundColor: Colors.error + '18',
+    borderColor: Colors.error,
+  },
+  formPriorityBtnActiveMedium: {
+    backgroundColor: Colors.warning + '18',
+    borderColor: Colors.warning,
+  },
+  formPriorityBtnActiveLow: {
+    backgroundColor: Colors.success + '18',
+    borderColor: Colors.success,
+  },
+  formPriorityBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  formPriorityBtnTextActive: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
+  },
+  formSummaryDesc: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  formSectionHeaderUpcoming: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.veryLightGray + '80',
+    borderRadius: 10,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+    paddingVertical: Spacing.sm,
+    paddingRight: Spacing.md,
+  },
+  formSectionHeaderBar: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.lightGray,
+    marginRight: Spacing.md,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  formSectionHeaderTitle: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  formSettingCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  formIntervalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+  },
+  formIntervalLabel: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  formIntervalControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  formIntervalBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formIntervalBtnText: {
+    fontSize: 18,
+    color: Colors.primary,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  formIntervalValueBox: {
+    alignItems: 'center',
+    minWidth: 64,
+  },
+  formIntervalNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    lineHeight: 24,
+  },
+  formIntervalUnit: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  formDayPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+  },
+  formDayPicker: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  formDayBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.veryLightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formDayBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  formDayBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  formDayBtnTextActive: {
+    color: Colors.white,
+  },
+  formStartDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  formDateBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formDateBtnText: {
+    fontSize: 22,
+    color: Colors.primary,
+    fontWeight: '600',
+    lineHeight: 26,
+  },
+  formDateDisplay: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  formDateText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    lineHeight: 22,
+  },
+  formDateWeekday: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  formCalendarHint: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    opacity: 0.7,
+  },
+
   modernSection: {
     marginBottom: Spacing.md,
   },
@@ -3255,6 +3880,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
+  detailModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   taskAddModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -3429,10 +4060,9 @@ const styles = StyleSheet.create({
   // Task 세부정보 모달 스타일
   taskDetailModal: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: 34, // Safe area
+    borderRadius: 16,
+    width: '92%',
+    maxHeight: '82%',
   },
   taskAddModal: {
     backgroundColor: Colors.white,
@@ -3742,7 +4372,868 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
   },
-  
+
+  // ── 상단 요약 대시보드 ──
+  dashboardCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    marginBottom: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  dashboardRow: {
+    flexDirection: 'row',
+    paddingVertical: Spacing.sm,
+  },
+  dashboardItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  dashboardItemOverdue: {},
+  dashboardItemToday: {},
+  dashboardCount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    lineHeight: 24,
+  },
+  dashboardCountOverdue: {
+    color: Colors.error,
+  },
+  dashboardCountToday: {
+    color: Colors.primary,
+  },
+  dashboardLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  dashboardDivider: {
+    width: 1,
+    backgroundColor: Colors.veryLightGray,
+    marginVertical: 6,
+  },
+
+  // 더러움 게이지
+  dirtyGaugeContainer: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  dirtyGaugeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  dirtyGaugeLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  dirtyGaugePercent: {
+    ...Typography.caption,
+    color: Colors.success,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  dirtyGaugePercentMid: {
+    color: Colors.warning,
+  },
+  dirtyGaugePercentHigh: {
+    color: Colors.error,
+  },
+  dirtyGaugeTrack: {
+    height: 6,
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  dirtyGaugeFill: {
+    height: 6,
+    backgroundColor: Colors.success,
+    borderRadius: 3,
+  },
+  dirtyGaugeFillMid: {
+    backgroundColor: Colors.warning,
+  },
+  dirtyGaugeFillHigh: {
+    backgroundColor: Colors.error,
+  },
+  cleaningCta: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.warning + '18',
+    borderRadius: 8,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  cleaningCtaText: {
+    ...Typography.caption,
+    color: Colors.warning,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+
+  // ── 전체 빈 상태 ──
+  fullEmptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+    paddingHorizontal: Spacing.xl,
+  },
+  fullEmptyIcon: {
+    fontSize: 48,
+    marginBottom: Spacing.md,
+  },
+  fullEmptyTitle: {
+    ...Typography.h3,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  fullEmptySubtext: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: Spacing.lg,
+  },
+  fullEmptyButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+  },
+  fullEmptyButtonText: {
+    ...Typography.label,
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  // ── 전체 완료 상태 ──
+  allDoneState: {
+    alignItems: 'center',
+    backgroundColor: Colors.success + '12',
+    borderRadius: 16,
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+  },
+  allDoneIcon: {
+    fontSize: 36,
+    marginBottom: Spacing.sm,
+  },
+  allDoneTitle: {
+    ...Typography.h4,
+    color: Colors.success,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  allDoneSubtext: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+
+  // ── 섹션 헤더 V2 ──
+  sectionHeaderV2Overdue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '10',
+    borderRadius: 10,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  sectionHeaderV2Bar: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.error,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  sectionHeaderV2Content: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
+  },
+  sectionHeaderV2Title: {
+    ...Typography.label,
+    color: Colors.error,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  sectionHeaderV2Today: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 10,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  sectionHeaderV2BarToday: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  sectionHeaderV2TitleToday: {
+    ...Typography.label,
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  sectionHeaderV2Upcoming: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.veryLightGray + '60',
+    borderRadius: 10,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  sectionHeaderV2BarUpcoming: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.lightGray,
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+  },
+  sectionHeaderV2TitleUpcoming: {
+    ...Typography.label,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  sectionCollapseIcon: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    paddingRight: Spacing.md,
+  },
+
+  // ── 새 태스크 카드 ──
+  taskCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    marginBottom: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  taskCardOverdue: {
+    backgroundColor: Colors.error + '06',
+  },
+  taskCardToday: {
+    backgroundColor: Colors.primary + '06',
+  },
+  taskCardCompleted: {
+    opacity: 0.6,
+    backgroundColor: Colors.success + '08',
+  },
+  taskCardAccentOverdue: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.error,
+  },
+  taskCardAccentToday: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary,
+  },
+  taskCardAccentUpcoming: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.lightGray,
+  },
+
+  // 새 체크박스
+  taskCheckboxNew: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: Colors.lightGray,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+    flexShrink: 0,
+  },
+  taskCheckboxNewToday: {
+    borderColor: Colors.primary,
+  },
+  taskCheckboxNewCompleted: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  taskCheckboxNewLoading: {
+    backgroundColor: Colors.gray,
+    borderColor: Colors.gray,
+  },
+  taskCheckboxCheck: {
+    fontSize: 13,
+    color: Colors.white,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+
+  // 카드 본문
+  taskCardBody: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingRight: Spacing.md,
+  },
+  taskCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  taskCardTitle: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 18,
+    marginRight: Spacing.xs,
+  },
+  taskCardTitleCompleted: {
+    textDecorationLine: 'line-through' as const,
+    color: Colors.textSecondary,
+  },
+  taskCardTitleUpcoming: {
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  taskCardChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+
+  // 우선순위 pill
+  priorityPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: Colors.veryLightGray,
+    flexShrink: 0,
+  },
+  priorityPillHigh: {
+    backgroundColor: Colors.error + '20',
+  },
+  priorityPillMedium: {
+    backgroundColor: Colors.warning + '20',
+  },
+  priorityPillLow: {
+    backgroundColor: Colors.success + '20',
+  },
+  priorityPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  priorityPillTextHigh: {
+    color: Colors.error,
+  },
+  priorityPillTextMedium: {
+    color: Colors.warning,
+  },
+  priorityPillTextLow: {
+    color: Colors.success,
+  },
+
+  // 칩 스타일
+  taskChipOverdue: {
+    backgroundColor: Colors.error + '18',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextOverdue: {
+    fontSize: 11,
+    color: Colors.error,
+    fontWeight: '600',
+  },
+  taskChipToday: {
+    backgroundColor: Colors.primary + '18',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextToday: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  taskChipCompleted: {
+    backgroundColor: Colors.success + '18',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextCompleted: {
+    fontSize: 11,
+    color: Colors.success,
+    fontWeight: '600',
+  },
+  taskChipUpcoming: {
+    backgroundColor: Colors.veryLightGray,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextUpcoming: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  taskChipRecurrence: {
+    backgroundColor: Colors.primary + '12',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextRecurrence: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  taskChipTime: {
+    backgroundColor: Colors.veryLightGray,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  taskChipTextTime: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // ── Detail Modal V2 ──
+  // ── Task 세부 모달 v2 스타일 ──
+  detailHeaderFixed: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray,
+    overflow: 'hidden',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  detailStatusBanner: {
+    paddingVertical: 7,
+    alignItems: 'center',
+  },
+  detailStatusBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  detailScrollContent: {
+    flexGrow: 0,
+  },
+  detailSummaryCardV2: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  detailSummaryRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 11,
+    gap: Spacing.sm,
+  },
+  detailSummaryRowItemBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+  },
+  detailDdayBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  detailDdayText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  detailSummaryIcon: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  detailSummaryLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  detailSummaryValue: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  detailDescBox: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: Spacing.md,
+  },
+  // ── 편집 패널 (카드 바깥 분리형) ──
+  detailSummaryRowItemActive: {
+    backgroundColor: Colors.primary + '08',
+  },
+  detailSummaryRowItemActiveOrange: {
+    backgroundColor: Colors.warning + '08',
+  },
+  detailEditPanel: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray,
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  detailEditPanelHeaderRecurrence: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '10',
+    paddingVertical: Spacing.sm,
+    paddingRight: Spacing.md,
+    overflow: 'hidden',
+  },
+  detailEditPanelHeaderMinutes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warning + '10',
+    paddingVertical: Spacing.sm,
+    paddingRight: Spacing.md,
+    overflow: 'hidden',
+  },
+  detailEditPanelBar: {
+    width: 4,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary,
+    marginRight: Spacing.md,
+  },
+  detailEditPanelTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  detailEditPanelBody: {
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+
+  // ── 인라인 편집 스타일 ──
+  detailEditIcon: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    opacity: 0.6,
+  },
+  detailInlineEditor: {
+    backgroundColor: Colors.primary + '08',
+    borderTopWidth: 1,
+    borderTopColor: Colors.primary + '20',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  detailInlineUnitRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  detailInlineUnitBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.veryLightGray,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+  },
+  detailInlineUnitBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  detailInlineUnitText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  detailInlineUnitTextActive: {
+    color: Colors.white,
+  },
+  detailInlineIntervalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  detailInlineStepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailInlineStepText: {
+    fontSize: 20,
+    color: Colors.primary,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  detailInlineValueBox: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  detailInlineNumber: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    lineHeight: 26,
+  },
+  detailInlineUnit: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  detailInlineSaveBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    flex: 1,
+  },
+  detailInlineSaveBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  detailInlineCancelBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.lightGray,
+  },
+  detailInlineCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  detailRecurrenceEditorWrap: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.primary + '20',
+    backgroundColor: Colors.background,
+  },
+  detailRecurrenceEditorActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+
+  detailPrioritySection: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  detailPrioritySectionLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailPriorityRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  detailCompletedBadge: {
+    backgroundColor: Colors.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  detailCompletedBadgeText: {
+    fontSize: 11,
+    color: Colors.success,
+    fontWeight: '600',
+  },
+  // ── 고정 액션 버튼 영역 ──
+  detailActionsFixed: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  detailActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  detailActionCompactBtn: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 3,
+  },
+  detailActionCompactIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  detailActionCompactText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  detailCompleteBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailCompleteBtnDone: {
+    backgroundColor: Colors.success,
+  },
+  detailCompleteBtnUndo: {
+    backgroundColor: Colors.warning,
+  },
+  detailCompleteBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.white,
+    letterSpacing: 0.3,
+  },
+  detailSecondRowBtns: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  detailSubBtn: {
+    backgroundColor: Colors.primary + '10',
+  },
+  detailSubBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  detailDeleteBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.error + '50',
+    backgroundColor: Colors.error + '08',
+  },
+  detailDeleteBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.error,
+  },
+  detailRevertBtn: {
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: Colors.veryLightGray + '80',
+  },
+  detailRevertBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  // (하위호환 유지용 — 이전 스타일명 참조가 남아 있을 경우 대비)
+  detailSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    minWidth: '30%',
+  },
+  detailPrimaryActions: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+  },
+  detailPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    gap: 6,
+  },
+  detailPrimaryBtnComplete: { backgroundColor: Colors.success },
+  detailPrimaryBtnUndo: { backgroundColor: Colors.warning },
+  detailPrimaryBtnPostpone: { backgroundColor: Colors.primary + '18' },
+  detailPrimaryBtnIcon: { fontSize: 16, color: Colors.white },
+  detailPrimaryBtnText: { fontSize: 15, fontWeight: '700', color: Colors.white },
+  detailSecondaryActions: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    paddingBottom: 20,
+    gap: Spacing.sm,
+  },
+  detailSecondaryBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: 10,
+    backgroundColor: Colors.veryLightGray + '60',
+    alignItems: 'center',
+  },
+  detailSecondaryBtnDelete: { backgroundColor: Colors.error + '12' },
+  detailSecondaryBtnText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  detailSecondaryBtnTextDelete: { color: Colors.error },
+
   // 간단한 Task 아이템 스타일
   taskItemSimple: {
     flexDirection: 'row',
