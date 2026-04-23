@@ -19,9 +19,43 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
 
-// furnitureId별 오늘/연체 task 개수
+// furnitureId별 오늘/연체 task 개수 및 실시간 dirtyScore
 interface FurnitureTaskCounts {
-  [furnitureId: string]: { today: number; overdue: number };
+  [furnitureId: string]: { today: number; overdue: number; dirtyScore: number };
+}
+
+// furnitureId 시드 기반 결정론적 먼지 파티클 생성
+// dirtyScore 구간: 0~14 → 0개, 15~29 → 1~2개, 30~59 → 3~7개, 60~79 → 8~11개, 80~100 → 12~15개
+function getDustParticles(
+  furnitureId: string,
+  dirtyScore: number,
+  w: number,
+  h: number
+): Array<{ x: number; y: number; r: number; opacity: number }> {
+  if (dirtyScore < 15) return [];
+
+  let count: number;
+  if (dirtyScore < 30) {
+    count = 4 + Math.floor(((dirtyScore - 15) / 15) * 3); // 4~7개
+  } else if (dirtyScore < 60) {
+    count = 8 + Math.floor(((dirtyScore - 30) / 30) * 7); // 8~15개
+  } else if (dirtyScore < 80) {
+    count = 16 + Math.floor(((dirtyScore - 60) / 20) * 6); // 16~22개
+  } else {
+    count = 23 + Math.floor(((dirtyScore - 80) / 20) * 7); // 23~30개
+  }
+
+  const seed = furnitureId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return Array.from({ length: count }, (_, i) => {
+    const pseudo1 = (seed * (i + 1) * 9301 + 49297) % 233280;
+    const pseudo2 = (seed * (i + 7) * 1103 + 12345) % 233280;
+    return {
+      x: (pseudo1 / 233280) * (w - 10) + 5,
+      y: (pseudo2 / 233280) * (h - 10) + 5,
+      r: 1.2 + (i % 3) * 0.7,
+      opacity: 0.25 + (dirtyScore / 100) * 0.5,
+    };
+  });
 }
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'HouseMain'>;
@@ -97,11 +131,13 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const counts: FurnitureTaskCounts = {};
+      const now = new Date();
+
       allTasks.forEach((task: Task) => {
         const furnitureId = objectToFurniture[task.objectId];
         if (!furnitureId) return;
 
-        if (!counts[furnitureId]) counts[furnitureId] = { today: 0, overdue: 0 };
+        if (!counts[furnitureId]) counts[furnitureId] = { today: 0, overdue: 0, dirtyScore: 0 };
 
         const nextDue = task.recurrence?.nextDue
           ? new Date(task.recurrence.nextDue)
@@ -110,6 +146,15 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         if (nextDue) {
           if (nextDue < today) {
             counts[furnitureId].overdue += 1;
+            // 연체 Task 1개당 기본 15점 + 연체 일수당 5점(최대 30점) 누적
+            const daysOverdue = Math.floor(
+              (now.getTime() - nextDue.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const taskScore = 15 + Math.min(daysOverdue * 5, 30);
+            counts[furnitureId].dirtyScore = Math.min(
+              counts[furnitureId].dirtyScore + taskScore,
+              100
+            );
           } else if (nextDue < tomorrow) {
             counts[furnitureId].today += 1;
           }
@@ -189,10 +234,19 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
 
   const renderFurniture = (room: Room, furniture: Furniture) => {
-    const hasDirt = furniture.dirtyScore > 30;
-    const dirtOpacity = Math.min(furniture.dirtyScore / 100, 0.6);
-    const counts = furnitureTaskCounts[furniture.id] ?? { today: 0, overdue: 0 };
+    const counts = furnitureTaskCounts[furniture.id] ?? { today: 0, overdue: 0, dirtyScore: 0 };
     const hasOverdueTasks = counts.overdue > 0;
+    // counts 항목이 존재하면(Task가 있으면) 실시간 계산값 우선, 없으면 Firestore 저장값
+    const dirtyScore = furniture.id in furnitureTaskCounts
+      ? counts.dirtyScore
+      : (furniture.dirtyScore ?? 0);
+    const dustParticles = getDustParticles(
+      furniture.id,
+      dirtyScore,
+      furniture.size.width,
+      furniture.size.height
+    );
+    const showDirtyLabel = furniture.size.width > 60 && dirtyScore >= 15;
 
     const absoluteX = room.position.x + furniture.position.x;
     const absoluteY = room.position.y + furniture.position.y;
@@ -215,17 +269,31 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           onPress={() => handleFurniturePress(room, furniture)}
         />
 
-        {/* 먼지 효과 */}
-        {hasDirt && (
-          <Rect
-            x={absoluteX}
-            y={absoluteY}
-            width={furniture.size.width}
-            height={furniture.size.height}
-            fill="#8B7355"
-            rx={8}
-            opacity={dirtOpacity}
+        {/* 먼지 파티클 — furnitureId 시드 기반 결정론적 좌표로 고정 */}
+        {dustParticles.map((p, idx) => (
+          <Circle
+            key={`dust-${furniture.id}-${idx}`}
+            cx={absoluteX + p.x}
+            cy={absoluteY + p.y}
+            r={p.r}
+            fill="#8B6914"
+            opacity={p.opacity}
           />
+        ))}
+
+        {/* 더러움 퍼센트 텍스트 (가구 너비 충분할 때만) */}
+        {showDirtyLabel && (
+          <SvgText
+            x={centerX}
+            y={absoluteY + furniture.size.height - 6}
+            fontSize="9"
+            fill="#8B6914"
+            textAnchor="middle"
+            fontWeight="bold"
+            opacity={0.85}
+          >
+            {`${Math.round(dirtyScore)}%`}
+          </SvgText>
         )}
 
         {/* 연체 펄스 효과 */}

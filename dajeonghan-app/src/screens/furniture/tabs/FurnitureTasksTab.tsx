@@ -331,8 +331,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
 
       const linkedTasks = allTasks.filter((task) =>
         furniture.linkedObjectIds.includes(task.objectId) && 
-        !task.isCompleted && 
-        task.status !== 'completed'
+        !isTaskCompleted(task)
       );
       
       console.log('전체 태스크 수:', allTasks.length);
@@ -351,20 +350,22 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         }
       });
 
-      // dirtyScore 계산
+      // dirtyScore 계산: 연체 Task 1개당 기본 15점 + 연체 일수당 5점(최대 30점)
       const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const overdueTasks = linkedTasks.filter(
-        (task) => task.recurrence.nextDue && new Date(task.recurrence.nextDue) < now
+        (task) => task.recurrence?.nextDue && new Date(task.recurrence.nextDue) < today
       );
 
       let calculatedDirtyScore = 0;
       overdueTasks.forEach((task) => {
-        if (task.recurrence.nextDue) {
+        if (task.recurrence?.nextDue) {
           const daysOverdue = Math.floor(
             (now.getTime() - new Date(task.recurrence.nextDue).getTime()) /
               (1000 * 60 * 60 * 24)
           );
-          calculatedDirtyScore += Math.min(daysOverdue * 10, 50);
+          calculatedDirtyScore += 15 + Math.min(daysOverdue * 5, 30);
         }
       });
 
@@ -769,6 +770,13 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             linkedTasks: filteredLinkedTasks
           });
         }
+      }
+      
+      // Task 완료 후 Firestore의 가구 dirtyScore 비동기 동기화 (평면도 반영)
+      if (userId && task.objectId) {
+        FurnitureTaskService.syncDirtyScoreAfterTaskComplete(userId, task.objectId).catch(
+          (e) => console.error('dirtyScore 동기화 오류:', e)
+        );
       }
       
       // Alert 없이 조용히 완료 (즉시 UI 피드백이 충분함)
@@ -1194,14 +1202,14 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
             </View>
 
             {/* 더러움 게이지 */}
-            {calculatedDirtyScore > 0 && (
+            {calculatedDirtyScore >= 15 && (
               <View style={styles.dirtyGaugeContainer}>
                 <View style={styles.dirtyGaugeHeader}>
                   <Text style={styles.dirtyGaugeLabel}>청결도</Text>
                   <Text style={[
                     styles.dirtyGaugePercent,
-                    calculatedDirtyScore > 60 && styles.dirtyGaugePercentHigh,
-                    calculatedDirtyScore > 30 && calculatedDirtyScore <= 60 && styles.dirtyGaugePercentMid,
+                    calculatedDirtyScore >= 60 && styles.dirtyGaugePercentHigh,
+                    calculatedDirtyScore >= 30 && calculatedDirtyScore < 60 && styles.dirtyGaugePercentMid,
                   ]}>
                     더러움 {Math.round(calculatedDirtyScore)}%
                   </Text>
@@ -1210,23 +1218,10 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   <View style={[
                     styles.dirtyGaugeFill,
                     { width: `${Math.min(calculatedDirtyScore, 100)}%` as any },
-                    calculatedDirtyScore > 60 && styles.dirtyGaugeFillHigh,
-                    calculatedDirtyScore > 30 && calculatedDirtyScore <= 60 && styles.dirtyGaugeFillMid,
+                    calculatedDirtyScore >= 60 && styles.dirtyGaugeFillHigh,
+                    calculatedDirtyScore >= 30 && calculatedDirtyScore < 60 && styles.dirtyGaugeFillMid,
                   ]} />
                 </View>
-                {calculatedDirtyScore > 30 && (
-                  <TouchableOpacity
-                    style={styles.cleaningCta}
-                    onPress={() => {
-                      // Task 추가 탭으로 전환
-                      setActiveTab('add');
-                      setTaskAddState({ step: 'template', selectedTemplate: null });
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cleaningCtaText}>🧹 청소 Task 추가하기</Text>
-                  </TouchableOpacity>
-                )}
               </View>
             )}
           </View>

@@ -21,7 +21,7 @@ import { LifeObject } from '@/types/lifeobject.types';
 import { Task, Recurrence } from '@/types/task.types';
 import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
 import { Furniture } from '@/types/house.types';
-import { linkLifeObjectToFurniture } from '@/services/houseService';
+import { linkLifeObjectToFurniture, calculateFurnitureDirtyScore, updateFurniture, getHouseLayout } from '@/services/houseService';
 
 export class FurnitureTaskService {
   /**
@@ -311,6 +311,44 @@ export class FurnitureTaskService {
 
       default:
         return {};
+    }
+  }
+
+  /**
+   * Task 완료 후 해당 가구의 dirtyScore를 재계산하여 Firestore에 동기화
+   * FurnitureTasksTab에서 Task 완료 처리 직후 호출
+   */
+  static async syncDirtyScoreAfterTaskComplete(
+    userId: string,
+    objectId: string
+  ): Promise<void> {
+    try {
+      const layout = await getHouseLayout(userId);
+      if (!layout) return;
+
+      // objectId로 어느 가구에 속하는지 역탐색
+      let targetRoomId: string | null = null;
+      let targetFurnitureId: string | null = null;
+
+      for (const room of layout.rooms) {
+        for (const furniture of room.furnitures) {
+          if (furniture.linkedObjectIds?.includes(objectId)) {
+            targetRoomId = room.id;
+            targetFurnitureId = furniture.id;
+            break;
+          }
+        }
+        if (targetFurnitureId) break;
+      }
+
+      if (!targetRoomId || !targetFurnitureId) return;
+
+      const newDirtyScore = await calculateFurnitureDirtyScore(userId, targetFurnitureId);
+      await updateFurniture(userId, targetRoomId, targetFurnitureId, {
+        dirtyScore: newDirtyScore,
+      });
+    } catch (error) {
+      console.error('Sync dirtyScore error:', error);
     }
   }
 

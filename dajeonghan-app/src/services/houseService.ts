@@ -519,21 +519,23 @@ export const calculateFurnitureDirtyScore = async (
     furniture!.linkedObjectIds.includes(task.objectId)
   );
 
-  // 연체된 Task 개수로 dirtyScore 계산
+  // 연체된 Task 개수로 dirtyScore 계산 (자정 기준으로 연체 판정)
   const now = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const overdueTasks = linkedTasks.filter(
-    (task) => task.recurrence.nextDue && new Date(task.recurrence.nextDue) < now
+    (task) => task.recurrence?.nextDue && new Date(task.recurrence.nextDue) < today
   );
 
-  // 연체된 날짜에 따라 점수 증가 (최대 100)
+  // 연체 Task 1개당 기본 15점 + 연체 일수당 5점(태스크당 최대 30점), 전체 최대 100점
   let score = 0;
   overdueTasks.forEach((task) => {
-    if (task.recurrence.nextDue) {
+    if (task.recurrence?.nextDue) {
       const daysOverdue = Math.floor(
         (now.getTime() - new Date(task.recurrence.nextDue).getTime()) /
           (1000 * 60 * 60 * 24)
       );
-      score += Math.min(daysOverdue * 10, 50); // 하루당 10점, 최대 50점
+      score += 15 + Math.min(daysOverdue * 5, 30);
     }
   });
 
