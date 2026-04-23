@@ -432,6 +432,21 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
       return; // 겹치면 업데이트하지 않음
     }
 
+    // 가구가 방 밖으로 벗어나는지 확인
+    const shrinkLeft = edge === 'left' ? newX - resizeDragState.current.initialX : 0;
+    const shrinkTop  = edge === 'top'  ? newY - resizeDragState.current.initialY : 0;
+    const furnitureBlocked = room.furnitures.some(f => {
+      const relX = f.position.x - shrinkLeft;
+      const relY = f.position.y - shrinkTop;
+      return (
+        relX < 0 ||
+        relY < 0 ||
+        relX + f.size.width > newWidth ||
+        relY + f.size.height > newHeight
+      );
+    });
+    if (furnitureBlocked) return; // 가구가 방 밖으로 나가면 리사이즈 차단
+
     const updatedRooms = layout.rooms.map((r) =>
       r.id === roomId
         ? { 
