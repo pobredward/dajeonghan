@@ -41,6 +41,46 @@ type SelectedItem =
   | { type: 'character' }
   | null;
 
+const ROOM_PADDING = 10;
+const DEFAULT_ROOM_SIZE = 150;
+const MIN_ROOM_SIZE = 40;
+const SEARCH_STEP = 10;
+
+function rectsOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+  gap: number = ROOM_PADDING,
+): boolean {
+  return (
+    ax < bx + bw + gap &&
+    ax + aw + gap > bx &&
+    ay < by + bh + gap &&
+    ay + ah + gap > by
+  );
+}
+
+function findEmptyPosition(
+  rooms: Room[],
+  canvasWidth: number,
+  canvasHeight: number,
+): { position: { x: number; y: number }; size: { width: number; height: number } } {
+  // 1단계: 기본 크기(150×150)로 빈 공간 탐색
+  for (let size = DEFAULT_ROOM_SIZE; size >= MIN_ROOM_SIZE; size -= SEARCH_STEP) {
+    for (let y = ROOM_PADDING; y + size <= canvasHeight - ROOM_PADDING; y += SEARCH_STEP) {
+      for (let x = ROOM_PADDING; x + size <= canvasWidth - ROOM_PADDING; x += SEARCH_STEP) {
+        const hasOverlap = rooms.some(r =>
+          rectsOverlap(x, y, size, size, r.position.x, r.position.y, r.size.width, r.size.height),
+        );
+        if (!hasOverlap) {
+          return { position: { x, y }, size: { width: size, height: size } };
+        }
+      }
+    }
+  }
+  // 2단계: 완전 폴백 — 최소 크기로 좌상단 배치
+  return { position: { x: ROOM_PADDING, y: ROOM_PADDING }, size: { width: MIN_ROOM_SIZE, height: MIN_ROOM_SIZE } };
+}
+
 export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout, onSave, onCancel }) => {
   const navigation = useNavigation<HouseEditorNavProp>();
   const route = useRoute<HouseEditorRouteProp>();
@@ -458,41 +498,19 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
           text: '추가',
           onPress: (roomName?: string) => {
             const name = roomName?.trim() || `방 ${layout.rooms.length + 1}`;
-            
-            // 겹치지 않는 위치 찾기 - 기존 방들의 오른쪽에 배치
-            let newX = 50;
-            let newY = 50;
-            
-            if (layout.rooms.length > 0) {
-              // 가장 오른쪽 방 찾기
-              const rightmostRoom = layout.rooms.reduce((max, room) => 
-                (room.position.x + room.size.width) > (max.position.x + max.size.width) ? room : max
-              );
-              newX = rightmostRoom.position.x + rightmostRoom.size.width + 20; // 20px 간격
-              newY = rightmostRoom.position.y;
-              
-              // 캔버스를 벗어나면 아래쪽으로
-              if (newX + 150 > layout.canvasSize.width) {
-                const bottommostRoom = layout.rooms.reduce((max, room) => 
-                  (room.position.y + room.size.height) > (max.position.y + max.size.height) ? room : max
-                );
-                newX = 50;
-                newY = bottommostRoom.position.y + bottommostRoom.size.height + 20;
-              }
-              
-              // 그래도 캔버스를 벗어나면 기본 위치로
-              if (newY + 150 > layout.canvasSize.height) {
-                newX = 50;
-                newY = 50;
-              }
-            }
+
+            const { position, size } = findEmptyPosition(
+              layout.rooms,
+              layout.canvasSize.width,
+              layout.canvasSize.height,
+            );
             
             const newRoom: Room = {
               id: `room_${Date.now()}`,
               type: 'bedroom',
               name,
-              position: { x: newX, y: newY },
-              size: { width: 150, height: 150 },
+              position,
+              size,
               color: ROOM_COLORS.bedroom,
               furnitures: [],
             };
