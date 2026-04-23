@@ -29,6 +29,7 @@ export type NotificationTiming = 'immediate' | 'digest' | 'silent';
  * @property unit - 주기 단위 (일/주/월)
  * @property nextDue - 다음 예정일
  * @property lastCompleted - 마지막 완료일 (optional)
+ * @property hasTime - true면 nextDue의 시·분이 유효한 값 (false/미설정 시 09:00 고정)
  */
 export interface Recurrence {
   type: RecurrenceType;
@@ -36,6 +37,7 @@ export interface Recurrence {
   unit: RecurrenceUnit;
   nextDue: Date;
   lastCompleted?: Date;
+  hasTime?: boolean;
 }
 
 /**

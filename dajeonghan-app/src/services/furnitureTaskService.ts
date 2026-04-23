@@ -67,7 +67,9 @@ export class FurnitureTaskService {
         type: templateTask.type,
         recurrence,
         priority: customization.priority || templateTask.priority,
-        estimatedMinutes: customization.estimatedMinutes || templateTask.estimatedMinutes,
+        estimatedMinutes: customization.estimatedMinutes
+          ? customization.estimatedMinutes
+          : undefined,
         status: 'pending',
         notificationSettings: {
           enabled: customization.notificationEnabled ?? true,
@@ -240,11 +242,16 @@ export class FurnitureTaskService {
         // 첫 실행은 startDate, 그 다음부터 주간 반복
     }
 
+    if (!customization.hasTime) {
+      nextDue.setHours(9, 0, 0, 0);
+    }
+
     return {
       type: 'fixed',
       interval,
       unit,
       nextDue,
+      hasTime: customization.hasTime ?? false,
     };
   }
 

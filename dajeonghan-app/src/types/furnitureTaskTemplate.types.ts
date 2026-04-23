@@ -48,4 +48,5 @@ export interface TaskCustomization {
   notificationEnabled?: boolean;
   notificationMinutesBefore?: number;
   notificationTime?: string; // 알림 시간 (HH:MM 형식)
+  hasTime?: boolean; // true면 startDate의 시·분을 nextDue에 그대로 반영
 }

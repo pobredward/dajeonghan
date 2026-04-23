@@ -119,7 +119,9 @@ export class NotificationScheduler {
     if (nextDue <= now) return null;
 
     const notificationTime = new Date(nextDue);
-    notificationTime.setHours(9, 0, 0, 0);
+    if (!task.recurrence.hasTime) {
+      notificationTime.setHours(9, 0, 0, 0);
+    }
 
     if (notificationTime <= now) return null;
 

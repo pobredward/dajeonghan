@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   Animated,
+  Switch,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
@@ -111,6 +112,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   const [editStartDate, setEditStartDate] = useState<Date>(new Date());
   const [editSelectedDays, setEditSelectedDays] = useState<DayOfWeek[]>([]);
   const [editMinutes, setEditMinutes] = useState<number>(15);
+  const [editHasTime, setEditHasTime] = useState<boolean>(false);
 
   // Task 세부 모달 애니메이션
   const detailModalAnim = useRef(new Animated.Value(0)).current;
@@ -127,6 +129,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     today.setHours(9, 0, 0, 0);
     return today;
   });
+  const [hasTime, setHasTime] = useState<boolean>(false);
 
   // 완료 상태 확인 함수
   const isTaskCompleted = (task: Task): boolean => {
@@ -397,7 +400,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     setCustomization({
       recurrenceType: template.defaultRecurrence.type,
       interval: template.defaultRecurrence.interval || 1,
-      estimatedMinutes: template.estimatedMinutes,
+      estimatedMinutes: 0, // 소요시간 OFF 상태로 시작 (ON 시 template.estimatedMinutes로 초기화)
       priority: template.priority,
       notificationEnabled: true,
       notificationMinutesBefore: 30,
@@ -437,13 +440,15 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       console.log('selectedDays:', selectedDays);
       setLoading(true);
       
-      if (customization.recurrenceType === 'weekly' && selectedDays.length > 1) {
+      const customizationWithTime = { ...customization, hasTime };
+
+      if (customizationWithTime.recurrenceType === 'weekly' && selectedDays.length > 1) {
         // 다중 요일 선택된 경우 - 각 요일별로 별도 Task 생성
         console.log('다중 요일 Task 생성 중...');
         
         for (const dayOfWeek of selectedDays) {
           const dayCustomization = {
-            ...customization,
+            ...customizationWithTime,
             dayOfWeek,
           };
           
@@ -462,11 +467,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         }
       } else {
         // 단일 Task 생성
-        let taskCustomization = customization;
+        let taskCustomization = customizationWithTime;
         
-        if (customization.recurrenceType === 'weekly' && selectedDays.length === 1) {
+        if (customizationWithTime.recurrenceType === 'weekly' && selectedDays.length === 1) {
           taskCustomization = {
-            ...customization,
+            ...customizationWithTime,
             dayOfWeek: selectedDays[0],
           };
         }
@@ -1019,11 +1024,14 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     unit: 'day' | 'week' | 'month',
     interval: number,
     startDate: Date,
+    hasTime: boolean = false,
   ) => {
     if (!userId || !task.id) return;
     const nextDue = new Date(startDate);
-    nextDue.setHours(9, 0, 0, 0);
-    const updatedRecurrence = { ...task.recurrence, unit, interval, nextDue };
+    if (!hasTime) {
+      nextDue.setHours(9, 0, 0, 0);
+    }
+    const updatedRecurrence = { ...task.recurrence, unit, interval, nextDue, hasTime };
     try {
       await updateTask(userId, task.id, { recurrence: updatedRecurrence });
       const updatedTask = { ...task, recurrence: updatedRecurrence };
@@ -1258,7 +1266,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   다음 예정일: {(() => {
                     const next = categorizedTasks.upcoming[0];
                     const d = next?.recurrence?.nextDue ? new Date(next.recurrence.nextDue) : null;
-                    return d ? d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }) : '';
+                    return d
+                      ? next?.recurrence?.hasTime
+                        ? d.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                        : d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+                      : '';
                   })()}
                 </Text>
               )}
@@ -1550,7 +1562,9 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         {dueDate && (
                           <View style={styles.taskChipUpcoming}>
                             <Text style={styles.taskChipTextUpcoming}>
-                              {dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              {task.recurrence?.hasTime
+                                ? dueDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                                : dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
                             </Text>
                           </View>
                         )}
@@ -1597,6 +1611,10 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
               selectedDays={selectedDays}
               onToggleDayOfWeek={onToggleDayOfWeek}
               getNextOccurrences={getNextOccurrences}
+              hasTime={hasTime}
+              onHasTimeChange={setHasTime}
+              estimatedMinutes={customization.estimatedMinutes ?? taskAddState.selectedTemplate.estimatedMinutes}
+              onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
             />
           )}
         </ScrollView>
@@ -1809,7 +1827,9 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                               isOverdue && { color: Colors.error },
                               isDueToday && { color: Colors.warning },
                             ]}>
-                              {dueDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+                              {task.recurrence?.hasTime
+                                ? dueDate.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                                : dueDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
                             </Text>
                           </View>
                           {diffDays !== null && (
@@ -1847,7 +1867,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                               const initialStart = task.recurrence.nextDue
                                 ? new Date(task.recurrence.nextDue)
                                 : new Date();
-                              initialStart.setHours(9, 0, 0, 0);
+                              const existingHasTime = task.recurrence.hasTime ?? false;
+                              if (!existingHasTime) {
+                                initialStart.setHours(9, 0, 0, 0);
+                              }
+                              setEditHasTime(existingHasTime);
                               setEditStartDate(initialStart);
                               setEditSelectedDays([]);
                               setEditingField('recurrence');
@@ -1933,11 +1957,13 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                             }}
                             onStartDateChange={setEditStartDate}
                             getNextOccurrences={getNextOccurrences}
+                            hasTime={editHasTime}
+                            onHasTimeChange={setEditHasTime}
                           />
                           <View style={styles.detailRecurrenceEditorActions}>
                             <TouchableOpacity
                               style={styles.detailInlineSaveBtn}
-                              onPress={() => handleUpdateRecurrence(task, editRecurrenceUnit, editRecurrenceInterval, editStartDate)}
+                              onPress={() => handleUpdateRecurrence(task, editRecurrenceUnit, editRecurrenceInterval, editStartDate, editHasTime)}
                               activeOpacity={0.85}
                             >
                               <Text style={styles.detailInlineSaveBtnText}>저장</Text>
@@ -2147,6 +2173,10 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     selectedDays={selectedDays}
                     onToggleDayOfWeek={onToggleDayOfWeek}
                     getNextOccurrences={getNextOccurrences}
+                    hasTime={hasTime}
+                    onHasTimeChange={setHasTime}
+                    estimatedMinutes={customization.estimatedMinutes ?? taskAddModal.template.estimatedMinutes}
+                    onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
                   />
                 </ScrollView>
                 
@@ -2281,6 +2311,12 @@ const RecurrenceEditor: React.FC<{
   onToggleDayOfWeek: (day: DayOfWeek) => void;
   onStartDateChange: (date: Date) => void;
   getNextOccurrences: (startDate: Date, customization: TaskCustomization, selectedDays: DayOfWeek[], count: number) => Date[];
+  hasTime?: boolean;
+  onHasTimeChange?: (hasTime: boolean) => void;
+  hasEstimatedTime?: boolean;
+  onHasEstimatedTimeChange?: (v: boolean) => void;
+  estimatedMinutes?: number;
+  onEstimatedMinutesChange?: (minutes: number) => void;
 }> = ({
   unit,
   interval,
@@ -2291,6 +2327,12 @@ const RecurrenceEditor: React.FC<{
   onToggleDayOfWeek,
   onStartDateChange,
   getNextOccurrences,
+  hasTime = false,
+  onHasTimeChange,
+  hasEstimatedTime = false,
+  onHasEstimatedTimeChange,
+  estimatedMinutes = 30,
+  onEstimatedMinutesChange,
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
   const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
@@ -2499,6 +2541,139 @@ const RecurrenceEditor: React.FC<{
         </View>
         <Text style={styles.formCalendarHint}>파란 테두리 = 반복 예정일</Text>
       </View>
+
+      {/* ── 시간 설정 섹션 ── */}
+      <View style={styles.formSectionHeaderUpcoming}>
+        <View style={styles.formSectionHeaderBar} />
+        <Text style={styles.formSectionHeaderTitle}>시간 설정</Text>
+      </View>
+
+      <View style={styles.formSettingCard}>
+        {/* 시간 지정 토글 */}
+        <View style={styles.formTimeToggleRow}>
+          <Text style={styles.formIntervalLabel}>시간 지정</Text>
+          <Switch
+            value={hasTime}
+            onValueChange={(v) => {
+              onHasTimeChange?.(v);
+              if (v) {
+                const d = new Date(startDate);
+                d.setHours(9, 0, 0, 0);
+                onStartDateChange(d);
+              }
+            }}
+            trackColor={{ false: Colors.lightGray, true: Colors.primary }}
+            thumbColor={Colors.white}
+          />
+        </View>
+
+        {/* 시간/분 스텝퍼 (hasTime=true일 때만 표시) */}
+        {hasTime && (
+          <View style={styles.formTimePickerRow}>
+            {/* 시 */}
+            <TouchableOpacity
+              style={styles.formDateBtn}
+              onPress={() => {
+                const d = new Date(startDate);
+                d.setHours((d.getHours() - 1 + 24) % 24);
+                onStartDateChange(d);
+              }}
+            >
+              <Text style={styles.formDateBtnText}>‹</Text>
+            </TouchableOpacity>
+            <View style={styles.formTimeValueBox}>
+              <Text style={styles.formTimeValueText}>
+                {String(startDate.getHours()).padStart(2, '0')}
+              </Text>
+              <Text style={styles.formTimeUnitLabel}>시</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.formDateBtn}
+              onPress={() => {
+                const d = new Date(startDate);
+                d.setHours((d.getHours() + 1) % 24);
+                onStartDateChange(d);
+              }}
+            >
+              <Text style={styles.formDateBtnText}>›</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.formTimeColon}>:</Text>
+
+            {/* 분 (10분 단위) */}
+            <TouchableOpacity
+              style={styles.formDateBtn}
+              onPress={() => {
+                const d = new Date(startDate);
+                const newMin = Math.floor(d.getMinutes() / 10) * 10;
+                d.setMinutes((newMin - 10 + 60) % 60);
+                onStartDateChange(d);
+              }}
+            >
+              <Text style={styles.formDateBtnText}>‹</Text>
+            </TouchableOpacity>
+            <View style={styles.formTimeValueBox}>
+              <Text style={styles.formTimeValueText}>
+                {String(Math.floor(startDate.getMinutes() / 10) * 10).padStart(2, '0')}
+              </Text>
+              <Text style={styles.formTimeUnitLabel}>분</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.formDateBtn}
+              onPress={() => {
+                const d = new Date(startDate);
+                const newMin = Math.floor(d.getMinutes() / 10) * 10;
+                d.setMinutes((newMin + 10) % 60);
+                onStartDateChange(d);
+              }}
+            >
+              <Text style={styles.formDateBtnText}>›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 구분선 */}
+        {onHasEstimatedTimeChange !== undefined && (
+          <View style={styles.formTimeDivider} />
+        )}
+
+        {/* 소요시간 토글 */}
+        {onHasEstimatedTimeChange !== undefined && (
+          <View style={styles.formTimeToggleRow}>
+            <Text style={styles.formIntervalLabel}>소요시간 지정</Text>
+            <Switch
+              value={hasEstimatedTime}
+              onValueChange={onHasEstimatedTimeChange}
+              trackColor={{ false: Colors.lightGray, true: Colors.warning }}
+              thumbColor={Colors.white}
+            />
+          </View>
+        )}
+
+        {/* 소요시간 스텝퍼 (hasEstimatedTime=true일 때만 표시) */}
+        {onHasEstimatedTimeChange !== undefined && hasEstimatedTime && (
+          <View style={styles.formIntervalRow}>
+            <View style={styles.formIntervalControls}>
+              <TouchableOpacity
+                style={styles.formIntervalBtn}
+                onPress={() => onEstimatedMinutesChange?.(Math.max(5, estimatedMinutes - 5))}
+              >
+                <Text style={styles.formIntervalBtnText}>−</Text>
+              </TouchableOpacity>
+              <View style={styles.formIntervalValueBox}>
+                <Text style={styles.formIntervalNumber}>{estimatedMinutes}</Text>
+                <Text style={styles.formIntervalUnit}>분</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.formIntervalBtn}
+                onPress={() => onEstimatedMinutesChange?.(Math.min(180, estimatedMinutes + 5))}
+              >
+                <Text style={styles.formIntervalBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
     </>
   );
 };
@@ -2512,6 +2687,10 @@ const TaskCustomizationForm: React.FC<{
   selectedDays: DayOfWeek[];
   onToggleDayOfWeek: (day: DayOfWeek) => void;
   getNextOccurrences: (startDate: Date, customization: TaskCustomization, selectedDays: DayOfWeek[], count: number) => Date[];
+  hasTime: boolean;
+  onHasTimeChange: (hasTime: boolean) => void;
+  estimatedMinutes: number;
+  onEstimatedMinutesChange: (minutes: number) => void;
 }> = ({
   template,
   customization,
@@ -2521,9 +2700,14 @@ const TaskCustomizationForm: React.FC<{
   selectedDays,
   onToggleDayOfWeek,
   getNextOccurrences,
+  hasTime,
+  onHasTimeChange,
+  estimatedMinutes,
+  onEstimatedMinutesChange,
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
   const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
+  const [hasEstimatedTime, setHasEstimatedTime] = React.useState(false);
 
   // 주말 및 공휴일 색상 적용 함수
   const getDateColor = (dateString: string) => {
@@ -2549,9 +2733,6 @@ const TaskCustomizationForm: React.FC<{
       <View style={styles.formSummaryCard}>
         <Text style={styles.formSummaryDesc}>{template.description}</Text>
         <View style={styles.formSummaryBottom}>
-          <View style={styles.taskChipTime}>
-            <Text style={styles.taskChipTextTime}>⏱ 예상 {template.estimatedMinutes}분</Text>
-          </View>
           {/* 우선순위 선택 */}
           <View style={styles.formPriorityRow}>
             {(['low', 'medium', 'high'] as const).map((level) => {
@@ -2597,6 +2778,19 @@ const TaskCustomizationForm: React.FC<{
         onToggleDayOfWeek={onToggleDayOfWeek}
         onStartDateChange={onStartDateChange}
         getNextOccurrences={getNextOccurrences}
+        hasTime={hasTime}
+        onHasTimeChange={onHasTimeChange}
+        hasEstimatedTime={hasEstimatedTime}
+        onHasEstimatedTimeChange={(v) => {
+          setHasEstimatedTime(v);
+          if (v && estimatedMinutes === 0) {
+            onEstimatedMinutesChange(template.estimatedMinutes);
+          } else if (!v) {
+            onEstimatedMinutesChange(0);
+          }
+        }}
+        estimatedMinutes={estimatedMinutes === 0 ? template.estimatedMinutes : estimatedMinutes}
+        onEstimatedMinutesChange={onEstimatedMinutesChange}
       />
 
       {/* 하단 여백 */}
@@ -5247,5 +5441,47 @@ const styles = StyleSheet.create({
   
   taskCheckboxText: {
     fontSize: 16,
+  },
+
+  // ── 시간 설정 스타일 ──
+  formTimeDivider: {
+    height: 1,
+    backgroundColor: Colors.veryLightGray,
+    marginVertical: Spacing.sm,
+  },
+  formTimeToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+  },
+  formTimePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  formTimeValueBox: {
+    alignItems: 'center',
+    minWidth: 48,
+  },
+  formTimeValueText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    letterSpacing: 1,
+  },
+  formTimeUnitLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  formTimeColon: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginHorizontal: Spacing.xs,
+    lineHeight: 36,
   },
 });
