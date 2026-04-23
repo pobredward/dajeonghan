@@ -31,40 +31,34 @@ export const SettingsNavigator: React.FC = () => {
         headerStatusBarHeight: insets.top,
         headerTintColor: Colors.primary,
         headerTitleStyle: {
-          fontWeight: '600'
-        }
+          fontWeight: '600',
+          color: Colors.textPrimary,
+          fontSize: 18,
+        },
+        headerBackTitle: '뒤로',
       }}
     >
       <Stack.Screen
         name="SettingsList"
         component={SettingsScreen}
         options={{
-          title: '설정'
+          headerShown: false
         }}
       />
       <Stack.Screen
         name="PrivacyPolicy"
         component={PrivacyPolicyScreen}
-        options={{
-          title: '개인정보 처리방침',
-          headerBackTitle: '뒤로'
-        }}
+        options={{ title: '개인정보 처리방침' }}
       />
       <Stack.Screen
         name="TermsOfService"
         component={TermsOfServiceScreen}
-        options={{
-          title: '서비스 이용약관',
-          headerBackTitle: '뒤로'
-        }}
+        options={{ title: '서비스 이용약관' }}
       />
       <Stack.Screen
         name="DeleteAccount"
         component={DeleteAccountScreen}
-        options={{
-          title: '계정 삭제',
-          headerBackTitle: '뒤로'
-        }}
+        options={{ title: '계정 삭제' }}
       />
     </Stack.Navigator>
   );

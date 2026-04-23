@@ -5,17 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants';
 import { HomeScreen } from '@/screens/home/HomeScreen';
 import { HouseNavigator } from './HouseNavigator';
-import { CleaningHomeScreen } from '@/modules/cleaning/screens/CleaningHomeScreen';
-import { FridgeHomeScreen } from '@/modules/fridge/screens/FridgeHomeScreen';
-import { MedicineHomeScreen } from '@/modules/medicine/screens/MedicineHomeScreen';
 import { SettingsNavigator } from './SettingsNavigator';
 
 export type TabParamList = {
   Home: undefined;
   HouseMap: undefined;
-  Cleaning: undefined;
-  Fridge: undefined;
-  Medicine: undefined;
   Settings: undefined;
 };
 
@@ -41,9 +35,15 @@ export const TabNavigator: React.FC = () => {
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 0,
+          backgroundColor: Colors.surface,
           height: Platform.OS === 'ios' ? 44 + insets.top : undefined,
         },
         headerStatusBarHeight: insets.top,
+        headerTitleStyle: {
+          fontWeight: '600',
+          color: Colors.textPrimary,
+          fontSize: 18,
+        },
       }}
     >
       <Tab.Screen
@@ -60,31 +60,7 @@ export const TabNavigator: React.FC = () => {
         options={{
           title: '내 집',
           tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>,
-          headerShown: false
-        }}
-      />
-      <Tab.Screen
-        name="Cleaning"
-        component={CleaningHomeScreen}
-        options={{
-          title: '청소',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🧹</Text>
-        }}
-      />
-      <Tab.Screen
-        name="Fridge"
-        component={FridgeHomeScreen}
-        options={{
-          title: '냉장고',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🥗</Text>
-        }}
-      />
-      <Tab.Screen
-        name="Medicine"
-        component={MedicineHomeScreen}
-        options={{
-          title: '약',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>💊</Text>
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -93,7 +69,6 @@ export const TabNavigator: React.FC = () => {
         options={{
           title: '설정',
           tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>,
-          headerShown: false
         }}
       />
     </Tab.Navigator>
