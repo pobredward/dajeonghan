@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import {
   View,
   Text,
@@ -172,20 +172,35 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
     initialHeight: 0,
   });
   
-  // 캔버스 스케일 계산 (화면에 맞게)
-  const canvasScale = React.useMemo(() => {
+  // 캔버스 스케일 - 초기값은 화면 크기에 맞게 자동 계산, 이후 사용자가 줌 버튼으로 조절
+  const MIN_CANVAS_SCALE = 0.4;
+  const MAX_CANVAS_SCALE = 1.5;
+  const ZOOM_STEP = 0.1;
+
+  const calcAutoScale = React.useCallback(() => {
     if (containerSize.width === 0 || containerSize.height === 0) return 1;
-    
-    const padding = 40; // 양쪽 여백
+    const padding = 40;
     const availableWidth = containerSize.width - padding;
     const availableHeight = containerSize.height - padding;
-    
     const scaleX = availableWidth / layout.canvasSize.width;
     const scaleY = availableHeight / layout.canvasSize.height;
-    
-    // 더 작은 스케일을 선택 (캔버스가 화면에 완전히 들어가도록)
-    return Math.min(scaleX, scaleY, 1); // 최대 1 (확대는 하지 않음)
+    return Math.max(Math.min(scaleX, scaleY, 1), MIN_CANVAS_SCALE);
   }, [containerSize, layout.canvasSize]);
+
+  const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
+
+  // 컨테이너 크기나 캔버스 크기가 바뀌면 자동 계산값으로 리셋
+  useEffect(() => {
+    setCanvasScale(calcAutoScale());
+  }, [containerSize.width, containerSize.height, layout.canvasSize.width, layout.canvasSize.height]);
+
+  const handleZoomIn = () => {
+    setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));
+  };
+
+  const handleZoomOut = () => {
+    setCanvasScale((prev) => Math.max(MIN_CANVAS_SCALE, Math.round((prev - ZOOM_STEP) * 10) / 10));
+  };
 
   // 간소화된 가구 이동 - 버튼으로 제어
   const moveFurniture = (roomId: string, furnitureId: string, direction: 'up' | 'down' | 'left' | 'right') => {
@@ -569,15 +584,30 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
     const MIN_SIZE = 400;
     const MAX_SIZE = 1200;
     
-    // 값 제한
     const clampedValue = Math.max(MIN_SIZE, Math.min(MAX_SIZE, value));
     
+    const newCanvasSize = {
+      ...layout.canvasSize,
+      [dimension]: clampedValue,
+    };
+
+    // 캔버스가 줄어들 때 방이 캔버스 밖으로 나가지 않도록 클램프
+    const clampedRooms = layout.rooms.map((room) => {
+      const maxX = Math.max(0, newCanvasSize.width - room.size.width);
+      const maxY = Math.max(0, newCanvasSize.height - room.size.height);
+      return {
+        ...room,
+        position: {
+          x: Math.min(room.position.x, maxX),
+          y: Math.min(room.position.y, maxY),
+        },
+      };
+    });
+
     setLayout({
       ...layout,
-      canvasSize: {
-        ...layout.canvasSize,
-        [dimension]: clampedValue,
-      },
+      canvasSize: newCanvasSize,
+      rooms: clampedRooms,
     });
   };
 
@@ -1000,10 +1030,68 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
                   <TouchableOpacity
                     style={styles.presetButton}
                     onPress={() => {
-                      setLayout({
-                        ...layout,
-                        canvasSize: { width: 600, height: 600 },
-                      });
+                      const newSize = { width: 500, height: 700 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
+                    }}
+                  >
+                    <Text style={styles.presetButtonText}>세로형 (소)</Text>
+                    <Text style={styles.presetButtonSize}>500×700</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetButton}
+                    onPress={() => {
+                      const newSize = { width: 600, height: 900 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
+                    }}
+                  >
+                    <Text style={styles.presetButtonText}>세로형 (중)</Text>
+                    <Text style={styles.presetButtonSize}>600×900</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetButton}
+                    onPress={() => {
+                      const newSize = { width: 700, height: 1100 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
+                    }}
+                  >
+                    <Text style={styles.presetButtonText}>세로형 (대)</Text>
+                    <Text style={styles.presetButtonSize}>700×1100</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.presetButtons, { marginTop: Spacing.sm }]}>
+                  <TouchableOpacity
+                    style={styles.presetButton}
+                    onPress={() => {
+                      const newSize = { width: 600, height: 600 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
                     }}
                   >
                     <Text style={styles.presetButtonText}>정사각 (소)</Text>
@@ -1012,10 +1100,15 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
                   <TouchableOpacity
                     style={styles.presetButton}
                     onPress={() => {
-                      setLayout({
-                        ...layout,
-                        canvasSize: { width: 800, height: 600 },
-                      });
+                      const newSize = { width: 800, height: 600 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
                     }}
                   >
                     <Text style={styles.presetButtonText}>가로형 (중)</Text>
@@ -1024,10 +1117,15 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
                   <TouchableOpacity
                     style={styles.presetButton}
                     onPress={() => {
-                      setLayout({
-                        ...layout,
-                        canvasSize: { width: 1000, height: 800 },
-                      });
+                      const newSize = { width: 1000, height: 800 };
+                      const clampedRooms = layout.rooms.map((room) => ({
+                        ...room,
+                        position: {
+                          x: Math.min(room.position.x, Math.max(0, newSize.width - room.size.width)),
+                          y: Math.min(room.position.y, Math.max(0, newSize.height - room.size.height)),
+                        },
+                      }));
+                      setLayout({ ...layout, canvasSize: newSize, rooms: clampedRooms });
                     }}
                   >
                     <Text style={styles.presetButtonText}>가로형 (대)</Text>
@@ -1060,28 +1158,49 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
           });
         }}
       >
+        {/* 배경 탭 → 선택 해제 */}
         <TouchableOpacity 
           style={styles.canvasBackdrop}
           activeOpacity={1}
           onPress={() => {
-            // 캔버스 외부 클릭 시 선택 해제
             if (selectedItem) {
               setSelectedItem(null);
             }
           }}
         >
-          <View style={styles.canvasWrapper}>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => {
-                // 캔버스 자체 클릭은 이벤트 전파 막기
-                e.stopPropagation();
-              }}
+          {/* 양방향 스크롤: 수직 ScrollView > 수평 ScrollView */}
+          <ScrollView
+            style={styles.canvasScrollOuter}
+            contentContainerStyle={styles.canvasScrollOuterContent}
+            showsVerticalScrollIndicator={true}
+            scrollEnabled={!isDraggingRoom && !isDraggingFurniture && !isDraggingCharacter && !isResizing}
+          >
+            <ScrollView
+              horizontal
+              style={styles.canvasScrollInner}
+              contentContainerStyle={styles.canvasScrollInnerContent}
+              showsHorizontalScrollIndicator={true}
+              scrollEnabled={!isDraggingRoom && !isDraggingFurniture && !isDraggingCharacter && !isResizing}
             >
-              <View style={{ 
-                transform: [{ scale: canvasScale }],
-                alignSelf: 'center',
-              }}>
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <View style={{ 
+                  transform: [{ scale: canvasScale }],
+                  // scale로 인해 논리 크기와 실제 렌더 크기가 달라지므로
+                  // 스케일된 실제 크기만큼 공간을 확보
+                  width: layout.canvasSize.width * canvasScale,
+                  height: layout.canvasSize.height * canvasScale,
+                }}>
+                  <View style={{
+                    position: 'absolute',
+                    // scale은 중심 기준이므로 origin을 좌상단으로 보정
+                    left: -(layout.canvasSize.width * (1 - canvasScale)) / 2,
+                    top: -(layout.canvasSize.height * (1 - canvasScale)) / 2,
+                  }}>
             <Svg
               width={layout.canvasSize.width}
               height={layout.canvasSize.height}
@@ -1264,7 +1383,8 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
               const isSelected = selectedItem?.type === 'room' && selectedItem.id === room.id;
               if (!isSelected) return null;
 
-              const handleWidth = 30; // 터치 영역 너비
+              // 스케일이 작을수록 터치 영역을 넓혀서 조작성 보장
+              const handleWidth = Math.min(60, Math.round(30 / canvasScale));
               const edges = [
                 { 
                   edge: 'top' as const, 
@@ -1350,9 +1470,11 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
                 </View>
               ));
             })}
-              </View>
-            </TouchableOpacity>
-          </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          </ScrollView>
         </TouchableOpacity>
 
         {/* 플로팅 액션 버튼 */}
@@ -1433,6 +1555,25 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
             </View>
           )}
         </View>
+
+        {/* 줌 컨트롤 - 우하단 pill 형태 */}
+        <View style={styles.zoomControlContainer}>
+          <TouchableOpacity
+            style={[styles.zoomButton, canvasScale <= MIN_CANVAS_SCALE && styles.zoomButtonDisabled]}
+            onPress={handleZoomOut}
+            disabled={canvasScale <= MIN_CANVAS_SCALE}
+          >
+            <Text style={styles.zoomButtonText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.zoomLabel}>{Math.round(canvasScale * 100)}%</Text>
+          <TouchableOpacity
+            style={[styles.zoomButton, canvasScale >= MAX_CANVAS_SCALE && styles.zoomButtonDisabled]}
+            onPress={handleZoomIn}
+            disabled={canvasScale >= MAX_CANVAS_SCALE}
+          >
+            <Text style={styles.zoomButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {renderFurnitureMenu()}
@@ -1476,8 +1617,23 @@ const styles = StyleSheet.create({
   canvasBackdrop: {
     flex: 1,
     width: '100%',
-    justifyContent: 'center',
+  },
+  canvasScrollOuter: {
+    flex: 1,
+    width: '100%',
+  },
+  canvasScrollOuterContent: {
+    flexGrow: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  canvasScrollInner: {
+    flexGrow: 0,
+  },
+  canvasScrollInnerContent: {
+    flexGrow: 0,
+    paddingHorizontal: 20,
   },
   canvasWrapper: {
     justifyContent: 'center',
@@ -1540,6 +1696,48 @@ const styles = StyleSheet.create({
   },
   floatingButtonIcon: {
     fontSize: 24,
+  },
+  zoomControlContainer: {
+    position: 'absolute',
+    bottom: Spacing.lg,
+    right: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 1000,
+  },
+  zoomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomButtonDisabled: {
+    backgroundColor: Colors.lightGray,
+  },
+  zoomButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.surface,
+    lineHeight: 22,
+  },
+  zoomLabel: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    minWidth: 44,
+    textAlign: 'center',
+    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,

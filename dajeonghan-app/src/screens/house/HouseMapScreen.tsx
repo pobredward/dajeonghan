@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -74,21 +75,37 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
   
   
-  // 캔버스 스케일 계산 (화면에 맞게)
-  const canvasScale = React.useMemo(() => {
+  // 캔버스 스케일 - 초기값은 화면 크기에 맞게 자동 계산, 이후 사용자가 줌 버튼으로 조절
+  const MIN_CANVAS_SCALE = 0.4;
+  const MAX_CANVAS_SCALE = 1.5;
+  const ZOOM_STEP = 0.1;
+
+  const calcAutoScale = React.useCallback(() => {
     if (!layout || !layout.canvasSize || containerSize.width === 0 || containerSize.height === 0) {
       return 1;
     }
-    
     const padding = 40;
     const availableWidth = containerSize.width - padding;
     const availableHeight = containerSize.height - padding;
-    
     const scaleX = availableWidth / layout.canvasSize.width;
     const scaleY = availableHeight / layout.canvasSize.height;
-    
-    return Math.min(scaleX, scaleY, 1);
+    return Math.max(Math.min(scaleX, scaleY, 1), MIN_CANVAS_SCALE);
   }, [containerSize, layout]);
+
+  const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
+
+  // 컨테이너 크기나 레이아웃이 바뀌면 자동 계산값으로 리셋
+  useEffect(() => {
+    setCanvasScale(calcAutoScale());
+  }, [containerSize.width, containerSize.height, layout?.canvasSize?.width, layout?.canvasSize?.height]);
+
+  const handleZoomIn = () => {
+    setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));
+  };
+
+  const handleZoomOut = () => {
+    setCanvasScale((prev) => Math.max(MIN_CANVAS_SCALE, Math.round((prev - ZOOM_STEP) * 10) / 10));
+  };
 
   // 초기 로딩 및 userId 변경 시에만 로딩 표시
   useEffect(() => {
@@ -401,12 +418,30 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           });
         }}
       >
+        {/* 양방향 스크롤: 수직 ScrollView > 수평 ScrollView */}
+        <ScrollView
+          style={styles.mapScrollOuter}
+          contentContainerStyle={styles.mapScrollOuterContent}
+          showsVerticalScrollIndicator={true}
+        >
+          <ScrollView
+            horizontal
+            style={styles.mapScrollInner}
+            contentContainerStyle={styles.mapScrollInnerContent}
+            showsHorizontalScrollIndicator={true}
+          >
         <View style={styles.mapWrapper}>
           {layout ? (
-            <View style={{ 
-              transform: [{ scale: canvasScale }],
-              alignSelf: 'center',
+            <View style={{
+              width: layout.canvasSize.width * canvasScale,
+              height: layout.canvasSize.height * canvasScale,
             }}>
+              <View style={{
+                position: 'absolute',
+                transform: [{ scale: canvasScale }],
+                left: -(layout.canvasSize.width * (1 - canvasScale)) / 2,
+                top: -(layout.canvasSize.height * (1 - canvasScale)) / 2,
+              }}>
               <Svg
                 width={layout.canvasSize.width}
                 height={layout.canvasSize.height}
@@ -466,6 +501,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
                   </TouchableOpacity>
                 </View>
               )}
+              </View>
             </View>
           ) : (
             <View style={styles.noLayoutContainer}>
@@ -479,6 +515,29 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
             </View>
           )}
         </View>
+          </ScrollView>
+        </ScrollView>
+
+        {/* 줌 컨트롤 - 우하단 pill 형태 */}
+        {layout && (
+          <View style={styles.zoomControlContainer}>
+            <TouchableOpacity
+              style={[styles.zoomButton, canvasScale <= MIN_CANVAS_SCALE && styles.zoomButtonDisabled]}
+              onPress={handleZoomOut}
+              disabled={canvasScale <= MIN_CANVAS_SCALE}
+            >
+              <Text style={styles.zoomButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.zoomLabel}>{Math.round(canvasScale * 100)}%</Text>
+            <TouchableOpacity
+              style={[styles.zoomButton, canvasScale >= MAX_CANVAS_SCALE && styles.zoomButtonDisabled]}
+              onPress={handleZoomIn}
+              disabled={canvasScale >= MAX_CANVAS_SCALE}
+            >
+              <Text style={styles.zoomButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -520,13 +579,69 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: 'relative',
+  },
+  mapScrollOuter: {
+    flex: 1,
+    width: '100%',
+  },
+  mapScrollOuterContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  mapScrollInner: {
+    flexGrow: 0,
+  },
+  mapScrollInnerContent: {
+    flexGrow: 0,
+    paddingHorizontal: 20,
+  },
+  mapWrapper: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mapWrapper: {
-    flex: 1,
-    justifyContent: 'center',
+  zoomControlContainer: {
+    position: 'absolute',
+    bottom: Spacing.lg,
+    right: Spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 1000,
+  },
+  zoomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomButtonDisabled: {
+    backgroundColor: Colors.lightGray,
+  },
+  zoomButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.surface,
+    lineHeight: 22,
+  },
+  zoomLabel: {
+    ...Typography.caption,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    minWidth: 44,
+    textAlign: 'center',
+    fontSize: 13,
   },
   furnitureLabel: {
     position: 'absolute',
