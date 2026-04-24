@@ -34,19 +34,10 @@ export const HouseSetupFlow: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useLayoutEffect(() => {
-    if (step === 'view' && layout) {
+    if (step === 'view') {
       navigation.setOptions({
         title: '내 집',
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => {
-              navigation.navigate('HouseEditor', { layout });
-            }}
-            style={{ marginRight: 16 }}
-          >
-            <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 16 }}>편집</Text>
-          </TouchableOpacity>
-        ),
+        headerRight: undefined,
       });
     } else if (step === 'select_layout') {
       navigation.setOptions({
@@ -64,7 +55,7 @@ export const HouseSetupFlow: React.FC = () => {
         headerRight: undefined,
       });
     }
-  }, [navigation, step, layout]);
+  }, [navigation, step]);
 
   useEffect(() => {
     loadHouseLayout();
@@ -146,12 +137,12 @@ export const HouseSetupFlow: React.FC = () => {
     }
   };
 
-  const handleEditLayout = () => {
-    setStep('edit_layout');
-  };
-
   const handleCancelEdit = () => {
-    setStep('view');
+    if (layout) {
+      setStep('view');
+    } else {
+      setStep('select_layout');
+    }
   };
 
   if (loading) {

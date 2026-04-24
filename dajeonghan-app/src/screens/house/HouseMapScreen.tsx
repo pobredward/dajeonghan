@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,21 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Modal,
+  PanResponder,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
-import { HouseLayout, Room, Furniture } from '@/types/house.types';
+import { HouseLayout, Room, Furniture, FurnitureType, FURNITURE_DEFAULTS } from '@/types/house.types';
 import { Task } from '@/types/task.types';
-import { getHouseLayout } from '@/services/houseService';
+import { getHouseLayout, saveHouseLayout } from '@/services/houseService';
 import { getTasks } from '@/services/firestoreService';
 import { useAuth } from '@/contexts/AuthContext';
 import { PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
+import { useHouseEditor } from '@/hooks/useHouseEditor';
 
 // furnitureId별 오늘/연체 task 개수 및 실시간 dirtyScore
 interface FurnitureTaskCounts {
@@ -68,36 +71,55 @@ interface HouseMapScreenProps {
 export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLayout }) => {
   const { userId } = useAuth();
   const navigation = useNavigation<NavigationProp>();
-  const [layout, setLayout] = useState<HouseLayout | null>(propsLayout || null);
+  const [viewLayout, setViewLayout] = useState<HouseLayout | null>(propsLayout || null);
   const [loading, setLoading] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [furnitureTaskCounts, setFurnitureTaskCounts] = useState<FurnitureTaskCounts>({});
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   
   
-  // 캔버스 스케일 - 초기값은 화면 크기에 맞게 자동 계산, 이후 사용자가 줌 버튼으로 조절
+  // 편집 훅 — viewLayout이 없을 때는 더미 레이아웃으로 초기화 (훅은 조건부 호출 불가)
+  const DUMMY_LAYOUT: HouseLayout = {
+    id: '', userId: '', layoutType: 'custom', totalRooms: 0,
+    canvasSize: { width: 600, height: 600 }, rooms: [],
+    character: { position: { x: 50, y: 50 }, emoji: '🧑' },
+    createdAt: new Date(), updatedAt: new Date(),
+  };
+  const editor = useHouseEditor(viewLayout ?? DUMMY_LAYOUT);
+
+  // 편집 모드 진입 시 최신 viewLayout을 편집 훅에 동기화
+  useEffect(() => {
+    if (isEditMode && viewLayout) {
+      editor.setLayout(viewLayout);
+    }
+  }, [isEditMode]);
+
+  // 캔버스 스케일 - 현재 표시 레이아웃(뷰 or 편집) 기준
+  const activeLayout = isEditMode ? editor.layout : viewLayout;
+
   const MIN_CANVAS_SCALE = 0.4;
   const MAX_CANVAS_SCALE = 1.5;
   const ZOOM_STEP = 0.1;
 
-  const calcAutoScale = React.useCallback(() => {
-    if (!layout || !layout.canvasSize || containerSize.width === 0 || containerSize.height === 0) {
+  const calcAutoScale = useCallback(() => {
+    if (!activeLayout?.canvasSize || containerSize.width === 0 || containerSize.height === 0) {
       return 1;
     }
     const padding = 40;
     const availableWidth = containerSize.width - padding;
     const availableHeight = containerSize.height - padding;
-    const scaleX = availableWidth / layout.canvasSize.width;
-    const scaleY = availableHeight / layout.canvasSize.height;
+    const scaleX = availableWidth / activeLayout.canvasSize.width;
+    const scaleY = availableHeight / activeLayout.canvasSize.height;
     return Math.max(Math.min(scaleX, scaleY, 1), MIN_CANVAS_SCALE);
-  }, [containerSize, layout]);
+  }, [containerSize, activeLayout]);
 
   const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
 
-  // 컨테이너 크기나 레이아웃이 바뀌면 자동 계산값으로 리셋
   useEffect(() => {
     setCanvasScale(calcAutoScale());
-  }, [containerSize.width, containerSize.height, layout?.canvasSize?.width, layout?.canvasSize?.height]);
+  }, [containerSize.width, containerSize.height, activeLayout?.canvasSize?.width, activeLayout?.canvasSize?.height]);
 
   const handleZoomIn = () => {
     setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));
@@ -107,10 +129,64 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     setCanvasScale((prev) => Math.max(MIN_CANVAS_SCALE, Math.round((prev - ZOOM_STEP) * 10) / 10));
   };
 
+  // 헤더 설정 — 편집 모드일 때 취소/저장 버튼 표시
+  useLayoutEffect(() => {
+    if (isEditMode) {
+      navigation.setOptions({
+        title: '편집 중',
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert('편집 취소', '변경사항이 저장되지 않습니다. 취소하시겠습니까?', [
+                { text: '계속 편집', style: 'cancel' },
+                { text: '취소', style: 'destructive', onPress: () => setIsEditMode(false) },
+              ]);
+            }}
+            style={{ marginLeft: 16 }}
+          >
+            <Text style={{ color: Colors.primary, fontSize: 16 }}>취소</Text>
+          </TouchableOpacity>
+        ),
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={handleSaveEdit}
+            disabled={isSaving}
+            style={{ marginRight: 16 }}
+          >
+            <Text style={{ color: Colors.primary, fontWeight: '600', fontSize: 16 }}>
+              {isSaving ? '저장 중...' : '저장'}
+            </Text>
+          </TouchableOpacity>
+        ),
+      });
+    } else {
+      navigation.setOptions({
+        title: '내 집',
+        headerLeft: undefined,
+        headerRight: undefined,
+      });
+    }
+  }, [isEditMode, isSaving]);
+
+  const handleSaveEdit = async () => {
+    if (!userId) return;
+    setIsSaving(true);
+    try {
+      await saveHouseLayout(editor.layout);
+      setViewLayout(editor.layout);
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Failed to save layout:', error);
+      Alert.alert('오류', '집 구조를 저장하는데 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // 초기 로딩 및 userId 변경 시에만 로딩 표시
   useEffect(() => {
     if (propsLayout) {
-      setLayout(propsLayout);
+      setViewLayout(propsLayout);
       setLoading(false);
     } else {
       loadHouseLayout(true);
@@ -120,10 +196,10 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   // 화면 포커스 시 task 카운트 로드
   useFocusEffect(
     React.useCallback(() => {
-      if (userId && layout) {
+      if (userId && viewLayout) {
         loadTaskCounts();
       }
-    }, [userId, layout])
+    }, [userId, viewLayout])
   );
 
   const loadTaskCounts = async () => {
@@ -132,9 +208,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       // 인덱스 없이 전체 pending task를 가져와 클라이언트에서 분류
       const allTasks = await getTasks(userId, { filter: { status: 'pending' } });
 
-      // objectId → furnitureId 역방향 매핑 빌드 (layout의 linkedObjectIds 기반)
+      // objectId → furnitureId 역방향 매핑 빌드 (viewLayout의 linkedObjectIds 기반)
       const objectToFurniture: Record<string, string> = {};
-      layout?.rooms?.forEach(room => {
+      viewLayout?.rooms?.forEach(room => {
         room.furnitures?.forEach(furniture => {
           furniture.linkedObjectIds?.forEach(objectId => {
             objectToFurniture[objectId] = furniture.id;
@@ -189,7 +265,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
     try {
       // 이미 레이아웃이 있고 강제 새로고침이 아니면 로딩 스킵
-      if (layout && !forceReload) {
+      if (viewLayout && !forceReload) {
         return;
       }
       
@@ -197,7 +273,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       const existingLayout = await getHouseLayout(userId);
       
       if (existingLayout) {
-        setLayout(existingLayout);
+        setViewLayout(existingLayout);
       } else {
         navigation.navigate('HouseLayoutSelection');
       }
@@ -220,8 +296,10 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
 
   const renderRoom = (room: Room) => {
-    if (!room || !layout) return null;
-    
+    if (!room || !activeLayout) return null;
+    const isSelected = isEditMode && editor.selectedItem?.type === 'room' && editor.selectedItem.id === room.id;
+    const isResizingRoom = isEditMode && editor.selectedItem?.type === 'room_resize' && editor.selectedItem.id === room.id;
+
     return (
       <G key={room.id}>
         <Rect
@@ -230,9 +308,10 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           width={room.size.width}
           height={room.size.height}
           fill={room.color}
-          stroke={Colors.darkGray}
-          strokeWidth={2}
+          stroke={isSelected || isResizingRoom ? Colors.primary : Colors.darkGray}
+          strokeWidth={isSelected || isResizingRoom ? 3 : 2}
           rx={8}
+          onPress={() => isEditMode && editor.handleRoomPress(room.id)}
         />
         <SvgText
           x={room.position.x + room.size.width / 2}
@@ -246,6 +325,16 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         </SvgText>
 
         {room.furnitures.map((furniture) => renderFurniture(room, furniture))}
+
+        {/* 편집 모드 - 방 선택 시 리사이즈 핸들 */}
+        {isSelected && (
+          <>
+            <Rect x={room.position.x + room.size.width * 0.3} y={room.position.y - 5} width={room.size.width * 0.4} height={10} fill={Colors.accent} opacity={0.8} rx={3} onPress={() => editor.startResizeRoom(room.id, 'top')} />
+            <Rect x={room.position.x + room.size.width - 5} y={room.position.y + room.size.height * 0.3} width={10} height={room.size.height * 0.4} fill={Colors.accent} opacity={0.8} rx={3} onPress={() => editor.startResizeRoom(room.id, 'right')} />
+            <Rect x={room.position.x + room.size.width * 0.3} y={room.position.y + room.size.height - 5} width={room.size.width * 0.4} height={10} fill={Colors.accent} opacity={0.8} rx={3} onPress={() => editor.startResizeRoom(room.id, 'bottom')} />
+            <Rect x={room.position.x - 5} y={room.position.y + room.size.height * 0.3} width={10} height={room.size.height * 0.4} fill={Colors.accent} opacity={0.8} rx={3} onPress={() => editor.startResizeRoom(room.id, 'left')} />
+          </>
+        )}
       </G>
     );
   };
@@ -253,6 +342,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const renderFurniture = (room: Room, furniture: Furniture) => {
     const counts = furnitureTaskCounts[furniture.id] ?? { today: 0, overdue: 0, dirtyScore: 0 };
     const hasOverdueTasks = counts.overdue > 0;
+    const isSelectedFurniture = isEditMode && editor.selectedItem?.type === 'furniture' && editor.selectedItem.roomId === room.id && editor.selectedItem.id === furniture.id;
     // counts 항목이 존재하면(Task가 있으면) 실시간 계산값 우선, 없으면 Firestore 저장값
     const dirtyScore = furniture.id in furnitureTaskCounts
       ? counts.dirtyScore
@@ -279,11 +369,11 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           width={furniture.size.width}
           height={furniture.size.height}
           fill={Colors.surface}
-          stroke={hasOverdueTasks ? Colors.error : Colors.primary}
-          strokeWidth={hasOverdueTasks ? 3 : 2}
+          stroke={isSelectedFurniture ? Colors.accent : hasOverdueTasks ? Colors.error : Colors.primary}
+          strokeWidth={isSelectedFurniture || hasOverdueTasks ? 3 : 2}
           rx={8}
           opacity={0.9}
-          onPress={() => handleFurniturePress(room, furniture)}
+          onPress={() => isEditMode ? editor.handleFurniturePress(room.id, furniture.id) : handleFurniturePress(room, furniture)}
         />
 
         {/* 먼지 파티클 — furnitureId 시드 기반 결정론적 좌표로 고정 */}
@@ -372,12 +462,16 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
 
   const renderCharacter = () => {
-    if (!layout) return null;
+    if (!activeLayout) return null;
     
-    const charX = layout.character.position.x;
-    const charY = layout.character.position.y;
+    const charX = activeLayout.character.position.x;
+    const charY = activeLayout.character.position.y;
+    const isSelected = isEditMode && editor.selectedItem?.type === 'character';
     return (
-      <G onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
+      <G onPress={() => !isEditMode && Alert.alert('알림', '캐릭터 클릭!')}>
+        {isSelected && (
+          <Circle cx={charX} cy={charY} r={30} fill="transparent" stroke={Colors.accent} strokeWidth={3} />
+        )}
         <Circle
           cx={charX}
           cy={charY}
@@ -399,13 +493,64 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     );
   }
 
-  if (!layout) {
+  if (!viewLayout) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>집 구조가 없습니다.</Text>
       </View>
     );
   }
+
+  const displayLayout = activeLayout ?? viewLayout;
+
+  const ResizeBtn = ({ label, onPress }: { label: string; onPress: () => void }) => (
+    <TouchableOpacity style={styles.resizeEdgeBtn} onPress={onPress}>
+      <Text style={styles.resizeEdgeBtnText}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderFurnitureMenu = () => {
+    const categories = [
+      { name: '주방', types: ['fridge', 'sink', 'stove'] as FurnitureType[] },
+      { name: '침실', types: ['bed', 'closet', 'dresser'] as FurnitureType[] },
+      { name: '욕실', types: ['toilet', 'bathtub', 'shower', 'mirror'] as FurnitureType[] },
+      { name: '거실', types: ['sofa', 'tv', 'table', 'plant'] as FurnitureType[] },
+      { name: '서재', types: ['desk', 'chair', 'bookshelf'] as FurnitureType[] },
+      { name: '기타', types: ['washing_machine'] as FurnitureType[] },
+    ];
+    return (
+      <Modal visible={editor.showFurnitureMenu} animationType="slide" transparent onRequestClose={() => editor.setShowFurnitureMenu(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.furnitureMenuContainer}>
+            <View style={styles.furnitureMenuHeader}>
+              <Text style={styles.furnitureMenuTitle}>가구 추가</Text>
+              <TouchableOpacity onPress={() => editor.setShowFurnitureMenu(false)}>
+                <Text style={styles.closeButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.furnitureMenuScroll}>
+              {categories.map((cat) => (
+                <View key={cat.name} style={styles.furnitureCategory}>
+                  <Text style={styles.categoryTitle}>{cat.name}</Text>
+                  <View style={styles.furnitureGrid}>
+                    {cat.types.map((type) => {
+                      const defaults = FURNITURE_DEFAULTS[type];
+                      return (
+                        <TouchableOpacity key={type} style={styles.furnitureButton} onPress={() => editor.selectedRoomForFurniture && editor.handleAddFurniture(editor.selectedRoomForFurniture, type)}>
+                          <Text style={styles.furnitureMenuEmoji}>{defaults.emoji}</Text>
+                          <Text style={styles.furnitureName}>{editor.getFurnitureName(type)}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -418,127 +563,312 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           });
         }}
       >
+        {/* 캔버스 리사이즈 모드 상단바 */}
+        {isEditMode && editor.isCanvasResizeMode && (
+          <View style={styles.resizeInfoBar}>
+            <Text style={styles.resizeInfoText}>
+              너비: {editor.layout.canvasSize.width}px  |  높이: {editor.layout.canvasSize.height}px
+            </Text>
+            <TouchableOpacity style={styles.resizeDoneBtn} onPress={() => editor.setIsCanvasResizeMode(false)}>
+              <Text style={styles.resizeDoneBtnText}>완료</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 양방향 스크롤: 수직 ScrollView > 수평 ScrollView */}
         <ScrollView
           style={styles.mapScrollOuter}
           contentContainerStyle={styles.mapScrollOuterContent}
           showsVerticalScrollIndicator={true}
+          scrollEnabled={!editor.isDraggingRoom && !editor.isDraggingFurniture && !editor.isDraggingCharacter && !editor.isResizing}
         >
           <ScrollView
             horizontal
             style={styles.mapScrollInner}
             contentContainerStyle={styles.mapScrollInnerContent}
             showsHorizontalScrollIndicator={true}
+            scrollEnabled={!editor.isDraggingRoom && !editor.isDraggingFurniture && !editor.isDraggingCharacter && !editor.isResizing}
           >
-        <View style={styles.mapWrapper}>
-          {layout ? (
-            <View style={{
-              width: layout.canvasSize.width * canvasScale,
-              height: layout.canvasSize.height * canvasScale,
-            }}>
-              <View style={{
-                position: 'absolute',
-                transform: [{ scale: canvasScale }],
-                left: -(layout.canvasSize.width * (1 - canvasScale)) / 2,
-                top: -(layout.canvasSize.height * (1 - canvasScale)) / 2,
-              }}>
-              <Svg
-                width={layout.canvasSize.width}
-                height={layout.canvasSize.height}
-                viewBox={`0 0 ${layout.canvasSize.width} ${layout.canvasSize.height}`}
-              >
-                <Rect
-                  x={0}
-                  y={0}
-                  width={layout.canvasSize.width}
-                  height={layout.canvasSize.height}
-                  fill="#F5F5DC"
-                  stroke={Colors.lightGray}
-                  strokeWidth={2}
-                />
-
-                {layout?.rooms?.map(renderRoom) || null}
-                {renderCharacter()}
-              </Svg>
-
-              {/* 가구 레이블 - Animated.View 내부로 이동 */}
-              {layout?.rooms?.map((room) =>
-                room?.furnitures?.map((furniture) => {
-                  if (!room?.position || !furniture?.position || !furniture?.size) return null;
-                  
-                  const absX = room.position.x + furniture.position.x + furniture.size.width / 2;
-                  const absY = room.position.y + furniture.position.y + furniture.size.height / 2;
-                  return (
-                    <View
-                      key={`label-${furniture.id}`}
-                      style={[
-                        styles.furnitureLabel,
-                        { left: absX - 15, top: absY - 15 },
-                      ]}
-                    >
-                      <TouchableOpacity onPress={() => handleFurniturePress(room, furniture)}>
-                        <Text style={styles.furnitureEmojiLabel}>{furniture.emoji}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                }) || []
-              )?.flat() || []}
-
-              {/* 캐릭터 레이블 */}
-              {layout?.character?.position && (
-                <View
-                  key="character-label"
-                  style={[
-                    styles.furnitureLabel,
-                    { 
-                      left: layout.character.position.x - 20, 
-                      top: layout.character.position.y - 20 
-                    },
-                  ]}
-                >
-                  <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
-                    <Text style={styles.furnitureEmojiLabel}>🧑</Text>
-                  </TouchableOpacity>
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              {/* 캔버스 리사이즈 모드: 위쪽 버튼 */}
+              {isEditMode && editor.isCanvasResizeMode && (
+                <View style={styles.resizeEdgeTop}>
+                  <ResizeBtn label="↑+" onPress={() => editor.handleCanvasSizeChange('top', -50)} />
+                  <ResizeBtn label="↑-" onPress={() => editor.handleCanvasSizeChange('top', 50)} />
                 </View>
               )}
+
+              <View style={{ flexDirection: 'row' }}>
+                {/* 캔버스 리사이즈 모드: 왼쪽 버튼 */}
+                {isEditMode && editor.isCanvasResizeMode && (
+                  <View style={styles.resizeEdgeLeft}>
+                    <ResizeBtn label="←+" onPress={() => editor.handleCanvasSizeChange('left', -50)} />
+                    <ResizeBtn label="←-" onPress={() => editor.handleCanvasSizeChange('left', 50)} />
+                  </View>
+                )}
+
+                <View style={styles.mapWrapper}>
+                  <View style={{
+                    width: displayLayout.canvasSize.width * canvasScale,
+                    height: displayLayout.canvasSize.height * canvasScale,
+                  }}>
+                    <View style={{
+                      position: 'absolute',
+                      transform: [{ scale: canvasScale }],
+                      left: -(displayLayout.canvasSize.width * (1 - canvasScale)) / 2,
+                      top: -(displayLayout.canvasSize.height * (1 - canvasScale)) / 2,
+                    }}>
+                      <Svg
+                        width={displayLayout.canvasSize.width}
+                        height={displayLayout.canvasSize.height}
+                        viewBox={`0 0 ${displayLayout.canvasSize.width} ${displayLayout.canvasSize.height}`}
+                        onPress={() => isEditMode && editor.setSelectedItem(null)}
+                      >
+                        <Rect x={0} y={0} width={displayLayout.canvasSize.width} height={displayLayout.canvasSize.height} fill={isEditMode ? '#FAFAFA' : '#F5F5DC'} stroke={Colors.lightGray} strokeWidth={isEditMode ? 1 : 2} />
+                        {displayLayout.rooms.map(renderRoom)}
+                        {renderCharacter()}
+                      </Svg>
+
+                      {/* 가구 레이블 (뷰 모드) / 드래그 핸들 (편집 모드) */}
+                      {displayLayout.rooms.map((room) =>
+                        room?.furnitures?.map((furniture) => {
+                          if (!room?.position || !furniture?.position || !furniture?.size) return null;
+                          const absX = room.position.x + furniture.position.x + furniture.size.width / 2;
+                          const absY = room.position.y + furniture.position.y + furniture.size.height / 2;
+
+                          if (isEditMode) {
+                            let hasMoved = false;
+                            return (
+                              <View
+                                key={`label-${furniture.id}`}
+                                style={[styles.furnitureLabel, { left: absX - 15, top: absY - 15 }]}
+                                {...PanResponder.create({
+                                  onStartShouldSetPanResponder: () => true,
+                                  onMoveShouldSetPanResponder: () => true,
+                                  onPanResponderGrant: (evt) => {
+                                    hasMoved = false;
+                                    editor.furnitureDragState.current = { active: true, roomId: room.id, furnitureId: furniture.id, startX: evt.nativeEvent.pageX, startY: evt.nativeEvent.pageY, initialX: furniture.position.x, initialY: furniture.position.y };
+                                  },
+                                  onPanResponderMove: (evt) => {
+                                    const dx = Math.abs(evt.nativeEvent.pageX - editor.furnitureDragState.current.startX);
+                                    const dy = Math.abs(evt.nativeEvent.pageY - editor.furnitureDragState.current.startY);
+                                    if (dx > 5 || dy > 5) { hasMoved = true; if (!editor.isDraggingFurniture) editor.setIsDraggingFurniture(true); }
+                                    if (editor.furnitureDragState.current.active && hasMoved) editor.handleFurnitureDrag(evt, room.id, furniture.id, canvasScale);
+                                  },
+                                  onPanResponderRelease: () => {
+                                    if (!hasMoved) editor.handleFurniturePress(room.id, furniture.id);
+                                    editor.setIsDraggingFurniture(false);
+                                    editor.furnitureDragState.current.active = false;
+                                    editor.furnitureDragState.current.roomId = null;
+                                    editor.furnitureDragState.current.furnitureId = null;
+                                  },
+                                }).panHandlers}
+                              >
+                                <Text style={styles.furnitureEmojiLabel}>{furniture.emoji}</Text>
+                              </View>
+                            );
+                          }
+
+                          return (
+                            <View key={`label-${furniture.id}`} style={[styles.furnitureLabel, { left: absX - 15, top: absY - 15 }]}>
+                              <TouchableOpacity onPress={() => handleFurniturePress(room, furniture)}>
+                                <Text style={styles.furnitureEmojiLabel}>{furniture.emoji}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        }) ?? []
+                      ).flat()}
+
+                      {/* 캐릭터 드래그 핸들 (편집 모드) */}
+                      {isEditMode ? (
+                        <View
+                          key="character-drag-handle"
+                          style={[styles.furnitureLabel, { left: editor.layout.character.position.x - 20, top: editor.layout.character.position.y - 20 }]}
+                          {...PanResponder.create({
+                            onStartShouldSetPanResponder: () => true,
+                            onMoveShouldSetPanResponder: () => true,
+                            onPanResponderGrant: (evt) => {
+                              editor.characterDragState.current = { active: true, startX: evt.nativeEvent.pageX, startY: evt.nativeEvent.pageY, initialX: editor.layout.character.position.x, initialY: editor.layout.character.position.y };
+                              editor.setIsDraggingCharacter(true);
+                              editor.setSelectedItem({ type: 'character' });
+                            },
+                            onPanResponderMove: (evt) => { if (editor.characterDragState.current.active) editor.handleCharacterDrag(evt, canvasScale); },
+                            onPanResponderRelease: () => { editor.setIsDraggingCharacter(false); editor.characterDragState.current.active = false; },
+                          }).panHandlers}
+                        >
+                          <Text style={styles.furnitureEmojiLabel}>🧑</Text>
+                        </View>
+                      ) : (
+                        displayLayout.character?.position && (
+                          <View key="character-label" style={[styles.furnitureLabel, { left: displayLayout.character.position.x - 20, top: displayLayout.character.position.y - 20 }]}>
+                            <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
+                              <Text style={styles.furnitureEmojiLabel}>🧑</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )
+                      )}
+
+                      {/* 방 드래그 핸들 (편집 모드, 선택된 방만) */}
+                      {isEditMode && editor.layout.rooms.map((room) => {
+                        const isSelected = editor.selectedItem?.type === 'room' && editor.selectedItem.id === room.id;
+                        if (!isSelected) return null;
+                        return (
+                          <View
+                            key={`drag-handle-${room.id}`}
+                            style={[styles.roomDragHandle, { left: room.position.x, top: room.position.y, width: room.size.width, height: room.size.height }]}
+                            {...PanResponder.create({
+                              onStartShouldSetPanResponder: () => true,
+                              onMoveShouldSetPanResponder: () => true,
+                              onPanResponderGrant: (evt) => {
+                                editor.setIsDraggingRoom(true);
+                                editor.roomDragState.current = { active: true, roomId: room.id, startX: evt.nativeEvent.pageX, startY: evt.nativeEvent.pageY, initialX: room.position.x, initialY: room.position.y };
+                              },
+                              onPanResponderMove: (evt) => { if (editor.roomDragState.current.active) editor.handleRoomDrag(evt, room.id, canvasScale); },
+                              onPanResponderRelease: () => { editor.setIsDraggingRoom(false); editor.roomDragState.current.active = false; editor.roomDragState.current.roomId = null; },
+                            }).panHandlers}
+                          />
+                        );
+                      })}
+
+                      {/* 방 리사이즈 핸들 (편집 모드, 선택된 방만) */}
+                      {isEditMode && editor.layout.rooms.map((room) => {
+                        const isSelected = editor.selectedItem?.type === 'room' && editor.selectedItem.id === room.id;
+                        if (!isSelected) return null;
+                        const handleWidth = Math.min(60, Math.round(30 / canvasScale));
+                        const edges = [
+                          { edge: 'top' as const, x: room.position.x + room.size.width * 0.3, y: room.position.y - handleWidth / 2, width: room.size.width * 0.4, height: handleWidth },
+                          { edge: 'right' as const, x: room.position.x + room.size.width - handleWidth / 2, y: room.position.y + room.size.height * 0.3, width: handleWidth, height: room.size.height * 0.4 },
+                          { edge: 'bottom' as const, x: room.position.x + room.size.width * 0.3, y: room.position.y + room.size.height - handleWidth / 2, width: room.size.width * 0.4, height: handleWidth },
+                          { edge: 'left' as const, x: room.position.x - handleWidth / 2, y: room.position.y + room.size.height * 0.3, width: handleWidth, height: room.size.height * 0.4 },
+                        ];
+                        return edges.map(({ edge, x, y, width, height }) => (
+                          <View
+                            key={`resize-handle-${room.id}-${edge}`}
+                            style={[styles.resizeHandle, { left: x, top: y, width, height }]}
+                            {...PanResponder.create({
+                              onStartShouldSetPanResponder: () => true,
+                              onMoveShouldSetPanResponder: () => true,
+                              onPanResponderGrant: (evt) => {
+                                editor.setIsResizing(true);
+                                editor.resizeDragState.current = { active: true, roomId: room.id, edge, startX: evt.nativeEvent.pageX, startY: evt.nativeEvent.pageY, initialX: room.position.x, initialY: room.position.y, initialWidth: room.size.width, initialHeight: room.size.height };
+                              },
+                              onPanResponderMove: (evt) => { if (editor.resizeDragState.current.active) editor.handleResizeRoomDrag(evt, room.id, edge, canvasScale); },
+                              onPanResponderRelease: () => { editor.setIsResizing(false); editor.resizeDragState.current.active = false; editor.resizeDragState.current.roomId = null; editor.resizeDragState.current.edge = null; },
+                            }).panHandlers}
+                          >
+                            <View style={[styles.resizeHandleVisual, edge === 'top' || edge === 'bottom' ? { width: '100%', height: 4 } : { width: 4, height: '100%' }]} />
+                          </View>
+                        ));
+                      })}
+                    </View>
+                  </View>
+                </View>
+
+                {/* 캔버스 리사이즈 모드: 오른쪽 버튼 */}
+                {isEditMode && editor.isCanvasResizeMode && (
+                  <View style={styles.resizeEdgeRight}>
+                    <ResizeBtn label="-→" onPress={() => editor.handleCanvasSizeChange('right', 50)} />
+                    <ResizeBtn label="+→" onPress={() => editor.handleCanvasSizeChange('right', -50)} />
+                  </View>
+                )}
               </View>
-            </View>
-          ) : (
-            <View style={styles.noLayoutContainer}>
-              <Text style={styles.noLayoutText}>집 구조를 설정해주세요</Text>
-              <TouchableOpacity 
-                style={styles.setupButton}
-                onPress={() => navigation.navigate('HouseLayoutSelection')}
-              >
-                <Text style={styles.setupButtonText}>집 구조 설정하기</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+
+              {/* 캔버스 리사이즈 모드: 아래쪽 버튼 */}
+              {isEditMode && editor.isCanvasResizeMode && (
+                <View style={styles.resizeEdgeBottom}>
+                  <ResizeBtn label="↓-" onPress={() => editor.handleCanvasSizeChange('bottom', 50)} />
+                  <ResizeBtn label="↓+" onPress={() => editor.handleCanvasSizeChange('bottom', -50)} />
+                </View>
+              )}
+            </TouchableOpacity>
           </ScrollView>
         </ScrollView>
 
-        {/* 줌 컨트롤 - 우하단 pill 형태 */}
-        {layout && (
-          <View style={styles.zoomControlContainer}>
-            <TouchableOpacity
-              style={[styles.zoomButton, canvasScale <= MIN_CANVAS_SCALE && styles.zoomButtonDisabled]}
-              onPress={handleZoomOut}
-              disabled={canvasScale <= MIN_CANVAS_SCALE}
-            >
-              <Text style={styles.zoomButtonText}>−</Text>
-            </TouchableOpacity>
-            <Text style={styles.zoomLabel}>{Math.round(canvasScale * 100)}%</Text>
-            <TouchableOpacity
-              style={[styles.zoomButton, canvasScale >= MAX_CANVAS_SCALE && styles.zoomButtonDisabled]}
-              onPress={handleZoomIn}
-              disabled={canvasScale >= MAX_CANVAS_SCALE}
-            >
-              <Text style={styles.zoomButtonText}>+</Text>
-            </TouchableOpacity>
+        {/* 편집 모드 - 선택된 방/가구 컨텍스트 액션 FAB */}
+        {isEditMode && (
+          <View style={styles.floatingButtonContainer}>
+            {!editor.selectedItem && !editor.isCanvasResizeMode && (
+              <>
+                <TouchableOpacity style={styles.floatingButton} onPress={editor.handleAddRoom}>
+                  <Text style={styles.floatingButtonIcon}>➕</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.floatingButton} onPress={() => { editor.setSelectedItem(null); editor.setIsCanvasResizeMode(true); }}>
+                  <Text style={styles.floatingButtonIcon}>📐</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {editor.selectedItem?.type === 'room' && (
+              <>
+                <TouchableOpacity style={styles.floatingButton} onPress={() => {
+                  const room = editor.layout.rooms.find(r => r.id === (editor.selectedItem as { type: 'room'; id: string }).id);
+                  if (room) { editor.setSelectedRoomForFurniture(room.id); editor.setShowFurnitureMenu(true); }
+                }}>
+                  <Text style={styles.floatingButtonIcon}>🪑</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.floatingButton} onPress={() => {
+                  const room = editor.layout.rooms.find(r => r.id === (editor.selectedItem as { type: 'room'; id: string }).id);
+                  if (room) editor.handleRenameRoom(room.id, room.name);
+                }}>
+                  <Text style={styles.floatingButtonIcon}>✏️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.floatingButton, styles.floatingButtonDanger]} onPress={() => {
+                  editor.handleDeleteRoom((editor.selectedItem as { type: 'room'; id: string }).id);
+                }}>
+                  <Text style={styles.floatingButtonIcon}>🗑️</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {editor.selectedItem?.type === 'furniture' && (
+              <>
+                <TouchableOpacity style={styles.floatingButton} onPress={() => {
+                  const sel = editor.selectedItem as { type: 'furniture'; roomId: string; id: string };
+                  editor.handleRotateFurniture(sel.roomId, sel.id);
+                }}>
+                  <Text style={styles.floatingButtonIcon}>🔄</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.floatingButton, styles.floatingButtonDanger]} onPress={() => {
+                  const sel = editor.selectedItem as { type: 'furniture'; roomId: string; id: string };
+                  editor.handleDeleteFurniture(sel.roomId, sel.id);
+                }}>
+                  <Text style={styles.floatingButtonIcon}>🗑️</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
+
+        {/* 뷰 모드 - 연필 FAB */}
+        {!isEditMode && (
+          <TouchableOpacity
+            style={styles.editFab}
+            onPress={() => setIsEditMode(true)}
+          >
+            <Text style={styles.editFabText}>✏️</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 줌 컨트롤 - 우하단 pill 형태 */}
+        <View style={styles.zoomControlContainer}>
+          <TouchableOpacity
+            style={[styles.zoomButton, canvasScale <= MIN_CANVAS_SCALE && styles.zoomButtonDisabled]}
+            onPress={handleZoomOut}
+            disabled={canvasScale <= MIN_CANVAS_SCALE}
+          >
+            <Text style={styles.zoomButtonText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.zoomLabel}>{Math.round(canvasScale * 100)}%</Text>
+          <TouchableOpacity
+            style={[styles.zoomButton, canvasScale >= MAX_CANVAS_SCALE && styles.zoomButtonDisabled]}
+            onPress={handleZoomIn}
+            disabled={canvasScale >= MAX_CANVAS_SCALE}
+          >
+            <Text style={styles.zoomButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* 가구 추가 모달 */}
+      {isEditMode && renderFurnitureMenu()}
     </View>
   );
 };
@@ -662,6 +992,202 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     pointerEvents: 'box-none',
+  },
+  // 편집 모드 스타일
+  editFab: {
+    position: 'absolute',
+    bottom: Spacing.lg + 56,
+    right: Spacing.md,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  editFabText: {
+    fontSize: 22,
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.md,
+    flexDirection: 'column',
+    gap: Spacing.sm,
+    zIndex: 1000,
+  },
+  floatingButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  floatingButtonDanger: {
+    backgroundColor: Colors.error,
+  },
+  floatingButtonIcon: {
+    fontSize: 22,
+  },
+  // 캔버스 리사이즈 스타일
+  resizeInfoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    zIndex: 100,
+  },
+  resizeInfoText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  resizeDoneBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 6,
+  },
+  resizeDoneBtnText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  resizeEdgeTop: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.veryLightGray,
+  },
+  resizeEdgeBottom: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.veryLightGray,
+  },
+  resizeEdgeLeft: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    backgroundColor: Colors.veryLightGray,
+  },
+  resizeEdgeRight: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    backgroundColor: Colors.veryLightGray,
+  },
+  resizeEdgeBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 44,
+  },
+  resizeEdgeBtnText: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  roomDragHandle: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+  },
+  resizeHandle: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resizeHandleVisual: {
+    backgroundColor: Colors.accent,
+    borderRadius: 2,
+    opacity: 0.8,
+  },
+  // 가구 추가 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  furnitureMenuContainer: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '70%',
+    paddingBottom: Spacing.lg,
+  },
+  furnitureMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray,
+  },
+  furnitureMenuTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  closeButton: {
+    fontSize: 20,
+    color: Colors.textSecondary,
+    padding: Spacing.xs,
+  },
+  furnitureMenuScroll: {
+    flex: 1,
+  },
+  furnitureCategory: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray,
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xs,
+  },
+  furnitureGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  furnitureButton: {
+    width: 70,
+    alignItems: 'center',
+    padding: Spacing.sm,
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 8,
+  },
+  furnitureMenuEmoji: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  furnitureName: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
   characterEmoji: {
     fontSize: 40,
