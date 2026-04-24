@@ -117,9 +117,17 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
   const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
 
+  // 컨테이너 크기가 바뀔 때만 자동 재계산 (캔버스 크기 변경 시에는 줌 유지)
   useEffect(() => {
     setCanvasScale(calcAutoScale());
-  }, [containerSize.width, containerSize.height, activeLayout?.canvasSize?.width, activeLayout?.canvasSize?.height]);
+  }, [containerSize.width, containerSize.height]);
+
+  // 편집 모드 진입 시 줌을 초기 뷰포트에 맞게 리셋
+  useEffect(() => {
+    if (isEditMode) {
+      setCanvasScale(calcAutoScale());
+    }
+  }, [isEditMode]);
 
   const handleZoomIn = () => {
     setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));

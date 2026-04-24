@@ -189,10 +189,10 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
 
   const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
 
-  // 컨테이너 크기나 캔버스 크기가 바뀌면 자동 계산값으로 리셋
+  // 컨테이너 크기가 바뀔 때만 자동 재계산 (캔버스 크기 변경 시에는 줌 유지)
   useEffect(() => {
     setCanvasScale(calcAutoScale());
-  }, [containerSize.width, containerSize.height, layout.canvasSize.width, layout.canvasSize.height]);
+  }, [containerSize.width, containerSize.height]);
 
   const handleZoomIn = () => {
     setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));
