@@ -1462,7 +1462,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                             </Text>
                           </View>
                         )}
-                        {dueDate && task.estimatedMinutes && (
+                        {dueDate && (task.estimatedMinutes ?? 0) > 0 && (
                           <View style={styles.taskChipTime}>
                             <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
                           </View>

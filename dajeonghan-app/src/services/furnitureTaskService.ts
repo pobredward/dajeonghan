@@ -67,9 +67,7 @@ export class FurnitureTaskService {
         type: templateTask.type,
         recurrence,
         priority: customization.priority || templateTask.priority,
-        estimatedMinutes: customization.estimatedMinutes
-          ? customization.estimatedMinutes
-          : undefined,
+        estimatedMinutes: customization.estimatedMinutes ?? templateTask.estimatedMinutes ?? 30,
         status: 'pending',
         notificationSettings: {
           enabled: customization.notificationEnabled ?? true,
