@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -117,17 +117,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
   const [canvasScale, setCanvasScale] = useState(() => calcAutoScale());
 
-  // 컨테이너 크기가 바뀔 때만 자동 재계산 (캔버스 크기 변경 시에는 줌 유지)
   useEffect(() => {
     setCanvasScale(calcAutoScale());
-  }, [containerSize.width, containerSize.height]);
-
-  // 편집 모드 진입 시 줌을 초기 뷰포트에 맞게 리셋
-  useEffect(() => {
-    if (isEditMode) {
-      setCanvasScale(calcAutoScale());
-    }
-  }, [isEditMode]);
+  }, [containerSize.width, containerSize.height, activeLayout?.canvasSize?.width, activeLayout?.canvasSize?.height]);
 
   const handleZoomIn = () => {
     setCanvasScale((prev) => Math.min(MAX_CANVAS_SCALE, Math.round((prev + ZOOM_STEP) * 10) / 10));
@@ -136,6 +128,27 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const handleZoomOut = () => {
     setCanvasScale((prev) => Math.max(MIN_CANVAS_SCALE, Math.round((prev - ZOOM_STEP) * 10) / 10));
   };
+
+  // 저장 함수를 ref로 관리 — 매 렌더마다 최신 editor.layout을 참조하도록 갱신
+  const handleSaveEditRef = useRef<() => Promise<void>>(async () => {});
+
+  const handleSaveEdit = async () => {
+    if (!userId) return;
+    setIsSaving(true);
+    try {
+      await saveHouseLayout(editor.layout);
+      setViewLayout(editor.layout);
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Failed to save layout:', error);
+      Alert.alert('오류', '집 구조를 저장하는데 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 매 렌더마다 최신 함수로 ref 갱신 (stale closure 방지)
+  handleSaveEditRef.current = handleSaveEdit;
 
   // 헤더 설정 — 편집 모드일 때 취소/저장 버튼 표시
   useLayoutEffect(() => {
@@ -157,7 +170,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         ),
         headerRight: () => (
           <TouchableOpacity
-            onPress={handleSaveEdit}
+            onPress={() => handleSaveEditRef.current?.()}
             disabled={isSaving}
             style={{ marginRight: 16 }}
           >
@@ -175,21 +188,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       });
     }
   }, [isEditMode, isSaving]);
-
-  const handleSaveEdit = async () => {
-    if (!userId) return;
-    setIsSaving(true);
-    try {
-      await saveHouseLayout(editor.layout);
-      setViewLayout(editor.layout);
-      setIsEditMode(false);
-    } catch (error) {
-      console.error('Failed to save layout:', error);
-      Alert.alert('오류', '집 구조를 저장하는데 실패했습니다.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // 초기 로딩 및 userId 변경 시에만 로딩 표시
   useEffect(() => {
