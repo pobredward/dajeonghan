@@ -77,6 +77,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const [furnitureTaskCounts, setFurnitureTaskCounts] = useState<FurnitureTaskCounts>({});
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // 캔버스 View의 화면 절대 좌표 — 터치 pageX/pageY를 캔버스 좌표로 변환하는 데 사용
+  const canvasOriginRef = useRef({ x: 0, y: 0 });
 
   
   
@@ -618,12 +620,20 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
                     width: displayLayout.canvasSize.width * canvasScale,
                     height: displayLayout.canvasSize.height * canvasScale,
                   }}>
-                    <View style={{
-                      position: 'absolute',
-                      transform: [{ scale: canvasScale }],
-                      left: -(displayLayout.canvasSize.width * (1 - canvasScale)) / 2,
-                      top: -(displayLayout.canvasSize.height * (1 - canvasScale)) / 2,
-                    }}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        transform: [{ scale: canvasScale }],
+                        left: -(displayLayout.canvasSize.width * (1 - canvasScale)) / 2,
+                        top: -(displayLayout.canvasSize.height * (1 - canvasScale)) / 2,
+                      }}
+                      onLayout={(e) => {
+                        // scale transform이 적용된 후 실제 화면 좌표 측정
+                        e.target.measure((_x, _y, _w, _h, pageX, pageY) => {
+                          canvasOriginRef.current = { x: pageX, y: pageY };
+                        });
+                      }}
+                    >
                       <Svg
                         width={displayLayout.canvasSize.width}
                         height={displayLayout.canvasSize.height}
@@ -718,12 +728,33 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
                       {isEditMode && editor.layout.rooms.map((room) => {
                         const isSelected = editor.selectedItem?.type === 'room' && editor.selectedItem.id === room.id;
                         if (!isSelected) return null;
+
+                        // 터치 좌표(pageX, pageY)를 캔버스 좌표로 변환 후 해당 방 내 가구 hit-test
+                        const findTouchedFurniture = (pageX: number, pageY: number) => {
+                          const canvasX = (pageX - canvasOriginRef.current.x) / canvasScale;
+                          const canvasY = (pageY - canvasOriginRef.current.y) / canvasScale;
+                          return room.furnitures.find((f) => {
+                            const fx = room.position.x + f.position.x;
+                            const fy = room.position.y + f.position.y;
+                            return canvasX >= fx && canvasX <= fx + f.size.width &&
+                                   canvasY >= fy && canvasY <= fy + f.size.height;
+                          }) ?? null;
+                        };
+
                         return (
                           <View
                             key={`drag-handle-${room.id}`}
                             style={[styles.roomDragHandle, { left: room.position.x, top: room.position.y, width: room.size.width, height: room.size.height }]}
                             {...PanResponder.create({
-                              onStartShouldSetPanResponder: () => true,
+                              onStartShouldSetPanResponder: (evt) => {
+                                // 가구 위를 터치한 경우 드래그 핸들이 이벤트를 가져가지 않음
+                                const touched = findTouchedFurniture(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+                                if (touched) {
+                                  editor.handleFurniturePress(room.id, touched.id);
+                                  return false;
+                                }
+                                return true;
+                              },
                               onMoveShouldSetPanResponder: () => true,
                               onPanResponderGrant: (evt) => {
                                 editor.setIsDraggingRoom(true);
