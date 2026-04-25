@@ -857,12 +857,6 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
             )}
             {editor.selectedItem?.type === 'furniture' && (
               <>
-                <TouchableOpacity style={styles.floatingButton} onPress={() => {
-                  const sel = editor.selectedItem as { type: 'furniture'; roomId: string; id: string };
-                  editor.handleRotateFurniture(sel.roomId, sel.id);
-                }}>
-                  <Text style={styles.floatingButtonIcon}>🔄</Text>
-                </TouchableOpacity>
                 <TouchableOpacity style={[styles.floatingButton, styles.floatingButtonDanger]} onPress={() => {
                   const sel = editor.selectedItem as { type: 'furniture'; roomId: string; id: string };
                   editor.handleDeleteFurniture(sel.roomId, sel.id);

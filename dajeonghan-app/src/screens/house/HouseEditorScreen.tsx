@@ -753,34 +753,6 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
     setSelectedItem({ type: 'furniture', roomId, id: furnitureId });
   };
 
-  const handleRotateFurniture = (roomId: string, furnitureId: string) => {
-    const updatedRooms = layout.rooms.map((room) => {
-      if (room.id === roomId) {
-        return {
-          ...room,
-          furnitures: room.furnitures.map((f) => {
-            if (f.id === furnitureId) {
-              const newRotation = (f.rotation + 90) % 360;
-              // 회전 시 width와 height 교환 (90도, 270도일 때)
-              const shouldSwapDimensions = (newRotation === 90 || newRotation === 270) !== (f.rotation === 90 || f.rotation === 270);
-              
-              return { 
-                ...f, 
-                rotation: newRotation,
-                size: shouldSwapDimensions 
-                  ? { width: f.size.height, height: f.size.width }
-                  : f.size
-              };
-            }
-            return f;
-          }),
-        };
-      }
-      return room;
-    });
-
-    setLayout({ ...layout, rooms: updatedRooms });
-  };
 
   const getFurnitureName = (type: FurnitureType): string => {
     const names: Record<FurnitureType, string> = {
@@ -1477,12 +1449,6 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
           
           {selectedItem?.type === 'furniture' && (
             <>
-              <TouchableOpacity 
-                style={styles.floatingButton} 
-                onPress={() => handleRotateFurniture(selectedItem.roomId, selectedItem.id)}
-              >
-                <Text style={styles.floatingButtonIcon}>↻</Text>
-              </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.floatingButton, styles.floatingButtonDanger]} 
                 onPress={() => handleDeleteFurniture(selectedItem.roomId, selectedItem.id)}
