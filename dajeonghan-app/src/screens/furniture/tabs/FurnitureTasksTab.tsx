@@ -45,6 +45,7 @@ interface FurnitureTasksTabProps {
   room: Room;
   onDataUpdate: () => void;
   initialTab?: 'info' | 'add';
+  onTabChange?: (tab: 'info' | 'add') => void;
 }
 
 // Task 추가 모달 상태
@@ -63,6 +64,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   room,
   onDataUpdate,
   initialTab = 'info',
+  onTabChange,
 }) => {
   const { userId } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -1241,6 +1243,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 onPress={() => {
                   setActiveTab('add');
                   setTaskAddState({ step: 'template', selectedTemplate: null });
+                  onTabChange?.('add');
                 }}
                 activeOpacity={0.8}
               >

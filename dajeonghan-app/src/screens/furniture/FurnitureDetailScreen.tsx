@@ -204,6 +204,7 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
           room={room}
           furnitureType={furnitureType}
           onDataUpdate={loadFurnitureData}
+          onTaskTabChange={setActiveTab}
         />
       </View>
     </SafeAreaView>
@@ -217,7 +218,8 @@ const TabContentRenderer: React.FC<{
   room: Room;
   furnitureType: FurnitureType;
   onDataUpdate: () => void;
-}> = ({ activeTab, furniture, room, furnitureType, onDataUpdate }) => {
+  onTaskTabChange: (tab: TabType) => void;
+}> = ({ activeTab, furniture, room, furnitureType, onDataUpdate, onTaskTabChange }) => {
   switch (activeTab) {
     case 'task-info':
     case 'task-add':
@@ -227,6 +229,7 @@ const TabContentRenderer: React.FC<{
           room={room} 
           onDataUpdate={onDataUpdate}
           initialTab={activeTab === 'task-info' ? 'info' : 'add'}
+          onTabChange={(tab) => onTaskTabChange(tab === 'add' ? 'task-add' : 'task-info')}
         />
       );
     
