@@ -4,7 +4,6 @@
  * 가구별 특화 기능과 데이터를 통합 관리합니다.
  */
 
-import React, { ComponentType } from 'react';
 import { 
   Furniture, 
   FurnitureType, 
@@ -15,9 +14,6 @@ import { LifeObject } from '@/types/lifeobject.types';
 import { Task } from '@/types/task.types';
 import { getLifeObjects, getTasks } from '@/services/firestoreService';
 import { getHouseLayout, updateFurniture } from '@/services/houseService';
-
-// 가구별 특화 탭 컴포넌트들 (지연 로딩)
-import { FridgeTab } from '@/screens/furniture/tabs/FridgeTab';
 
 export interface FurnitureDetailData extends Furniture {
   linkedObjects: LifeObject[];
@@ -78,38 +74,12 @@ export class FurnitureDetailService {
   }
 
   /**
-   * 가구별 특화 탭 컴포넌트를 반환합니다.
-   */
-  static getFurnitureTabComponent(furnitureType: FurnitureType): ComponentType<any> | null {
-    switch (furnitureType) {
-      case 'fridge':
-        return FridgeTab;
-      
-      // 다른 가구들은 나중에 추가
-      case 'bed':
-      case 'desk':
-      case 'plant':
-      case 'toilet':
-      case 'bathtub':
-      case 'shower':
-      case 'sink':
-      case 'washing_machine':
-      default:
-        return null; // 기본 placeholder 사용
-    }
-  }
-
-  /**
    * 가구별 특화 기능 이름을 반환합니다.
    */
   static getFurnitureFeatureName(furnitureType: FurnitureType): string {
     switch (furnitureType) {
       case 'fridge':
         return '재고 관리';
-      case 'bed':
-        return '수면 관리';
-      case 'desk':
-        return '학습/업무';
       case 'toilet':
       case 'bathtub':
       case 'shower':

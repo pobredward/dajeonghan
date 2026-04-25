@@ -18,8 +18,6 @@ import { getHouseLayout } from '@/services/houseService';
 import { useAuth } from '@/contexts/AuthContext';
 import { FurnitureTasksTab } from './tabs/FurnitureTasksTab';
 import { FridgeTab } from './tabs/FridgeTab';
-import { BedTab } from './tabs/BedTab';
-import { DeskTab } from './tabs/DeskTab';
 
 type NavigationProp = StackNavigationProp<HouseStackParamList, 'FurnitureDetail'>;
 type RouteProps = RNRouteProp<HouseStackParamList, 'FurnitureDetail'>;
@@ -37,7 +35,7 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
   const [layout, setLayout] = useState<HouseLayout | null>(null);
   const [furniture, setFurniture] = useState<Furniture | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
-  type TabType = 'task-info' | 'task-add' | 'fridge-inventory' | 'bed-overview' | 'bed-sleep' | 'bed-maintenance' | 'desk-overview' | 'desk-focus' | 'desk-equipment';
+  type TabType = 'task-info' | 'task-add' | 'fridge-inventory';
   const [activeTab, setActiveTab] = useState<TabType>('task-info');
 
   useEffect(() => {
@@ -104,22 +102,6 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
         return [
           ...baseTabs,
           { key: 'fridge-inventory' as TabType, title: '재고 관리' },
-        ];
-      
-      case 'bed':
-        return [
-          ...baseTabs,
-          { key: 'bed-overview' as TabType, title: '침대 정보' },
-          { key: 'bed-sleep' as TabType, title: '수면 기록' },
-          { key: 'bed-maintenance' as TabType, title: '관리' },
-        ];
-      
-      case 'desk':
-        return [
-          ...baseTabs,
-          { key: 'desk-overview' as TabType, title: '책상 정보' },
-          { key: 'desk-focus' as TabType, title: '집중 세션' },
-          { key: 'desk-equipment' as TabType, title: '장비 관리' },
         ];
       
       default:
@@ -242,32 +224,6 @@ const TabContentRenderer: React.FC<{
         />
       );
     
-    case 'bed-overview':
-    case 'bed-sleep':
-    case 'bed-maintenance':
-      const bedSection = activeTab.replace('bed-', '') as 'overview' | 'sleep' | 'maintenance';
-      return (
-        <BedTab 
-          furniture={furniture} 
-          room={room} 
-          onDataUpdate={onDataUpdate}
-          initialSection={bedSection}
-        />
-      );
-    
-    case 'desk-overview':
-    case 'desk-focus':
-    case 'desk-equipment':
-      const deskSection = activeTab.replace('desk-', '') as 'overview' | 'focus' | 'equipment';
-      return (
-        <DeskTab 
-          furniture={furniture} 
-          room={room} 
-          onDataUpdate={onDataUpdate}
-          initialSection={deskSection}
-        />
-      );
-    
     default:
       return (
         <ScrollView style={styles.tabContainer}>
@@ -281,83 +237,6 @@ const TabContentRenderer: React.FC<{
           </View>
         </ScrollView>
       );
-  }
-};
-
-const FurnitureFeaturesTab: React.FC<{
-  furniture: Furniture;
-  room: Room;
-  furnitureType: FurnitureType;
-  onDataUpdate: () => void;
-}> = ({ furniture, room, furnitureType, onDataUpdate }) => {
-  // 가구 타입에 따라 적절한 탭 컴포넌트 렌더링
-  switch (furnitureType) {
-    case 'fridge':
-      return (
-        <FridgeTab 
-          furniture={furniture} 
-          room={room} 
-          onDataUpdate={onDataUpdate}
-        />
-      );
-    
-    case 'bed':
-      return (
-        <BedTab 
-          furniture={furniture} 
-          room={room} 
-          onDataUpdate={onDataUpdate}
-        />
-      );
-    
-    case 'desk':
-      return (
-        <DeskTab 
-          furniture={furniture} 
-          room={room} 
-          onDataUpdate={onDataUpdate}
-        />
-      );
-    
-    default:
-      return (
-        <ScrollView style={styles.tabContainer}>
-          <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderText}>
-              {getFurnitureFeatureTabName(furnitureType)}
-            </Text>
-            <Text style={styles.placeholderSubtext}>
-              {`${furniture.name} 전용 관리 기능이 곧 추가됩니다.`}
-            </Text>
-          </View>
-        </ScrollView>
-      );
-  }
-};
-
-const getFurnitureFeatureTabName = (furnitureType: FurnitureType): string => {
-  switch (furnitureType) {
-    case 'fridge':
-      return '재고 관리';
-    case 'bed':
-      return '수면 관리';
-    case 'desk':
-      return '학습/업무';
-    case 'toilet':
-    case 'bathtub':
-    case 'shower':
-      return '청소 관리';
-    case 'washing_machine':
-      return '세탁 관리';
-    case 'closet':
-      return '의류 관리';
-    case 'plant':
-      return '식물 관리';
-    case 'tv':
-    case 'sofa':
-      return '사용 관리';
-    default:
-      return '기본 관리';
   }
 };
 
