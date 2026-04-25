@@ -4,11 +4,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants';
 import { HomeScreen } from '@/screens/home/HomeScreen';
+import { CalendarScreen } from '@/screens/calendar/CalendarScreen';
 import { HouseNavigator } from './HouseNavigator';
 import { SettingsNavigator } from './SettingsNavigator';
 
 export type TabParamList = {
   Home: undefined;
+  Calendar: undefined;
   HouseMap: undefined;
   Settings: undefined;
 };
@@ -52,6 +54,14 @@ export const TabNavigator: React.FC = () => {
         options={{
           title: '오늘',
           tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📋</Text>
+        }}
+      />
+      <Tab.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{
+          title: '달력',
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📅</Text>,
         }}
       />
       <Tab.Screen
