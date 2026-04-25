@@ -985,7 +985,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
     return (
       <Modal
         visible={showFurnitureMenu}
-        animationType="slide"
+        animationType="none"
         transparent={true}
         onRequestClose={() => setShowFurnitureMenu(false)}
       >
@@ -1687,13 +1687,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   furnitureMenuContainer: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
   },
   furnitureMenuHeader: {
     flexDirection: 'row',

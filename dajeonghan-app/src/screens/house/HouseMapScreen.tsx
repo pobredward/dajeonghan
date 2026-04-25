@@ -527,7 +527,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       { name: '기타', types: ['washing_machine'] as FurnitureType[] },
     ];
     return (
-      <Modal visible={editor.showFurnitureMenu} animationType="slide" transparent onRequestClose={() => editor.setShowFurnitureMenu(false)}>
+      <Modal visible={editor.showFurnitureMenu} animationType="none" transparent onRequestClose={() => editor.setShowFurnitureMenu(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.furnitureMenuContainer}>
             <View style={styles.furnitureMenuHeader}>
@@ -1164,13 +1164,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   furnitureMenuContainer: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '70%',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
     paddingBottom: Spacing.lg,
   },
   furnitureMenuHeader: {
@@ -1192,7 +1193,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   furnitureMenuScroll: {
-    flex: 1,
+    flexGrow: 0,
   },
   furnitureCategory: {
     padding: Spacing.md,
