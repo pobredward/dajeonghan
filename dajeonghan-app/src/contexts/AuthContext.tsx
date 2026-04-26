@@ -16,6 +16,9 @@ interface AuthContextType {
   userId: string | null;
   loading: boolean;
   isOnboarded: boolean;
+  isGuestOnboarding: boolean;
+  startGuestOnboarding: () => void;
+  cancelGuestOnboarding: () => void;
   checkOnboardingStatus: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -30,6 +33,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
+  // 게스트(익명) 온보딩 진행 중 플래그
+  // Firebase 계정은 온보딩 완료 시점에 생성되므로 그 전까지 user=null 상태를 유지
+  const [isGuestOnboarding, setIsGuestOnboarding] = useState(false);
+
+  const startGuestOnboarding = () => setIsGuestOnboarding(true);
+  const cancelGuestOnboarding = () => setIsGuestOnboarding(false);
 
   // 앱 시작 시 Firebase Auth 상태 구독
   useEffect(() => {
@@ -87,6 +96,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userId: user?.uid ?? null,
         loading,
         isOnboarded,
+        isGuestOnboarding,
+        startGuestOnboarding,
+        cancelGuestOnboarding,
         checkOnboardingStatus,
         refreshUser,
       }}

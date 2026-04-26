@@ -17,14 +17,19 @@ import { OnboardingService } from '@/services/OnboardingService';
 
 interface Props {
   onSelect: (personaId: PersonaType) => void;
+  onBack: () => void;
   selectedPersona: PersonaType | null;
 }
 
-export const PersonaSelectionScreen: React.FC<Props> = ({ onSelect, selectedPersona }) => {
+export const PersonaSelectionScreen: React.FC<Props> = ({ onSelect, onBack, selectedPersona }) => {
   const personas = OnboardingService.getPersonas();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
+        <Text style={styles.backButtonText}>← 뒤로</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>어떤 분이신가요?</Text>
       <Text style={styles.subtitle}>
         생활 패턴에 맞는 추천을 드릴게요
@@ -68,6 +73,17 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 40
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: '600',
   },
   title: {
     fontSize: 32,

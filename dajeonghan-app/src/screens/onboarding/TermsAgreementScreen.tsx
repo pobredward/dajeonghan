@@ -9,10 +9,11 @@ type TermsNavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface Props {
   onAccept: () => void;
+  onBack: () => void;
   navigation: TermsNavigationProp;
 }
 
-export const TermsAgreementScreen: React.FC<Props> = ({ onAccept, navigation }) => {
+export const TermsAgreementScreen: React.FC<Props> = ({ onAccept, onBack, navigation }) => {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
@@ -28,6 +29,10 @@ export const TermsAgreementScreen: React.FC<Props> = ({ onAccept, navigation }) 
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
+        <Text style={styles.backButtonText}>← 뒤로</Text>
+      </TouchableOpacity>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.emoji}>👋</Text>
         <Text style={styles.title}>다정한에 오신 것을 환영합니다</Text>
@@ -200,6 +205,16 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textSecondary,
     lineHeight: 20
+  },
+  backButton: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   footer: {
     padding: Spacing.lg,

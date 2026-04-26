@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { auth } from '@/config/firebase';
-import { resendEmailVerification } from '@/services/authService';
+import { resendEmailVerification, deleteCurrentUser } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -26,6 +26,7 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
   const { refreshUser } = useAuth();
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleCheckVerification = async () => {
     setChecking(true);
@@ -108,10 +109,26 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
           <Text style={styles.subDot}>·</Text>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('Login')}
+            onPress={async () => {
+              setDeletingAccount(true);
+              try {
+                // 미인증 계정을 삭제하여 고아 계정이 쌓이지 않도록 처리
+                await deleteCurrentUser();
+              } catch {
+                // 삭제 실패해도 로그인 화면으로 이동 (signOut은 이미 됐을 수 있음)
+              } finally {
+                setDeletingAccount(false);
+                navigation.navigate('SignUp');
+              }
+            }}
+            disabled={deletingAccount}
             activeOpacity={0.7}
           >
-            <Text style={styles.subLink}>다른 이메일로 가입</Text>
+            {deletingAccount ? (
+              <ActivityIndicator color={Colors.primary} size="small" />
+            ) : (
+              <Text style={styles.subLink}>다른 이메일로 가입</Text>
+            )}
           </TouchableOpacity>
         </View>
 

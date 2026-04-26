@@ -195,24 +195,56 @@ export const getLinkedProviders = (): string[] => {
 
 /**
  * 이메일/비밀번호로 로그인
+ *
+ * emailVerified=false인 경우 'auth/email-not-verified' 코드를 가진 에러를 throw합니다.
+ * AuthScreen에서 이 코드를 감지해 EmailVerificationScreen으로 이동합니다.
  */
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    if (!user.emailVerified) {
+      // 미인증 상태로 세션이 열렸으므로 로그아웃 처리
+      await auth.signOut();
+      const err: any = new Error('이메일 인증이 필요합니다.\n받은편지함의 인증 링크를 클릭해주세요.');
+      err.code = 'auth/email-not-verified';
+      throw err;
+    }
+
     console.log('✅ 이메일 로그인 성공');
-    return userCredential.user;
+    return user;
   } catch (error: any) {
+    if (error.code === 'auth/email-not-verified') throw error;
+
     console.error('❌ 이메일 로그인 실패:', error);
-    
+
     if (error.code === 'auth/user-not-found') {
       throw new Error('존재하지 않는 계정입니다.');
     }
-    
-    if (error.code === 'auth/wrong-password') {
-      throw new Error('비밀번호가 올바르지 않습니다.');
+
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
-    
+
     throw new Error(`로그인 실패: ${error.message}`);
+  }
+};
+
+/**
+ * 현재 로그인된 사용자 계정 삭제
+ *
+ * 미인증 이메일 계정 정리 등 고아 계정 방지에 사용됩니다.
+ */
+export const deleteCurrentUser = async (): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) return;
+  try {
+    await currentUser.delete();
+    console.log('✅ 현재 사용자 계정 삭제 완료');
+  } catch (error: any) {
+    console.error('❌ 계정 삭제 실패:', error);
+    throw new Error(`계정 삭제 실패: ${error.message}`);
   }
 };
 
@@ -434,4 +466,5 @@ export const AuthService = {
 
   // 계정 삭제
   deleteAccount,
+  deleteCurrentUser,
 };

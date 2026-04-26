@@ -20,7 +20,15 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
-  const { user, userId, loading, isOnboarded, checkOnboardingStatus } = useAuth();
+  const {
+    user,
+    userId,
+    loading,
+    isOnboarded,
+    isGuestOnboarding,
+    cancelGuestOnboarding,
+    checkOnboardingStatus,
+  } = useAuth();
 
   if (loading) {
     return (
@@ -30,6 +38,11 @@ export const RootNavigator: React.FC = () => {
     );
   }
 
+  // 온보딩을 보여야 하는 조건:
+  // 1. 일반 로그인 후 온보딩 미완료
+  // 2. 게스트 온보딩 플래그 활성화 (Firebase 계정 아직 없음)
+  const shouldShowOnboarding = (user && !isOnboarded) || isGuestOnboarding;
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -38,15 +51,15 @@ export const RootNavigator: React.FC = () => {
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
         }}
       >
-        {!user ? (
-          // 비로그인 → 로그인/회원가입 화면
+        {!user && !isGuestOnboarding ? (
+          // 비로그인 + 게스트 온보딩도 아님 → 로그인 화면
           <Stack.Screen
             name="Auth"
             component={AuthNavigator}
             options={{ animationEnabled: false }}
           />
-        ) : !isOnboarded ? (
-          // 로그인 완료 + 온보딩 미완료
+        ) : shouldShowOnboarding ? (
+          // 온보딩 필요 (일반 or 게스트)
           <>
             <Stack.Screen
               name="Onboarding"
@@ -55,9 +68,20 @@ export const RootNavigator: React.FC = () => {
               {(props) => (
                 <OnboardingFlow
                   {...props}
-                  userId={userId!}
+                  userId={userId ?? ''}
+                  isGuestOnboarding={isGuestOnboarding}
+                  onBack={() => {
+                    if (isGuestOnboarding) {
+                      // 게스트 온보딩 취소 → Firebase 계정이 없으므로 단순 플래그 해제
+                      cancelGuestOnboarding();
+                    }
+                    // 일반 로그인 사용자의 뒤로가기는 OnboardingFlow 내에서 signOut 처리
+                  }}
                   onComplete={async () => {
                     console.log('🎉 온보딩 완료, 상태 새로고침');
+                    if (isGuestOnboarding) {
+                      cancelGuestOnboarding();
+                    }
                     await checkOnboardingStatus();
                   }}
                 />

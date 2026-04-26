@@ -353,23 +353,56 @@ export const AccountManagementScreen: React.FC = () => {
   };
 
   const handleSignOut = () => {
-    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: async () => {
-          setSigningOut(true);
-          try {
-            await signOut();
-          } catch (e: any) {
-            Alert.alert('오류', e.message);
-          } finally {
-            setSigningOut(false);
-          }
+    const isAnonymous = user?.isAnonymous ?? false;
+
+    if (isAnonymous) {
+      // 익명 사용자: 로그아웃 시 데이터 영구 소실 경고
+      Alert.alert(
+        '주의: 데이터가 사라집니다',
+        '익명 계정은 로그아웃하면 모든 데이터를 복구할 수 없습니다.\n\n계정을 연결하면 데이터를 안전하게 보관할 수 있습니다.',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '계정 연결하기',
+            onPress: () => {
+              // 스크롤을 올려 로그인 방법 섹션으로 유도 (현재 화면이 이미 계정 관리 화면)
+            },
+          },
+          {
+            text: '그냥 로그아웃',
+            style: 'destructive',
+            onPress: async () => {
+              setSigningOut(true);
+              try {
+                await signOut();
+              } catch (e: any) {
+                Alert.alert('오류', e.message);
+              } finally {
+                setSigningOut(false);
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '로그아웃',
+          style: 'destructive',
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              await signOut();
+            } catch (e: any) {
+              Alert.alert('오류', e.message);
+            } finally {
+              setSigningOut(false);
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    }
   };
 
   const isAnonymous = user?.isAnonymous ?? true;

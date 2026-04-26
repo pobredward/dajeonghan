@@ -18,10 +18,10 @@ import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
   signInWithEmail,
-  signInAnonymouslyAsync,
   signInWithGoogle,
   sendPasswordReset,
 } from '@/services/authService';
+import { useAuth } from '@/contexts/AuthContext';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
@@ -33,12 +33,12 @@ type Props = {
 };
 
 export const AuthScreen: React.FC<Props> = ({ navigation }) => {
+  const { startGuestOnboarding } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [guestLoading, setGuestLoading] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -50,16 +50,21 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   useEffect(() => {
-    if (googleResponse?.type === 'success') {
+    if (!googleResponse) return;
+    if (googleResponse.type === 'success') {
       const idToken = googleResponse.authentication?.idToken;
       if (idToken) {
         handleGoogleToken(idToken);
+      } else {
+        setGoogleLoading(false);
       }
+    } else {
+      // 취소(dismiss/cancel) 또는 에러 → 로딩 해제
+      setGoogleLoading(false);
     }
   }, [googleResponse]);
 
   const handleGoogleToken = async (idToken: string) => {
-    setGoogleLoading(true);
     try {
       await signInWithGoogle(idToken);
       // AuthContext의 onAuthStateChanged가 자동으로 처리
@@ -77,9 +82,14 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       await signInWithEmail(email.trim(), password);
-      // AuthContext의 onAuthStateChanged가 자동으로 처리
+      // 성공 시 AuthContext의 onAuthStateChanged가 자동으로 처리
     } catch (e: any) {
-      Alert.alert('로그인 실패', e.message);
+      if ((e as any).code === 'auth/email-not-verified') {
+        // 미인증 계정 → 인증 화면으로 이동 (signInWithEmail 내부에서 이미 signOut됨)
+        navigation.navigate('EmailVerification', { email: email.trim() });
+      } else {
+        Alert.alert('로그인 실패', e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -115,15 +125,10 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const handleGuestLogin = async () => {
-    setGuestLoading(true);
-    try {
-      await signInAnonymouslyAsync();
-      // AuthContext의 onAuthStateChanged가 자동으로 처리
-    } catch (e: any) {
-      Alert.alert('오류', e.message);
-      setGuestLoading(false);
-    }
+  const handleGuestLogin = () => {
+    // Firebase 계정을 즉시 생성하지 않고, 온보딩 완료 시점에 생성
+    // → 뒤로가기 반복 시 고아 익명 계정이 쌓이지 않음
+    startGuestOnboarding();
   };
 
   return (
@@ -237,16 +242,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
             )}
 
             <TouchableOpacity
-              style={[styles.guestButton, guestLoading && styles.buttonDisabled]}
+              style={styles.guestButton}
               onPress={handleGuestLogin}
-              disabled={guestLoading}
               activeOpacity={0.7}
             >
-              {guestLoading ? (
-                <ActivityIndicator color={Colors.textSecondary} />
-              ) : (
-                <Text style={styles.guestButtonText}>게스트로 시작하기 (익명)</Text>
-              )}
+              <Text style={styles.guestButtonText}>게스트로 시작하기 (익명)</Text>
             </TouchableOpacity>
           </View>
 
