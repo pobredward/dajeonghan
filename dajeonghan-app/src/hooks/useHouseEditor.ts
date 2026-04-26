@@ -133,6 +133,7 @@ export interface UseHouseEditorReturn {
   handleRotateFurniture: (roomId: string, furnitureId: string) => void;
   handleCanvasSizeChange: (side: 'left' | 'right' | 'top' | 'bottom', delta: number) => void;
   getFurnitureName: (type: FurnitureType) => string;
+  resetState: (newLayout: HouseLayout) => void;
 }
 
 export function useHouseEditor(initialLayout: HouseLayout): UseHouseEditorReturn {
@@ -498,5 +499,12 @@ export function useHouseEditor(initialLayout: HouseLayout): UseHouseEditorReturn
     handleRoomPress, handleFurniturePress, handleRotateFurniture,
     handleCanvasSizeChange,
     getFurnitureName,
+    resetState: (newLayout: HouseLayout) => {
+      setLayout(newLayout);
+      setSelectedItem(null);
+      setIsCanvasResizeMode(false);
+      setShowFurnitureMenu(false);
+      setSelectedRoomForFurniture(null);
+    },
   };
 }

@@ -28,6 +28,7 @@ import {
   getModuleIcon,
   getModuleLabel,
 } from '@/utils/taskUtils';
+import { RecurrenceEditor, getNextOccurrences, DayOfWeek } from '@/components/tasks/RecurrenceEditor';
 
 // ─── 한국어 locale 설정 ───────────────────────────────────────
 LocaleConfig.locales['kr'] = {
@@ -94,6 +95,15 @@ export const CalendarScreen: React.FC = () => {
   }>({ visible: false, task: null });
   const [postponeDays, setPostponeDays] = useState(1);
   const [taskLoadingStates, setTaskLoadingStates] = useState<Record<string, boolean>>({});
+
+  // 편집 state
+  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | null>(null);
+  const [editRecurrenceUnit, setEditRecurrenceUnit] = useState<'day' | 'week' | 'month'>('week');
+  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState<number>(1);
+  const [editStartDate, setEditStartDate] = useState<Date>(new Date());
+  const [editSelectedDays, setEditSelectedDays] = useState<DayOfWeek[]>([]);
+  const [editMinutes, setEditMinutes] = useState<number>(15);
+  const [editHasTime, setEditHasTime] = useState<boolean>(false);
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
@@ -246,7 +256,13 @@ export const CalendarScreen: React.FC = () => {
 
       // 낙관적 UI 업데이트
       setMonthTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
+      if (currentlyCompleted) {
+        // 완료 취소 → 연체 목록 내 task 필드 갱신 (다시 연체 상태)
+        setOverdueTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
+      } else {
+        // 완료 처리 → 연체 목록에서 제거
+        setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
+      }
       // 모달 내 task도 갱신
       if (taskDetailModal.task?.id === taskId) {
         setTaskDetailModal(prev => prev.task ? { ...prev, task: { ...prev.task, ...updatedFields } } : prev);
@@ -275,7 +291,8 @@ export const CalendarScreen: React.FC = () => {
 
       await updateTask(userId, taskId, updatedFields);
       setMonthTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
+      // 미뤄진 task는 연체 목록에서 제거 (nextDue가 미래로 이동)
+      setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
       setTaskActionModal({ visible: false, task: null, action: null });
       setPostponeDays(1);
       Alert.alert('완료', `할 일이 ${postponeDays}일 미뤄졌습니다.`);
@@ -313,6 +330,57 @@ export const CalendarScreen: React.FC = () => {
     );
   }, [userId]);
 
+  const handleUpdateRecurrence = useCallback(async (
+    task: Task,
+    unit: 'day' | 'week' | 'month',
+    interval: number,
+    startDate: Date,
+    hasTime: boolean,
+    selectedDays: DayOfWeek[],
+  ) => {
+    if (!userId) return;
+    const recurrenceType = unit === 'day' ? 'daily' : unit === 'week' ? 'weekly' : 'monthly';
+    const updatedRecurrence = {
+      ...task.recurrence,
+      unit,
+      interval,
+      recurrenceType,
+      nextDue: startDate,
+      hasTime,
+      selectedDays,
+    };
+    try {
+      await updateTask(userId, String(task.id), { recurrence: updatedRecurrence } as Partial<Task>);
+      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurrence: updatedRecurrence } : t));
+      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurrence: updatedRecurrence } : t));
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, recurrence: updatedRecurrence } : null,
+      }));
+      setEditingField(null);
+    } catch (e) {
+      console.error('[CalendarScreen] 반복 업데이트 실패:', e);
+      Alert.alert('오류', '반복 주기 수정에 실패했습니다.');
+    }
+  }, [userId]);
+
+  const handleUpdateMinutes = useCallback(async (task: Task, minutes: number) => {
+    if (!userId) return;
+    try {
+      await updateTask(userId, String(task.id), { estimatedMinutes: minutes } as Partial<Task>);
+      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, estimatedMinutes: minutes } : t));
+      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, estimatedMinutes: minutes } : t));
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, estimatedMinutes: minutes } : null,
+      }));
+      setEditingField(null);
+    } catch (e) {
+      console.error('[CalendarScreen] 소요시간 업데이트 실패:', e);
+      Alert.alert('오류', '소요시간 수정에 실패했습니다.');
+    }
+  }, [userId]);
+
   // ─── 파생 데이터 ──────────────────────────────────────────
   const { markedDates } = useMemo(
     () => buildMarkedDates(monthTasks, selectedDate),
@@ -337,6 +405,21 @@ export const CalendarScreen: React.FC = () => {
     [overdueTasks, filter]
   );
 
+  // 날짜별 task 개수 집계 (모듈 필터 연동)
+  const dayCountMap = useMemo(() => {
+    const map: Record<string, { pending: number; overdue: number; completed: number }> = {};
+    const source = filter === 'all' ? monthTasks : monthTasks.filter(t => t.type === filter);
+    for (const task of source) {
+      if (!task.recurrence?.nextDue) continue;
+      const key = toDateKey(new Date(task.recurrence.nextDue));
+      if (!map[key]) map[key] = { pending: 0, overdue: 0, completed: 0 };
+      if (isTaskCompleted(task)) map[key].completed++;
+      else if (getDateCategory(task) === 'overdue') map[key].overdue++;
+      else map[key].pending++;
+    }
+    return map;
+  }, [monthTasks, filter]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
@@ -358,6 +441,19 @@ export const CalendarScreen: React.FC = () => {
   }, []);
 
   const openDetailModal = useCallback((task: Task) => {
+    // 편집 state 초기화
+    setEditingField(null);
+    const recurrence = task.recurrence;
+    if (recurrence) {
+      const unit: 'day' | 'week' | 'month' =
+        recurrence.unit === 'day' ? 'day' : recurrence.unit === 'month' ? 'month' : 'week';
+      setEditRecurrenceUnit(unit);
+      setEditRecurrenceInterval(recurrence.interval ?? 1);
+      setEditStartDate(recurrence.nextDue ? new Date(recurrence.nextDue) : new Date());
+      setEditHasTime(recurrence.hasTime ?? false);
+      setEditSelectedDays((recurrence.selectedDays ?? []) as DayOfWeek[]);
+    }
+    setEditMinutes(task.estimatedMinutes > 0 ? task.estimatedMinutes : 15);
     detailModalAnim.setValue(0);
     setTaskDetailModal({ visible: true, task });
     Animated.timing(detailModalAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start();
@@ -386,6 +482,14 @@ export const CalendarScreen: React.FC = () => {
       else if (isHoliday || dow === 0) textColor = Colors.error;
       else if (dow === 6) textColor = Colors.primary;
 
+      const counts = dayCountMap[date.dateString];
+      const total = counts ? counts.pending + counts.overdue + counts.completed : 0;
+      const countColor = counts?.overdue > 0
+        ? Colors.error
+        : counts?.pending > 0
+        ? Colors.primary
+        : Colors.textDisabled;
+
       return (
         <TouchableOpacity onPress={() => !isDisabled && onPress(date)} activeOpacity={0.65} disabled={isDisabled}>
           <View style={[styles.dayCell, isSelected && styles.dayCellSelected]}>
@@ -396,11 +500,16 @@ export const CalendarScreen: React.FC = () => {
             ]}>
               {date.day}
             </Text>
+            {total > 0 && (
+              <Text style={[styles.dayCellCount, { color: isSelected ? Colors.white : countColor }]}>
+                {total}
+              </Text>
+            )}
           </View>
         </TouchableOpacity>
       );
     },
-    [selectedDate]
+    [selectedDate, dayCountMap]
   );
 
   if (loading) {
@@ -634,22 +743,132 @@ export const CalendarScreen: React.FC = () => {
                         </View>
                       )}
                       {task.recurrence?.type === 'fixed' && (
-                        <View style={styles.detailSummaryRowItem}>
-                          <Text style={styles.detailSummaryIcon}>🔁</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.detailSummaryLabel}>반복 주기</Text>
-                            <Text style={styles.detailSummaryValue}>
-                              {task.recurrence.interval}{task.recurrence.unit === 'day' ? '일' : task.recurrence.unit === 'week' ? '주' : '개월'}마다
-                            </Text>
-                          </View>
-                        </View>
+                        <>
+                          <TouchableOpacity
+                            style={[
+                              styles.detailSummaryRowItem,
+                              styles.detailSummaryRowItemBorder,
+                              editingField === 'recurrence' && styles.detailSummaryRowItemActive,
+                            ]}
+                            onPress={() => {
+                              if (editingField === 'recurrence') {
+                                setEditingField(null);
+                              } else {
+                                const r = task.recurrence;
+                                const unit: 'day' | 'week' | 'month' =
+                                  r?.unit === 'day' ? 'day' : r?.unit === 'month' ? 'month' : 'week';
+                                setEditRecurrenceUnit(unit);
+                                setEditRecurrenceInterval(r?.interval ?? 1);
+                                setEditStartDate(r?.nextDue ? new Date(r.nextDue) : new Date());
+                                setEditHasTime(r?.hasTime ?? false);
+                                setEditSelectedDays((r?.selectedDays ?? []) as DayOfWeek[]);
+                                setEditingField('recurrence');
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.detailSummaryIcon}>🔁</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.detailSummaryLabel}>반복 주기</Text>
+                              <Text style={[styles.detailSummaryValue, editingField === 'recurrence' && { color: Colors.primary }]}>
+                                {task.recurrence.interval}{task.recurrence.unit === 'day' ? '일' : task.recurrence.unit === 'week' ? '주' : '개월'}마다
+                              </Text>
+                            </View>
+                            <Text style={styles.detailEditIcon}>{editingField === 'recurrence' ? '▲' : '✏️'}</Text>
+                          </TouchableOpacity>
+
+                          {editingField === 'recurrence' && (
+                            <View style={styles.detailEditPanel}>
+                              <RecurrenceEditor
+                                unit={editRecurrenceUnit}
+                                interval={editRecurrenceInterval}
+                                selectedDays={editSelectedDays}
+                                startDate={editStartDate}
+                                onUnitChange={setEditRecurrenceUnit}
+                                onIntervalChange={setEditRecurrenceInterval}
+                                onToggleDayOfWeek={day => setEditSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day])}
+                                onStartDateChange={setEditStartDate}
+                                getNextOccurrences={getNextOccurrences}
+                                hasTime={editHasTime}
+                                onHasTimeChange={setEditHasTime}
+                              />
+                              <View style={styles.detailRecurrenceEditorActions}>
+                                <TouchableOpacity
+                                  style={styles.detailInlineCancelBtn}
+                                  onPress={() => setEditingField(null)}
+                                >
+                                  <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={styles.detailInlineSaveBtn}
+                                  onPress={() => handleUpdateRecurrence(task, editRecurrenceUnit, editRecurrenceInterval, editStartDate, editHasTime, editSelectedDays)}
+                                >
+                                  <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          )}
+                        </>
                       )}
-                      {task.estimatedMinutes > 0 && (
-                        <View style={styles.detailSummaryRowItem}>
-                          <Text style={styles.detailSummaryIcon}>⏱</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.detailSummaryLabel}>예상 소요</Text>
-                            <Text style={styles.detailSummaryValue}>{task.estimatedMinutes}분</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.detailSummaryRowItem,
+                          styles.detailSummaryRowItemBorder,
+                          editingField === 'minutes' && styles.detailSummaryRowItemActiveOrange,
+                        ]}
+                        onPress={() => {
+                          if (editingField === 'minutes') {
+                            setEditingField(null);
+                          } else {
+                            setEditMinutes(task.estimatedMinutes > 0 ? task.estimatedMinutes : 15);
+                            setEditingField('minutes');
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.detailSummaryIcon}>⏱</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailSummaryLabel}>예상 소요</Text>
+                          <Text style={[styles.detailSummaryValue, editingField === 'minutes' && { color: Colors.warning }]}>
+                            {task.estimatedMinutes > 0 ? `${task.estimatedMinutes}분` : '미설정'}
+                          </Text>
+                        </View>
+                        <Text style={styles.detailEditIcon}>{editingField === 'minutes' ? '▲' : '✏️'}</Text>
+                      </TouchableOpacity>
+
+                      {editingField === 'minutes' && (
+                        <View style={[styles.detailEditPanel, styles.detailEditPanelHeaderMinutes]}>
+                          <View style={styles.detailInlineIntervalRow}>
+                            <TouchableOpacity
+                              style={styles.detailInlineStepBtn}
+                              onPress={() => setEditMinutes(m => Math.max(5, m - 5))}
+                            >
+                              <Text style={styles.detailInlineStepText}>−</Text>
+                            </TouchableOpacity>
+                            <View style={styles.detailInlineValueBox}>
+                              <Text style={styles.detailInlineNumber}>{editMinutes}</Text>
+                              <Text style={styles.detailInlineUnit}>분</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.detailInlineStepBtn}
+                              onPress={() => setEditMinutes(m => Math.min(180, m + 5))}
+                            >
+                              <Text style={styles.detailInlineStepText}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateMinutes(task, editMinutes)}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
                           </View>
                         </View>
                       )}
@@ -905,10 +1124,11 @@ const styles = StyleSheet.create({
   // 달력
   calendarCard: { margin: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
   calendar: { borderRadius: 16 },
-  dayCell: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  dayCell: { width: 32, height: 40, borderRadius: 16, justifyContent: 'center', alignItems: 'center', paddingTop: 2 },
   dayCellSelected: { backgroundColor: Colors.primary },
   dayCellText: { ...Typography.bodySmall, fontWeight: '500' },
   dayCellToday: { color: Colors.primary, fontWeight: '700' },
+  dayCellCount: { fontSize: 8, fontWeight: '700', lineHeight: 10, textAlign: 'center' },
 
   // 필터
   filterRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 4, gap: Spacing.sm },
@@ -1001,8 +1221,8 @@ const styles = StyleSheet.create({
   postponeConfirmText: { ...Typography.label, color: Colors.white },
 
   // 상세 모달
-  detailModalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  taskDetailModal: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%', overflow: 'hidden' },
+  detailModalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)' },
+  taskDetailModal: { backgroundColor: Colors.surface, borderRadius: 16, width: '92%', maxHeight: '82%', overflow: 'hidden' },
   detailHeaderFixed: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.veryLightGray },
   detailStatusBanner: { borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: 4, marginBottom: Spacing.sm, alignSelf: 'flex-start' },
   detailStatusBannerText: { ...Typography.labelSmall, fontWeight: '700' },
@@ -1031,4 +1251,51 @@ const styles = StyleSheet.create({
   detailDeleteBtnText: { color: Colors.error },
   detailRevertBtn: { paddingVertical: Spacing.sm, alignItems: 'center', borderRadius: 10, backgroundColor: Colors.accent + '12', borderWidth: 1, borderColor: Colors.accent + '30' },
   detailRevertBtnText: { ...Typography.labelSmall, color: Colors.accent, fontWeight: '600' },
+
+  // 편집 패널 스타일
+  detailSummaryRowItemBorder: { paddingVertical: Spacing.xs, borderRadius: 8 },
+  detailSummaryRowItemActive: { backgroundColor: Colors.primary + '08', padding: Spacing.xs },
+  detailSummaryRowItemActiveOrange: { backgroundColor: Colors.warning + '08', padding: Spacing.xs },
+  detailEditIcon: { fontSize: 14, color: Colors.textSecondary },
+  detailEditPanel: {
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: Spacing.sm,
+    marginBottom: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray,
+  },
+  detailEditPanelHeaderMinutes: {
+    borderColor: Colors.warning + '40',
+    borderWidth: 1.5,
+  },
+  detailInlineIntervalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  detailInlineStepBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  detailInlineStepText: { fontSize: 20, color: Colors.primary, fontWeight: '700', lineHeight: 24 },
+  detailInlineValueBox: { alignItems: 'center', minWidth: 72 },
+  detailInlineNumber: { fontSize: 24, fontWeight: '800', color: Colors.textPrimary, lineHeight: 28 },
+  detailInlineUnit: { ...Typography.caption, color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  detailRecurrenceEditorActions: {
+    flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm,
+  },
+  detailInlineSaveBtn: {
+    flex: 1, paddingVertical: Spacing.sm, borderRadius: 8,
+    backgroundColor: Colors.primary, alignItems: 'center',
+  },
+  detailInlineSaveBtnText: { ...Typography.labelSmall, color: Colors.white, fontWeight: '700' },
+  detailInlineCancelBtn: {
+    flex: 1, paddingVertical: Spacing.sm, borderRadius: 8,
+    backgroundColor: Colors.veryLightGray, alignItems: 'center',
+  },
+  detailInlineCancelBtnText: { ...Typography.labelSmall, color: Colors.textSecondary, fontWeight: '600' },
 });
