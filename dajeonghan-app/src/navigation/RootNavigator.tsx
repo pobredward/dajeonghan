@@ -4,11 +4,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { OnboardingFlow } from '@/screens/onboarding/OnboardingFlow';
 import { TabNavigator } from './TabNavigator';
+import { AuthNavigator } from './AuthNavigator';
 import { TermsOfServiceScreen } from '@/screens/legal/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@/screens/legal/PrivacyPolicyScreen';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type RootStackParamList = {
+  Auth: undefined;
   Onboarding: undefined;
   Main: undefined;
   TermsOfService: undefined;
@@ -18,9 +20,8 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
-  const { userId, loading, isOnboarded, checkOnboardingStatus } = useAuth();
+  const { user, userId, loading, isOnboarded, checkOnboardingStatus } = useAuth();
 
-  // 로딩 중
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -29,35 +30,32 @@ export const RootNavigator: React.FC = () => {
     );
   }
 
-  // userId가 없으면 에러 (이론상 발생하지 않아야 함)
-  if (!userId) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF0000" />
-      </View>
-    );
-  }
-
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        screenOptions={{ 
+      <Stack.Navigator
+        screenOptions={{
           headerShown: false,
           cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
         }}
       >
-        {!isOnboarded ? (
+        {!user ? (
+          // 비로그인 → 로그인/회원가입 화면
+          <Stack.Screen
+            name="Auth"
+            component={AuthNavigator}
+            options={{ animationEnabled: false }}
+          />
+        ) : !isOnboarded ? (
+          // 로그인 완료 + 온보딩 미완료
           <>
-            <Stack.Screen 
+            <Stack.Screen
               name="Onboarding"
-              options={{
-                animationEnabled: false,
-              }}
+              options={{ animationEnabled: false }}
             >
               {(props) => (
                 <OnboardingFlow
                   {...props}
-                  userId={userId}  // 실제 Firebase UID 사용!
+                  userId={userId!}
                   onComplete={async () => {
                     console.log('🎉 온보딩 완료, 상태 새로고침');
                     await checkOnboardingStatus();
@@ -65,7 +63,7 @@ export const RootNavigator: React.FC = () => {
                 />
               )}
             </Stack.Screen>
-            <Stack.Screen 
+            <Stack.Screen
               name="TermsOfService"
               component={TermsOfServiceScreen}
               options={{
@@ -74,7 +72,7 @@ export const RootNavigator: React.FC = () => {
                 headerBackTitle: '뒤로',
               }}
             />
-            <Stack.Screen 
+            <Stack.Screen
               name="PrivacyPolicy"
               component={PrivacyPolicyScreen}
               options={{
@@ -85,12 +83,11 @@ export const RootNavigator: React.FC = () => {
             />
           </>
         ) : (
-          <Stack.Screen 
-            name="Main" 
+          // 로그인 + 온보딩 완료 → 메인
+          <Stack.Screen
+            name="Main"
             component={TabNavigator}
-            options={{
-              animationEnabled: false,
-            }}
+            options={{ animationEnabled: false }}
           />
         )}
       </Stack.Navigator>

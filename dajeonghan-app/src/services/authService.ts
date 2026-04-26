@@ -9,6 +9,7 @@
 
 import {
   signInAnonymously,
+  signInWithCredential,
   linkWithCredential,
   unlink,
   EmailAuthProvider,
@@ -16,6 +17,8 @@ import {
   OAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   User,
 } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
@@ -88,6 +91,24 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     }
     
     throw new Error(`계정 연결 실패: ${error.message}`);
+  }
+};
+
+/**
+ * Google로 직접 로그인 (expo-auth-session 기반, Expo Go 호환)
+ *
+ * AuthScreen에서 expo-auth-session으로 idToken을 받아 호출합니다.
+ * 신규 사용자는 Firebase Auth 계정이 자동 생성됩니다.
+ */
+export const signInWithGoogle = async (idToken: string): Promise<User> => {
+  try {
+    const credential = GoogleAuthProvider.credential(idToken);
+    const result = await signInWithCredential(auth, credential);
+    console.log('✅ Google 로그인 성공');
+    return result.user;
+  } catch (error: any) {
+    console.error('❌ Google 로그인 실패:', error);
+    throw new Error(`Google 로그인 실패: ${error.message}`);
   }
 };
 
@@ -196,25 +217,63 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 };
 
 /**
- * 이메일/비밀번호로 회원가입
+ * 이메일/비밀번호로 회원가입 + 인증 이메일 발송
  */
 export const signUpWithEmail = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    console.log('✅ 이메일 회원가입 성공');
+    await sendEmailVerification(userCredential.user);
+    console.log('✅ 이메일 회원가입 성공, 인증 이메일 발송 완료');
     return userCredential.user;
   } catch (error: any) {
     console.error('❌ 이메일 회원가입 실패:', error);
-    
+
     if (error.code === 'auth/email-already-in-use') {
       throw new Error('이미 사용 중인 이메일입니다.');
     }
-    
+
     if (error.code === 'auth/weak-password') {
       throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
     }
-    
+
     throw new Error(`회원가입 실패: ${error.message}`);
+  }
+};
+
+/**
+ * 인증 이메일 재발송
+ */
+export const resendEmailVerification = async (): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
+  try {
+    await sendEmailVerification(currentUser);
+    console.log('✅ 인증 이메일 재발송 완료');
+  } catch (error: any) {
+    console.error('❌ 인증 이메일 재발송 실패:', error);
+    throw new Error(`재발송 실패: ${error.message}`);
+  }
+};
+
+/**
+ * 비밀번호 재설정 이메일 발송
+ */
+export const sendPasswordReset = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    console.log('✅ 비밀번호 재설정 이메일 발송 완료');
+  } catch (error: any) {
+    console.error('❌ 비밀번호 재설정 이메일 발송 실패:', error);
+
+    if (error.code === 'auth/user-not-found') {
+      throw new Error('등록되지 않은 이메일입니다.');
+    }
+
+    if (error.code === 'auth/invalid-email') {
+      throw new Error('유효하지 않은 이메일 형식입니다.');
+    }
+
+    throw new Error(`비밀번호 재설정 실패: ${error.message}`);
   }
 };
 
@@ -363,6 +422,9 @@ export const AuthService = {
   // 일반 로그인
   signInWithEmail,
   signUpWithEmail,
+  resendEmailVerification,
+  sendPasswordReset,
+  signInWithGoogle,
 
   // 로그아웃 및 관리
   signOut,
