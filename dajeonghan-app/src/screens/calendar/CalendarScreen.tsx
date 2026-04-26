@@ -1095,8 +1095,8 @@ const calendarTheme = {
   textMonthFontWeight: '700' as const,
   textDayHeaderFontWeight: '600' as const,
   textDayFontSize: 13,
-  textMonthFontSize: 16,
-  textDayHeaderFontSize: 11,
+  textMonthFontSize: 14,
+  textDayHeaderFontSize: 10,
 };
 
 // ─── 스타일 ──────────────────────────────────────────────────
@@ -1122,16 +1122,16 @@ const styles = StyleSheet.create({
   overdueRowDue: { ...Typography.caption, color: Colors.error, marginTop: 1 },
 
   // 달력
-  calendarCard: { margin: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
-  calendar: { borderRadius: 16 },
-  dayCell: { width: 32, height: 40, borderRadius: 16, justifyContent: 'center', alignItems: 'center', paddingTop: 2 },
+  calendarCard: { marginTop: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
+  calendar: { borderRadius: 16, paddingBottom: 4 },
+  dayCell: { width: 30, height: 34, borderRadius: 15, justifyContent: 'center', alignItems: 'center', paddingTop: 1 },
   dayCellSelected: { backgroundColor: Colors.primary },
   dayCellText: { ...Typography.bodySmall, fontWeight: '500' },
   dayCellToday: { color: Colors.primary, fontWeight: '700' },
   dayCellCount: { fontSize: 8, fontWeight: '700', lineHeight: 10, textAlign: 'center' },
 
   // 필터
-  filterRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 4, gap: Spacing.sm },
+  filterRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.sm },
   filterChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.veryLightGray },
   filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterChipText: { ...Typography.labelSmall, color: Colors.textSecondary },
