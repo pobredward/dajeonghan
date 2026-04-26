@@ -3,16 +3,14 @@ import { Text, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants';
-import { HomeScreen } from '@/screens/home/HomeScreen';
 import { CalendarScreen } from '@/screens/calendar/CalendarScreen';
 import { HouseNavigator } from './HouseNavigator';
-import { SettingsNavigator } from './SettingsNavigator';
+import { MyInfoNavigator } from './MyInfoNavigator';
 
 export type TabParamList = {
-  Home: undefined;
   Calendar: undefined;
   HouseMap: undefined;
-  Settings: undefined;
+  MyInfo: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -49,14 +47,6 @@ export const TabNavigator: React.FC = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: '오늘',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📋</Text>
-        }}
-      />
-      <Tab.Screen
         name="Calendar"
         component={CalendarScreen}
         options={{
@@ -74,11 +64,12 @@ export const TabNavigator: React.FC = () => {
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsNavigator}
+        name="MyInfo"
+        component={MyInfoNavigator}
         options={{
-          title: '설정',
-          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>⚙️</Text>,
+          title: '내정보',
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>👤</Text>,
+          headerShown: false,
         }}
       />
     </Tab.Navigator>

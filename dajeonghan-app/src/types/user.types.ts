@@ -72,8 +72,20 @@ export interface UserProfile extends BaseEntity {
   digestTimes: string[];
   onboardingCompleted: boolean;
   onboardingDate?: Date;
-  onboardingResponse?: OnboardingResponse; // 온보딩 원본 데이터 보관
-  profileVersion: string; // 프로필 스키마 버전 (예: '1.0')
+  onboardingResponse?: OnboardingResponse;
+  profileVersion: string;
+  displayName?: string;
+  bio?: string;
+  photoURL?: string;
+  followersCount?: number;
+  followingCount?: number;
+}
+
+export interface PublicProfile {
+  userId: string;
+  displayName?: string;
+  photoURL?: string;
+  bio?: string;
 }
 
 /**
