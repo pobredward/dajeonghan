@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   taskCardEmoji: { fontSize: 20, marginHorizontal: 6 },
 
   // 체크박스
-  taskCheckboxNew: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: Colors.lightGray, backgroundColor: Colors.white, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm, flexShrink: 0 },
+  taskCheckboxNew: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: Colors.lightGray, backgroundColor: Colors.white, justifyContent: 'center', alignItems: 'center', marginLeft: Spacing.sm, marginRight: Spacing.sm, flexShrink: 0 },
   taskCheckboxNewToday: { borderColor: Colors.primary },
   taskCheckboxNewOverdue: { borderColor: Colors.error },
   taskCheckboxNewCompleted: { backgroundColor: Colors.success, borderColor: Colors.success },
