@@ -5,8 +5,10 @@ import { TermsAgreementScreen } from './TermsAgreementScreen';
 import { PersonaSelectionScreen } from './PersonaSelectionScreen';
 import { QuestionScreen } from './QuestionScreen';
 import { FirstTasksScreen } from './FirstTasksScreen';
+import { HouseLayoutSelectionScreen } from '@/screens/house/HouseLayoutSelectionScreen';
 import { OnboardingService, OnboardingAnswers } from '@/services/OnboardingService';
 import { PersonaType } from '@/types/user.types';
+import { HouseLayout } from '@/types/house.types';
 import { Task } from '@/types/task.types';
 import { RootStackParamList } from '@/navigation/RootNavigator';
 import { saveUserProfile, saveTasks } from '@/services/firestoreService';
@@ -29,7 +31,8 @@ export const OnboardingFlow: React.FC<Props> = ({
   onComplete,
   navigation,
 }) => {
-  const [step, setStep] = useState<'terms' | 'persona' | 'questions' | 'tasks'>('terms');
+  const [step, setStep] = useState<'terms' | 'layout' | 'persona' | 'questions' | 'tasks'>('terms');
+  const [selectedLayoutType, setSelectedLayoutType] = useState<HouseLayout['layoutType']>('studio');
   const [selectedPersona, setSelectedPersona] = useState<PersonaType | null>(null);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
   const [firstTasks, setFirstTasks] = useState<Task[]>([]);
@@ -51,11 +54,20 @@ export const OnboardingFlow: React.FC<Props> = ({
   };
 
   const handleTermsAccept = () => {
+    setStep('layout');
+  };
+
+  const handleLayoutSelect = async (layoutType: HouseLayout['layoutType']) => {
+    setSelectedLayoutType(layoutType);
     setStep('persona');
   };
 
-  const handlePersonaBack = () => {
+  const handleLayoutBack = () => {
     setStep('terms');
+  };
+
+  const handlePersonaBack = () => {
+    setStep('layout');
   };
 
   const handlePersonaSelect = (personaId: PersonaType) => {
@@ -115,11 +127,43 @@ export const OnboardingFlow: React.FC<Props> = ({
         console.log('✅ 프로필 저장 완료');
       }
 
-      // 초기 태스크 저장 (userId 교체)
-      if (allTasks.length > 0) {
-        const tasksWithId = allTasks.map((t) => ({ ...t, userId: finalUserId }));
-        await saveTasks(tasksWithId);
-        console.log(`✅ ${tasksWithId.length}개 태스크 저장 완료`);
+      // userId가 교체된 태스크 목록 준비
+      const tasksWithId = allTasks.map((t) => ({ ...t, userId: finalUserId }));
+
+      // 1. 집 레이아웃(+기본 가구) 저장 — Task 저장보다 먼저 실행
+      const hasWasher = profileWithId?.environment?.hasWasher ?? true;
+      const savedLayout = await OnboardingService.createAndSaveLayout(
+        finalUserId,
+        selectedLayoutType,
+        hasWasher
+      );
+
+      // 2. lifeObject 문서 생성 → Task의 objectId를 실제 Firestore ID로 교체
+      //    (직접 추가 Task와 동일한 구조를 갖게 하여 HouseMapScreen 집계 및
+      //     lifeObject 조회가 정상 작동하도록 함)
+      const tasksWithLifeObjects = await OnboardingService.createLifeObjectsForTasks(
+        finalUserId,
+        tasksWithId
+      );
+
+      // 3. 실제 objectId로 가구-Task 연동 (레이아웃 linkedObjectIds 업데이트)
+      const templates = selectedPersona
+        ? OnboardingService.getCleaningTemplates(selectedPersona)
+        : [];
+      const linkedLayout = OnboardingService.linkTasksToFurnitures(
+        savedLayout,
+        tasksWithLifeObjects,
+        templates
+      );
+      // 연동 결과를 Firestore에 반영
+      const { saveHouseLayout } = await import('@/services/houseService');
+      await saveHouseLayout(linkedLayout);
+      console.log('✅ 가구-Task 연동 완료');
+
+      // 4. objectId가 교체된 태스크 저장
+      if (tasksWithLifeObjects.length > 0) {
+        await saveTasks(tasksWithLifeObjects);
+        console.log(`✅ ${tasksWithLifeObjects.length}개 태스크 저장 완료`);
       }
 
       onComplete();
@@ -140,6 +184,13 @@ export const OnboardingFlow: React.FC<Props> = ({
           onAccept={handleTermsAccept}
           onBack={handleTermsBack}
           navigation={navigation}
+        />
+      )}
+      {step === 'layout' && (
+        <HouseLayoutSelectionScreen
+          onSelect={handleLayoutSelect}
+          onBack={handleLayoutBack}
+          isOnboarding
         />
       )}
       {step === 'persona' && (

@@ -8,7 +8,8 @@
       "difficulty": 3,
       "estimatedMinutes": 20,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "toilet"
     },
     {
       "name": "침구 세탁",
@@ -19,7 +20,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"]
+      "requiresTools": ["세탁기"],
+      "linkedFurnitureType": "washing_machine"
     },
     {
       "name": "칫솔 교체",
@@ -39,7 +41,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "sink"
     },
     {
       "name": "바닥 청소",
@@ -59,7 +62,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "fridge"
     },
     {
       "name": "쓰레기 분리수거",
@@ -99,7 +103,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": false,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "mirror"
     }
   ],
   "worker_single": [
@@ -111,7 +116,8 @@
       "difficulty": 3,
       "estimatedMinutes": 20,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "toilet"
     },
     {
       "name": "침구 세탁",
@@ -122,7 +128,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"]
+      "requiresTools": ["세탁기"],
+      "linkedFurnitureType": "washing_machine"
     },
     {
       "name": "주방 청소",
@@ -132,7 +139,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "sink"
     },
     {
       "name": "바닥 청소 (주말)",
@@ -184,7 +192,8 @@
       "difficulty": 3,
       "estimatedMinutes": 25,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "toilet"
     },
     {
       "name": "주방 청소",
@@ -194,7 +203,8 @@
       "difficulty": 3,
       "estimatedMinutes": 20,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "sink"
     },
     {
       "name": "바닥 청소",
@@ -215,7 +225,8 @@
       "estimatedMinutes": 15,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"]
+      "requiresTools": ["세탁기"],
+      "linkedFurnitureType": "washing_machine"
     },
     {
       "name": "환기",
@@ -245,7 +256,8 @@
       "difficulty": 2,
       "estimatedMinutes": 20,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "fridge"
     },
     {
       "name": "먼지 닦기",
@@ -267,7 +279,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "toilet"
     },
     {
       "name": "주방 싱크대 청소",
@@ -277,7 +290,8 @@
       "difficulty": 1,
       "estimatedMinutes": 8,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "sink"
     },
     {
       "name": "바닥 청소",

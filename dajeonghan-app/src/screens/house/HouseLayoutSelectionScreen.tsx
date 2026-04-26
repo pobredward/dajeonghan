@@ -13,6 +13,8 @@ import { HouseLayout } from '@/types/house.types';
 
 interface Props {
   onSelect: (layoutType: HouseLayout['layoutType']) => Promise<void>;
+  onBack?: () => void;
+  isOnboarding?: boolean;
 }
 
 interface LayoutOption {
@@ -56,8 +58,8 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   },
 ];
 
-export const HouseLayoutSelectionScreen: React.FC<Props> = ({ onSelect }) => {
-  const [selectedType, setSelectedType] = useState<HouseLayout['layoutType']>('two_room');
+export const HouseLayoutSelectionScreen: React.FC<Props> = ({ onSelect, onBack, isOnboarding }) => {
+  const [selectedType, setSelectedType] = useState<HouseLayout['layoutType']>('studio');
 
   const handleSelect = (type: HouseLayout['layoutType']) => {
     setSelectedType(type);
@@ -75,11 +77,17 @@ export const HouseLayoutSelectionScreen: React.FC<Props> = ({ onSelect }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>← 뒤로</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerEmoji}>🏠</Text>
         <Text style={styles.headerTitle}>집 구조 선택</Text>
         <Text style={styles.headerSubtitle}>
-          현재 살고 계신 집의 구조를 선택해주세요{'\n'}
-          나중에 방 크기와 가구를 자유롭게 배치할 수 있어요
+          {isOnboarding
+            ? '어떤 집에 살고 계신가요?\n선택하면 기본 가구를 자동으로 배치해 드려요'
+            : '현재 살고 계신 집의 구조를 선택해주세요\n나중에 방 크기와 가구를 자유롭게 배치할 수 있어요'}
         </Text>
       </View>
 
@@ -129,9 +137,9 @@ export const HouseLayoutSelectionScreen: React.FC<Props> = ({ onSelect }) => {
         <View style={styles.noteBox}>
           <Text style={styles.noteIcon}>💡</Text>
           <Text style={styles.noteText}>
-            선택한 구조는 기본 템플릿이에요.{'\n'}
-            다음 단계에서 방을 추가하거나 제거하고,{'\n'}
-            크기와 가구를 자유롭게 배치할 수 있습니다.
+            {isOnboarding
+              ? '선택한 집 구조에 맞는 기본 가구가 자동 배치돼요.\n언제든 위치를 옮기거나 삭제할 수 있어요.'
+              : '선택한 구조는 기본 템플릿이에요.\n다음 단계에서 방을 추가하거나 제거하고,\n크기와 가구를 자유롭게 배치할 수 있습니다.'}
           </Text>
         </View>
       </ScrollView>
@@ -156,6 +164,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: Colors.veryLightGray,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  backButtonText: {
+    ...Typography.body,
+    color: Colors.primary,
   },
   headerEmoji: {
     fontSize: 48,

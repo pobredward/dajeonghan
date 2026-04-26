@@ -115,8 +115,9 @@ export const HouseSetupFlow: React.FC = () => {
         updatedAt: new Date(),
       };
 
+      await saveHouseLayout(newLayout);
       setLayout(newLayout);
-      setStep('edit_layout');
+      setStep('view');
     } catch (error) {
       console.error('Failed to create layout:', error);
       Alert.alert('오류', '집 구조를 생성하는데 실패했습니다.');

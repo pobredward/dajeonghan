@@ -1,5 +1,6 @@
 import { Task } from '@/types/task.types';
 import { LifeObject } from '@/types/lifeobject.types';
+import { FurnitureType } from '@/types/house.types';
 
 /**
  * 청소 객체 (CleaningObject)
@@ -91,6 +92,7 @@ export interface CleaningTemplateItem {
   priority: 'low' | 'medium' | 'high';
   requiresTools?: string[];
   seasonalAdjustment?: boolean;
+  linkedFurnitureType?: FurnitureType;
 }
 
 /**
