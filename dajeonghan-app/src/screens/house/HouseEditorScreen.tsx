@@ -1013,7 +1013,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
 
   return (
     <View style={styles.container}>
-      <View 
+      <View
         style={styles.canvasContainer}
         onLayout={(e) => {
           setContainerSize({
@@ -1023,7 +1023,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
         }}
       >
         {/* 배경 탭 → 선택 해제 */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.canvasBackdrop}
           activeOpacity={1}
           onPress={() => {
@@ -1087,7 +1087,6 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
               height={layout.canvasSize.height}
               viewBox={`0 0 ${layout.canvasSize.width} ${layout.canvasSize.height}`}
               onPress={() => {
-                // 배경 클릭 시 선택 해제
                 if (selectedItem) {
                   setSelectedItem(null);
                 }

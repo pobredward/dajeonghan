@@ -79,6 +79,8 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   const [isSaving, setIsSaving] = useState(false);
   // 캔버스 View의 화면 절대 좌표 — 터치 pageX/pageY를 캔버스 좌표로 변환하는 데 사용
   const canvasOriginRef = useRef({ x: 0, y: 0 });
+  // 캔버스 외부 탭 감지용 (스크롤 드래그와 단순 탭 구분)
+  const isScrollingRef = useRef(false);
 
   
   
@@ -557,13 +559,26 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
 
   return (
     <View style={styles.container}>
-      <View 
+      <View
         style={styles.mapContainer}
         onLayout={(e) => {
           setContainerSize({
             width: e.nativeEvent.layout.width,
             height: e.nativeEvent.layout.height,
           });
+        }}
+        onTouchEnd={() => {
+          if (
+            isEditMode &&
+            !isScrollingRef.current &&
+            !editor.isDraggingRoom &&
+            !editor.isDraggingFurniture &&
+            !editor.isDraggingCharacter &&
+            !editor.isResizing &&
+            editor.selectedItem
+          ) {
+            editor.setSelectedItem(null);
+          }
         }}
       >
         {/* 캔버스 리사이즈 모드 상단바 */}
@@ -584,6 +599,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
           contentContainerStyle={styles.mapScrollOuterContent}
           showsVerticalScrollIndicator={true}
           scrollEnabled={!editor.isDraggingRoom && !editor.isDraggingFurniture && !editor.isDraggingCharacter && !editor.isResizing}
+          onScrollBeginDrag={() => { isScrollingRef.current = true; }}
+          onScrollEndDrag={() => { setTimeout(() => { isScrollingRef.current = false; }, 50); }}
+          onMomentumScrollEnd={() => { isScrollingRef.current = false; }}
         >
           <ScrollView
             horizontal
@@ -591,6 +609,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
             contentContainerStyle={styles.mapScrollInnerContent}
             showsHorizontalScrollIndicator={true}
             scrollEnabled={!editor.isDraggingRoom && !editor.isDraggingFurniture && !editor.isDraggingCharacter && !editor.isResizing}
+            onScrollBeginDrag={() => { isScrollingRef.current = true; }}
+            onScrollEndDrag={() => { setTimeout(() => { isScrollingRef.current = false; }, 50); }}
+            onMomentumScrollEnd={() => { isScrollingRef.current = false; }}
           >
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
               {/* 캔버스 리사이즈 모드: 위쪽 버튼 */}
