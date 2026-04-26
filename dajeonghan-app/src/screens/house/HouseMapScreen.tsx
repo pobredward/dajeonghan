@@ -91,10 +91,10 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   };
   const editor = useHouseEditor(viewLayout ?? DUMMY_LAYOUT);
 
-  // 편집 모드 진입 시 최신 viewLayout을 편집 훅에 동기화
+  // 편집 모드 진입 시 최신 viewLayout을 편집 훅에 동기화하고 이전 편집 상태 초기화
   useEffect(() => {
     if (isEditMode && viewLayout) {
-      editor.setLayout(viewLayout);
+      editor.resetState(viewLayout);
     }
   }, [isEditMode]);
 
@@ -159,12 +159,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         title: '편집 중',
         headerLeft: () => (
           <TouchableOpacity
-            onPress={() => {
-              Alert.alert('편집 취소', '변경사항이 저장되지 않습니다. 취소하시겠습니까?', [
-                { text: '계속 편집', style: 'cancel' },
-                { text: '취소', style: 'destructive', onPress: () => setIsEditMode(false) },
-              ]);
-            }}
+            onPress={() => setIsEditMode(false)}
             style={{ marginLeft: 16 }}
           >
             <Text style={{ color: Colors.primary, fontSize: 16 }}>취소</Text>
@@ -1027,7 +1022,7 @@ const styles = StyleSheet.create({
   // 편집 모드 스타일
   editFab: {
     position: 'absolute',
-    bottom: Spacing.lg + 56,
+    top: Spacing.lg,
     right: Spacing.md,
     width: 48,
     height: 48,
