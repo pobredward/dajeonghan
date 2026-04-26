@@ -7,6 +7,7 @@ import { EditProfileScreen } from '@/screens/settings/EditProfileScreen';
 import { FollowListScreen } from '@/screens/settings/FollowListScreen';
 import { AppSettingsScreen } from '@/screens/settings/AppSettingsScreen';
 import { AppInfoScreen } from '@/screens/settings/AppInfoScreen';
+import { AccountManagementScreen } from '@/screens/settings/AccountManagementScreen';
 import { PrivacyPolicyScreen, TermsOfServiceScreen, DeleteAccountScreen } from '@/screens/legal';
 import { Colors } from '@/constants';
 
@@ -16,6 +17,7 @@ export type MyInfoStackParamList = {
   FollowList: { tab: 'followers' | 'following' };
   AppSettings: undefined;
   AppInfo: undefined;
+  AccountManagement: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   DeleteAccount: undefined;
@@ -70,6 +72,11 @@ export const MyInfoNavigator: React.FC = () => {
         name="AppInfo"
         component={AppInfoScreen}
         options={{ title: '정보' }}
+      />
+      <Stack.Screen
+        name="AccountManagement"
+        component={AccountManagementScreen}
+        options={{ title: '계정 관리' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"

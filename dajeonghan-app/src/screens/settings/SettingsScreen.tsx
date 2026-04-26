@@ -151,7 +151,7 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.menuDivider} />
           <MenuRow
             title="계정 관리"
-            onPress={() => navigation.navigate('DeleteAccount')}
+            onPress={() => navigation.navigate('AccountManagement')}
           />
         </View>
       </ScrollView>

@@ -10,18 +10,16 @@
 import {
   signInAnonymously,
   linkWithCredential,
+  unlink,
   EmailAuthProvider,
   GoogleAuthProvider,
-  signInWithCredential,
-  signInWithPopup,
+  OAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   User,
-  UserCredential,
-  AuthCredential,
 } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
-import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { dateToTimestamp } from './firestoreService';
 
 // ============================================================================
@@ -94,49 +92,80 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
 };
 
 /**
- * Google로 계정 연결
- * 
- * 익명 사용자를 Google 계정으로 업그레이드합니다.
- * React Native에서는 Google Sign-In 라이브러리 필요.
+ * Google로 계정 연결 (expo-auth-session 기반, Expo Go 호환)
+ *
+ * AccountManagementScreen에서 expo-auth-session으로 idToken을 받아 호출합니다.
  */
-export const linkWithGoogle = async (): Promise<User> => {
+export const linkWithGoogleExpo = async (idToken: string): Promise<User> => {
   const currentUser = auth.currentUser;
-
-  if (!currentUser) {
-    throw new Error('로그인된 사용자가 없습니다.');
-  }
-
-  if (!currentUser.isAnonymous) {
-    throw new Error('이미 계정이 연결되어 있습니다.');
-  }
+  if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
 
   try {
-    // React Native에서는 @react-native-google-signin/google-signin 사용
-    // 웹에서는 signInWithPopup 사용
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential) {
-      throw new Error('Google 인증 정보를 가져올 수 없습니다.');
-    }
-
-    const userCredential = await linkWithCredential(currentUser, credential);
-
-    // 계정 연결 로그
-    await logAccountLink(userCredential.user.uid, 'google');
-
+    const credential = GoogleAuthProvider.credential(idToken);
+    const result = await linkWithCredential(currentUser, credential);
+    await logAccountLink(result.user.uid, 'google');
     console.log('✅ Google 계정 연결 성공');
-    return userCredential.user;
+    return result.user;
   } catch (error: any) {
     console.error('❌ Google 계정 연결 실패:', error);
-    
     if (error.code === 'auth/credential-already-in-use') {
       throw new Error('이미 다른 계정에 연결된 Google 계정입니다.');
     }
-    
     throw new Error(`Google 연결 실패: ${error.message}`);
   }
+};
+
+/**
+ * Apple로 계정 연결 (expo-auth-session 기반, Expo Go 호환)
+ *
+ * AccountManagementScreen에서 expo-auth-session으로 idToken/nonce를 받아 호출합니다.
+ * iOS 전용입니다.
+ */
+export const linkWithApple = async (idToken: string, nonce: string): Promise<User> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
+
+  try {
+    const provider = new OAuthProvider('apple.com');
+    const credential = provider.credential({ idToken, rawNonce: nonce });
+    const result = await linkWithCredential(currentUser, credential);
+    await logAccountLink(result.user.uid, 'apple');
+    console.log('✅ Apple 계정 연결 성공');
+    return result.user;
+  } catch (error: any) {
+    console.error('❌ Apple 계정 연결 실패:', error);
+    if (error.code === 'auth/credential-already-in-use') {
+      throw new Error('이미 다른 계정에 연결된 Apple 계정입니다.');
+    }
+    throw new Error(`Apple 연결 실패: ${error.message}`);
+  }
+};
+
+/**
+ * Provider 연결 해제
+ *
+ * 마지막 남은 provider는 해제하면 안 되므로 호출 전 검증 필요.
+ */
+export const unlinkProvider = async (providerId: string): Promise<User> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
+  try {
+    const user = await unlink(currentUser, providerId);
+    console.log(`✅ Provider 연결 해제 성공: ${providerId}`);
+    return user;
+  } catch (error: any) {
+    console.error('❌ Provider 연결 해제 실패:', error);
+    throw new Error(`연결 해제 실패: ${error.message}`);
+  }
+};
+
+/**
+ * 현재 연결된 provider ID 목록
+ *
+ * 예: ['password', 'google.com', 'apple.com']
+ */
+export const getLinkedProviders = (): string[] => {
+  return auth.currentUser?.providerData.map((p) => p.providerId) ?? [];
 };
 
 // ============================================================================
@@ -296,7 +325,7 @@ const deleteUserData = async (userId: string): Promise<void> => {
 /**
  * 계정 연결 로그 기록
  */
-const logAccountLink = async (userId: string, method: 'email' | 'google'): Promise<void> => {
+const logAccountLink = async (userId: string, method: 'email' | 'google' | 'apple'): Promise<void> => {
   try {
     const logRef = doc(db, `users/${userId}/logs/${Date.now()}_account_link`);
     await setDoc(logRef, {
@@ -321,21 +350,26 @@ export const AuthService = {
   // 익명 인증
   signInAnonymously: signInAnonymouslyAsync,
   isAnonymousUser,
-  
-  // 계정 연결
+
+  // 계정 연결 (익명 → 소셜/이메일, 기존 UID 유지)
   linkWithEmail,
-  linkWithGoogle,
-  
+  linkWithGoogleExpo,
+  linkWithApple,
+
+  // Provider 관리
+  unlinkProvider,
+  getLinkedProviders,
+
   // 일반 로그인
   signInWithEmail,
   signUpWithEmail,
-  
+
   // 로그아웃 및 관리
   signOut,
   getCurrentUser,
   getCurrentUserId,
   onAuthStateChanged,
-  
+
   // 계정 삭제
   deleteAccount,
 };
