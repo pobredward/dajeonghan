@@ -1,91 +1,9 @@
-/**
- * 다정한 - Firestore 보안 규칙
- * 
- * 사용자 데이터 보호 및 접근 제어를 정의합니다.
- * 
- * 사용법:
- * `firebase deploy --only firestore:rules` 명령으로 배포
- */
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // 인증 헬퍼 함수
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    // 사용자 프로필
-    match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
-      
-      // 사용자의 LifeObject
-      match /objects/{objectId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isOwner(userId);
-      }
-      
-      // 사용자의 Task
-      match /tasks/{taskId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isOwner(userId);
-      }
-      
-      // 사용자의 TaskLog
-      match /logs/{logId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isOwner(userId);
-      }
-      
-      // 사용자의 DoseLog
-      match /doseLogs/{doseLogId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isOwner(userId);
-      }
-    }
-    
-    // 공유 템플릿 (읽기는 모두 가능, 쓰기는 인증된 사용자만)
-    match /sharedTemplates/{templateId} {
-      allow read: if resource.data.isPublic == true;
-      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.creatorId == request.auth.uid;
-    }
-    
-    // 템플릿 리뷰
-    match /templateReviews/{reviewId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
-    
-    // 템플릿 좋아요
-    match /templateLikes/{likeId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
-    
-    // 템플릿 사용 기록
-    match /templateUsages/{usageId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-    }
-    
-    // 관리자 작성 Task 템플릿 상세 (이유/방법/사진) — 앱에서는 read only
-    match /taskTemplateDetails/{templateItemId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
