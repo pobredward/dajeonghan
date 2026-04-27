@@ -22,6 +22,23 @@ export interface TaskTemplateItem {
   estimatedMinutes: number;
   priority: PriorityLevel;
   category?: string; // 세부 카테고리 (예: "청소", "관리", "점검")
+  whyNeeded?: string;    // 이 Task가 필요한 이유 (로컬 fallback)
+  howTo?: string;        // 수행 방법 (로컬 fallback)
+  imageUrls?: string[];  // 관리자 업로드 사진 URL 목록 (로컬 fallback)
+  referenceLinks?: { label: string; url: string }[]; // 참고 링크 (유튜브 등)
+}
+
+/**
+ * Firestore에서 관리자가 작성하는 Task 템플릿 상세 정보
+ * 컬렉션 경로: /taskTemplateDetails/{templateItemId}
+ */
+export interface TaskTemplateDetail {
+  templateItemId: string;
+  whyNeeded?: string;
+  howTo?: string;
+  imageUrls?: string[];
+  referenceLinks?: { label: string; url: string }[];
+  updatedAt: number;
 }
 
 /**

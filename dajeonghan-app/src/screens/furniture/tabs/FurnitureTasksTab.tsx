@@ -11,6 +11,8 @@ import {
   Modal,
   Animated,
   Switch,
+  Image,
+  Linking,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
@@ -36,7 +38,8 @@ import { LifeObject } from '@/types/lifeobject.types';
 import { Task, PriorityLevel } from '@/types/task.types';
 import { getLifeObjects, getTasks, updateTask, deleteTask } from '@/services/firestoreService';
 import { getTemplateByFurnitureType } from '@/data/furnitureTaskTemplates';
-import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
+import { TaskTemplateItem, TaskCustomization, TaskTemplateDetail } from '@/types/furnitureTaskTemplate.types';
+import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
 import { FurnitureTaskService } from '@/services/furnitureTaskService';
 import { useAuth } from '@/contexts/AuthContext';
 import { RecurrenceEditor, getNextOccurrences, DayOfWeek as RecurrenceDayOfWeek } from '@/components/tasks/RecurrenceEditor';
@@ -53,6 +56,7 @@ interface FurnitureTasksTabProps {
 
 // 요일 타입
 type DayOfWeek = RecurrenceDayOfWeek;
+type TaskAddTab = 'why' | 'how' | 'schedule';
 
 interface FurnitureWithData extends Furniture {
   linkedObjects: LifeObject[];
@@ -105,6 +109,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     visible: false,
     template: null,
   });
+  // Task 추가 모달 탭 상태
+  const [taskAddActiveTab, setTaskAddActiveTab] = useState<TaskAddTab>('schedule');
+  const [taskTemplateDetail, setTaskTemplateDetail] = useState<TaskTemplateDetail | null>(null);
+  const [taskTemplateDetailLoading, setTaskTemplateDetailLoading] = useState(false);
+
   const [postponeDays, setPostponeDays] = useState<number>(1);
   const [upcomingCollapsed, setUpcomingCollapsed] = useState<boolean>(false);
 
@@ -364,6 +373,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     
     // 요일 초기화
     setSelectedDays([]);
+
+    // 탭 초기화 및 로컬 상세 정보 조회
+    setTaskAddActiveTab('schedule');
+    setTaskTemplateDetail(fetchTaskTemplateDetail(template.id));
+    setTaskTemplateDetailLoading(false);
     
     setTaskAddModal({
       visible: true,
@@ -2097,9 +2111,10 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
           <View style={styles.taskAddModalCentered}>
             {taskAddModal.template && (
               <>
+                {/* 헤더 */}
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle} numberOfLines={2}>
-                    {taskAddModal.template.title} 추가
+                    {taskAddModal.template.title}
                   </Text>
                   <TouchableOpacity
                     style={styles.closeButton}
@@ -2109,56 +2124,194 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   </TouchableOpacity>
                 </View>
 
+                {/* 탭 헤더 */}
+                {(() => {
+                  const hasWhy = taskTemplateDetailLoading || !!(taskTemplateDetail?.whyNeeded);
+                  const hasHow = taskTemplateDetailLoading || !!(taskTemplateDetail?.howTo || taskTemplateDetail?.imageUrls?.length);
+                  const tabs: { key: TaskAddTab; label: string; available: boolean }[] = [
+                    { key: 'why', label: '이유', available: hasWhy },
+                    { key: 'how', label: '진행방법', available: hasHow },
+                    { key: 'schedule', label: '일정 추가', available: true },
+                  ];
+                  return (
+                    <View style={styles.taskAddTabBar}>
+                      {tabs.map((tab) => {
+                        const isActive = taskAddActiveTab === tab.key;
+                        const isDisabled = !tab.available;
+                        return (
+                          <TouchableOpacity
+                            key={tab.key}
+                            style={[
+                              styles.taskAddTab,
+                              isActive && styles.taskAddTabActive,
+                              isDisabled && styles.taskAddTabDisabled,
+                            ]}
+                            onPress={() => {
+                              if (!isDisabled) setTaskAddActiveTab(tab.key);
+                            }}
+                            activeOpacity={isDisabled ? 1 : 0.7}
+                            disabled={isDisabled}
+                          >
+                            <Text style={[
+                              styles.taskAddTabText,
+                              isActive && styles.taskAddTabTextActive,
+                              isDisabled && styles.taskAddTabTextDisabled,
+                            ]}>
+                              {tab.label}
+                            </Text>
+                            {isDisabled && (
+                              <View style={styles.taskAddTabPreparingBadge}>
+                                <Text style={styles.taskAddTabPreparingText}>준비중</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
+
+                {/* 탭 콘텐츠 */}
                 <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-                  <TaskCustomizationForm
-                    template={taskAddModal.template}
-                    customization={customization}
-                    onCustomizationChange={onCustomizationChange}
-                    startDate={startDate}
-                    onStartDateChange={onDateChange}
-                    selectedDays={selectedDays}
-                    onToggleDayOfWeek={onToggleDayOfWeek}
-                    getNextOccurrences={getNextOccurrences}
-                    hasTime={hasTime}
-                    onHasTimeChange={setHasTime}
-                    estimatedMinutes={customization.estimatedMinutes ?? taskAddModal.template.estimatedMinutes}
-                    onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
-                  />
+                  {taskAddActiveTab === 'why' && (
+                    <TaskDetailTabContent
+                      loading={taskTemplateDetailLoading}
+                      content={taskTemplateDetail?.whyNeeded}
+                      icon="📌"
+                      title="왜 해야 하나요?"
+                    />
+                  )}
+                  {taskAddActiveTab === 'how' && (
+                    <TaskDetailTabContent
+                      loading={taskTemplateDetailLoading}
+                      content={taskTemplateDetail?.howTo}
+                      icon="📋"
+                      title="어떻게 하나요?"
+                      imageUrls={taskTemplateDetail?.imageUrls}
+                      referenceLinks={taskTemplateDetail?.referenceLinks}
+                    />
+                  )}
+                  {taskAddActiveTab === 'schedule' && (
+                    <TaskCustomizationForm
+                      template={taskAddModal.template}
+                      customization={customization}
+                      onCustomizationChange={onCustomizationChange}
+                      startDate={startDate}
+                      onStartDateChange={onDateChange}
+                      selectedDays={selectedDays}
+                      onToggleDayOfWeek={onToggleDayOfWeek}
+                      getNextOccurrences={getNextOccurrences}
+                      hasTime={hasTime}
+                      onHasTimeChange={setHasTime}
+                      estimatedMinutes={customization.estimatedMinutes ?? taskAddModal.template.estimatedMinutes}
+                      onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
+                    />
+                  )}
                 </ScrollView>
                 
-                {/* 고정된 하단 버튼 */}
-                <View style={styles.modalFooter}>
-                  <TouchableOpacity 
-                    style={styles.modalCancelButton} 
-                    onPress={() => setTaskAddModal({ visible: false, template: null })}
-                  >
-                    <Text style={styles.modalCancelButtonText}>취소</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[
-                      styles.modalConfirmButton,
-                      loading && styles.modalConfirmButtonDisabled
-                    ]} 
-                    onPress={() => {
-                      if (loading) return;
-                      console.log('추가 버튼 클릭됨');
-                      handleConfirmTask();
-                      setTaskAddModal({ visible: false, template: null });
-                    }}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.modalConfirmButtonText}>추가</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                {/* 고정된 하단 버튼 — 일정 추가 탭에서만 표시 */}
+                {taskAddActiveTab === 'schedule' && (
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity 
+                      style={styles.modalCancelButton} 
+                      onPress={() => setTaskAddModal({ visible: false, template: null })}
+                    >
+                      <Text style={styles.modalCancelButtonText}>취소</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[
+                        styles.modalConfirmButton,
+                        loading && styles.modalConfirmButtonDisabled
+                      ]} 
+                      onPress={() => {
+                        if (loading) return;
+                        handleConfirmTask();
+                        setTaskAddModal({ visible: false, template: null });
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.modalConfirmButtonText}>추가</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </>
             )}
           </View>
         </View>
       </Modal>
+    </View>
+  );
+};
+
+// Task 상세 탭(이유/진행방법) 콘텐츠 컴포넌트
+const TaskDetailTabContent: React.FC<{
+  loading: boolean;
+  content?: string;
+  icon: string;
+  title: string;
+  imageUrls?: string[];
+  referenceLinks?: { label: string; url: string }[];
+}> = ({ loading, content, icon, title, imageUrls, referenceLinks }) => {
+  if (loading) {
+    return (
+      <View style={styles.detailTabContainer}>
+        <View style={styles.detailTabSkeletonTitle} />
+        <View style={styles.detailTabSkeletonLine} />
+        <View style={[styles.detailTabSkeletonLine, { width: '80%' }]} />
+        <View style={[styles.detailTabSkeletonLine, { width: '90%' }]} />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.detailTabContainer}>
+      <View style={styles.detailTabTitleRow}>
+        <Text style={styles.detailTabIcon}>{icon}</Text>
+        <Text style={styles.detailTabTitle}>{title}</Text>
+      </View>
+      {content ? (
+        <Text style={styles.detailTabContent}>{content}</Text>
+      ) : (
+        <View style={styles.detailTabEmptyBox}>
+          <Text style={styles.detailTabEmptyText}>아직 내용이 준비 중이에요</Text>
+        </View>
+      )}
+      {imageUrls && imageUrls.length > 0 && (
+        <View style={styles.detailTabImageList}>
+          {imageUrls.map((url, idx) => (
+            <Image
+              key={idx}
+              source={{ uri: url }}
+              style={styles.detailTabImage}
+              resizeMode="cover"
+            />
+          ))}
+        </View>
+      )}
+      {referenceLinks && referenceLinks.length > 0 && (
+        <View style={styles.detailTabLinkList}>
+          <Text style={styles.detailTabLinkSectionLabel}>참고 자료</Text>
+          {referenceLinks.map((link, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.detailTabLinkItem}
+              onPress={() => Linking.openURL(link.url)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.detailTabLinkIcon}>
+                {link.url.includes('youtube.com') || link.url.includes('youtu.be') ? '▶' : '🔗'}
+              </Text>
+              <Text style={styles.detailTabLinkLabel} numberOfLines={1}>
+                {link.label}
+              </Text>
+              <Text style={styles.detailTabLinkArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -3839,6 +3992,148 @@ const styles = StyleSheet.create({
     height: '85%',
     alignSelf: 'center',
     overflow: 'hidden',
+  },
+
+  // ── Task 추가 모달 탭 바 ──
+  taskAddTabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray,
+    backgroundColor: Colors.white,
+  },
+  taskAddTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  taskAddTabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
+  },
+  taskAddTabDisabled: {
+    opacity: 0.4,
+  },
+  taskAddTabText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  taskAddTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  taskAddTabTextDisabled: {
+    color: Colors.textSecondary,
+  },
+  taskAddTabPreparingBadge: {
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  taskAddTabPreparingText: {
+    fontSize: 9,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // ── Task 상세 탭 콘텐츠 ──
+  detailTabContainer: {
+    padding: Spacing.lg,
+  },
+  detailTabTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    gap: 6,
+  },
+  detailTabIcon: {
+    fontSize: 18,
+  },
+  detailTabTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  detailTabContent: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    lineHeight: 22,
+  },
+  detailTabEmptyBox: {
+    backgroundColor: Colors.veryLightGray + '60',
+    borderRadius: 10,
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailTabEmptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  detailTabImageList: {
+    marginTop: Spacing.lg,
+    gap: 10,
+  },
+  detailTabImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+  },
+  // 스켈레톤
+  detailTabSkeletonTitle: {
+    height: 18,
+    width: '50%',
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 6,
+    marginBottom: Spacing.md,
+  },
+  detailTabSkeletonLine: {
+    height: 13,
+    width: '100%',
+    backgroundColor: Colors.veryLightGray + '80',
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  // 참고 링크
+  detailTabLinkList: {
+    marginTop: Spacing.lg,
+  },
+  detailTabLinkSectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  detailTabLinkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '10',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    marginBottom: 8,
+    gap: 8,
+  },
+  detailTabLinkIcon: {
+    fontSize: 14,
+    color: Colors.primary,
+  },
+  detailTabLinkLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  detailTabLinkArrow: {
+    fontSize: 18,
+    color: Colors.primary,
+    lineHeight: 20,
   },
   detailHeader: {
     flexDirection: 'row',

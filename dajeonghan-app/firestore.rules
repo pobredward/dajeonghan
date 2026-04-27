@@ -81,5 +81,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
+    
+    // 관리자 작성 Task 템플릿 상세 (이유/방법/사진) — 앱에서는 read only
+    match /taskTemplateDetails/{templateItemId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
   }
 }
