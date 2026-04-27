@@ -110,7 +110,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     template: null,
   });
   // Task 추가 모달 탭 상태
-  const [taskAddActiveTab, setTaskAddActiveTab] = useState<TaskAddTab>('schedule');
+  const [taskAddActiveTab, setTaskAddActiveTab] = useState<TaskAddTab>('why');
   const [taskTemplateDetail, setTaskTemplateDetail] = useState<TaskTemplateDetail | null>(null);
   const [taskTemplateDetailLoading, setTaskTemplateDetailLoading] = useState(false);
 
@@ -375,7 +375,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     setSelectedDays([]);
 
     // 탭 초기화 및 로컬 상세 정보 조회
-    setTaskAddActiveTab('schedule');
+    setTaskAddActiveTab('why');
     setTaskTemplateDetail(fetchTaskTemplateDetail(template.id));
     setTaskTemplateDetailLoading(false);
     
