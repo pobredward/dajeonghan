@@ -2449,39 +2449,36 @@ const TaskCustomizationForm: React.FC<{
   return (
     <View style={styles.modernForm}>
 
-      {/* ── Task 요약 정보 카드 ── */}
-      <View style={styles.formSummaryCard}>
-        <Text style={styles.formSummaryDesc}>{template.description}</Text>
-        <View style={styles.formSummaryBottom}>
-          {/* 우선순위 선택 */}
-          <View style={styles.formPriorityRow}>
-            {(['low', 'medium', 'high'] as const).map((level) => {
-              const isActive = (customization.priority || template.priority) === level;
-              const label = level === 'low' ? '낮음' : level === 'medium' ? '보통' : '높음';
-              return (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.formPriorityBtn,
-                    level === 'high' && styles.formPriorityBtnHigh,
-                    level === 'medium' && styles.formPriorityBtnMedium,
-                    level === 'low' && styles.formPriorityBtnLow,
-                    isActive && styles.formPriorityBtnActive,
-                    isActive && level === 'high' && styles.formPriorityBtnActiveHigh,
-                    isActive && level === 'medium' && styles.formPriorityBtnActiveMedium,
-                    isActive && level === 'low' && styles.formPriorityBtnActiveLow,
-                  ]}
-                  onPress={() => onCustomizationChange({ ...customization, priority: level })}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[
-                    styles.formPriorityBtnText,
-                    isActive && styles.formPriorityBtnTextActive,
-                  ]}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+      {/* ── 우선순위 설정 섹션 ── */}
+      <View style={styles.prioritySectionCard}>
+        <Text style={styles.prioritySectionLabel}>우선순위 설정</Text>
+        <View style={styles.formPriorityRow}>
+          {(['low', 'medium', 'high'] as const).map((level) => {
+            const isActive = (customization.priority || template.priority) === level;
+            const label = level === 'low' ? '낮음' : level === 'medium' ? '보통' : '높음';
+            return (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.formPriorityBtn,
+                  level === 'high' && styles.formPriorityBtnHigh,
+                  level === 'medium' && styles.formPriorityBtnMedium,
+                  level === 'low' && styles.formPriorityBtnLow,
+                  isActive && styles.formPriorityBtnActive,
+                  isActive && level === 'high' && styles.formPriorityBtnActiveHigh,
+                  isActive && level === 'medium' && styles.formPriorityBtnActiveMedium,
+                  isActive && level === 'low' && styles.formPriorityBtnActiveLow,
+                ]}
+                onPress={() => onCustomizationChange({ ...customization, priority: level })}
+                activeOpacity={0.75}
+              >
+                <Text style={[
+                  styles.formPriorityBtnText,
+                  isActive && styles.formPriorityBtnTextActive,
+                ]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -2663,7 +2660,7 @@ const styles = StyleSheet.create({
   },
 
   // ── TaskCustomizationForm 새 스타일 ──
-  formSummaryCard: {
+  prioritySectionCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: Spacing.md,
@@ -2673,13 +2670,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
-    flexDirection: 'column',
-    gap: Spacing.sm,
-  },
-  formSummaryBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  prioritySectionLabel: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   formPriorityRow: {
     flexDirection: 'row',
