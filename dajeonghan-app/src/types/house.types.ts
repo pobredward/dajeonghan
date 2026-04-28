@@ -39,7 +39,8 @@ export type FurnitureType =
   | 'tv'             // TV
   | 'plant'          // 식물
   | 'mirror'         // 거울
-  | 'dresser';       // 화장대
+  | 'dresser'        // 화장대
+  | 'drawer';        // 서랍장
 
 /**
  * 가구별 특화 메타데이터
@@ -223,6 +224,7 @@ export const FURNITURE_DEFAULTS: Record<FurnitureType, {
   plant: { emoji: '🪴', defaultSize: { width: 50, height: 50 }, category: 'living' },
   mirror: { emoji: '🪞', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
   dresser: { emoji: '💄', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
+  drawer: { emoji: '🗄️', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
 };
 
 /**

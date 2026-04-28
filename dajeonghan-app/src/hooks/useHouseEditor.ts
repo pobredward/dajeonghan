@@ -76,6 +76,7 @@ function getFurnitureName(type: FurnitureType): string {
     plant: '식물',
     mirror: '거울',
     dresser: '화장대',
+    drawer: '서랍장',
   };
   return names[type];
 }
