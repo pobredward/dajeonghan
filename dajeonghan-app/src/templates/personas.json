@@ -1,87 +1,147 @@
 {
   "personas": [
     {
-      "id": "student_20s_male",
-      "name": "20대 초반 자취 대학생 (남)",
-      "icon": "🎓",
-      "description": "혼자 사는 대학생, 간단한 청소 루틴 필요",
+      "id": "solo_young",
+      "name": "자취 청년",
+      "icon": "🎒",
+      "description": "20대 대학생·사회초년생\n처음 혼자 살아보는 분",
       "defaultEnvironment": {
         "hasWasher": true,
         "hasDryer": false,
         "usesCoinLaundry": false,
         "cookingFrequency": "sometimes",
         "hasPet": false,
-        "householdSize": 1
+        "householdSize": 1,
+        "hasInfant": false,
+        "hasCar": false,
+        "hasPlant": false,
+        "selfCareItems": []
       }
     },
     {
-      "id": "student_20s_female",
-      "name": "20대 초반 자취 대학생 (여)",
-      "icon": "👩‍🎓",
-      "description": "혼자 사는 대학생, 정리정돈 중시",
-      "defaultEnvironment": {
-        "hasWasher": true,
-        "hasDryer": false,
-        "usesCoinLaundry": false,
-        "cookingFrequency": "often",
-        "hasPet": false,
-        "householdSize": 1
-      }
-    },
-    {
-      "id": "worker_single",
-      "name": "직장인 (1인)",
+      "id": "solo_worker",
+      "name": "1인 직장인",
       "icon": "💼",
-      "description": "혼자 사는 직장인, 주말 집중 청소",
+      "description": "30~40대 1인 가구\n바빠서 효율적인 루틴이 필요한 분",
       "defaultEnvironment": {
         "hasWasher": true,
         "hasDryer": false,
         "usesCoinLaundry": false,
         "cookingFrequency": "rarely",
         "hasPet": false,
-        "householdSize": 1
+        "householdSize": 1,
+        "hasInfant": false,
+        "hasCar": true,
+        "hasPlant": false,
+        "selfCareItems": []
       }
     },
     {
-      "id": "worker_roommate",
-      "name": "직장인 (룸메)",
-      "icon": "👥",
-      "description": "룸메와 함께 사는 직장인, 분담 필요",
+      "id": "couple_no_kid",
+      "name": "딩크 / 신혼부부",
+      "icon": "💑",
+      "description": "2인 가구, 자녀 없음\n둘이서 집안일 루틴을 만들고 싶은 분",
       "defaultEnvironment": {
         "hasWasher": true,
-        "hasDryer": false,
+        "hasDryer": true,
         "usesCoinLaundry": false,
-        "cookingFrequency": "sometimes",
+        "cookingFrequency": "often",
         "hasPet": false,
-        "householdSize": 2
+        "householdSize": 2,
+        "hasInfant": false,
+        "hasCar": true,
+        "hasPlant": false,
+        "selfCareItems": []
       }
     },
     {
-      "id": "newlywed",
-      "name": "신혼",
-      "icon": "💑",
-      "description": "신혼부부, 함께 만드는 루틴",
+      "id": "family_with_kid",
+      "name": "영유아 자녀 가정",
+      "icon": "👶",
+      "description": "36개월 미만 아이가 있는 가정\n위생·소독 관리가 중요한 분",
       "defaultEnvironment": {
         "hasWasher": true,
         "hasDryer": true,
         "usesCoinLaundry": false,
         "cookingFrequency": "daily",
         "hasPet": false,
-        "householdSize": 2
+        "householdSize": 3,
+        "hasInfant": true,
+        "hasCar": true,
+        "hasPlant": false,
+        "selfCareItems": []
+      }
+    },
+    {
+      "id": "family_school_kid",
+      "name": "초중학생 자녀 가정",
+      "icon": "🏫",
+      "description": "학교 다니는 아이가 있는 가정\n학원 스케줄 속 집안일 루틴이 필요한 분",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": true,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "daily",
+        "hasPet": false,
+        "householdSize": 4,
+        "hasInfant": false,
+        "hasCar": true,
+        "hasPlant": false,
+        "selfCareItems": []
       }
     },
     {
       "id": "pet_owner",
       "name": "반려동물 집사",
-      "icon": "🐕",
-      "description": "반려동물과 함께, 청결 관리 중요",
+      "icon": "🐾",
+      "description": "강아지·고양이와 함께하는 분\n털 청소·위생 관리가 필수인 분",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "sometimes",
+        "hasPet": true,
+        "householdSize": 1,
+        "hasInfant": false,
+        "hasCar": false,
+        "hasPlant": false,
+        "selfCareItems": []
+      }
+    },
+    {
+      "id": "freelancer_homebody",
+      "name": "재택 / 프리랜서",
+      "icon": "🏠",
+      "description": "집에서 일하는 시간이 많은 분\n공간 청결이 곧 업무 환경인 분",
       "defaultEnvironment": {
         "hasWasher": true,
         "hasDryer": false,
         "usesCoinLaundry": false,
         "cookingFrequency": "often",
-        "hasPet": true,
-        "householdSize": 1
+        "hasPet": false,
+        "householdSize": 1,
+        "hasInfant": false,
+        "hasCar": false,
+        "hasPlant": true,
+        "selfCareItems": []
+      }
+    },
+    {
+      "id": "senior_couple",
+      "name": "중장년 부부",
+      "icon": "🌿",
+      "description": "50대 이상 부부 가구\n건강 관리·냉장고·약 관리가 중요한 분",
+      "defaultEnvironment": {
+        "hasWasher": true,
+        "hasDryer": false,
+        "usesCoinLaundry": false,
+        "cookingFrequency": "daily",
+        "hasPet": false,
+        "householdSize": 2,
+        "hasInfant": false,
+        "hasCar": true,
+        "hasPlant": true,
+        "selfCareItems": []
       }
     }
   ]

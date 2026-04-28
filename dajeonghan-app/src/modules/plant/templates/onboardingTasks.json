@@ -1,0 +1,46 @@
+[
+  {
+    "name": "식물 물주기",
+    "description": "화분 흙이 말랐는지 확인하고 물을 주세요 (식물 종류에 따라 주기 조정)",
+    "type": "self_care",
+    "interval": 3,
+    "unit": "day",
+    "estimatedMinutes": 5,
+    "priority": "medium",
+    "category": "plant",
+    "linkedFurnitureType": "plant"
+  },
+  {
+    "name": "식물 잎 닦기·분무",
+    "description": "잎에 쌓인 먼지를 닦아주거나 분무기로 수분을 공급해주세요",
+    "type": "self_care",
+    "interval": 7,
+    "unit": "day",
+    "estimatedMinutes": 5,
+    "priority": "low",
+    "category": "plant",
+    "linkedFurnitureType": "plant"
+  },
+  {
+    "name": "비료·영양제 주기",
+    "description": "성장기에 액상 비료나 고형 비료를 주세요",
+    "type": "self_care",
+    "interval": 30,
+    "unit": "day",
+    "estimatedMinutes": 5,
+    "priority": "low",
+    "category": "plant",
+    "linkedFurnitureType": "plant"
+  },
+  {
+    "name": "분갈이 시기 점검",
+    "description": "뿌리가 화분 밖으로 나오거나 성장이 느려지면 분갈이를 고려하세요",
+    "type": "self_care",
+    "interval": 180,
+    "unit": "day",
+    "estimatedMinutes": 30,
+    "priority": "low",
+    "category": "plant",
+    "linkedFurnitureType": "plant"
+  }
+]

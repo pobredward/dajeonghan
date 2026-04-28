@@ -1,0 +1,137 @@
+{
+  "skincare": [
+    {
+      "name": "스킨케어 루틴",
+      "description": "세안 후 토너·에센스·크림 등 본인의 스킨케어 루틴을 챙기세요",
+      "type": "self_care",
+      "interval": 1,
+      "unit": "day",
+      "estimatedMinutes": 10,
+      "priority": "medium",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    },
+    {
+      "name": "각질 제거",
+      "description": "각질 제거 제품으로 피부 결을 정리하세요",
+      "type": "self_care",
+      "interval": 7,
+      "unit": "day",
+      "estimatedMinutes": 15,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ],
+  "gym": [
+    {
+      "name": "운동 루틴",
+      "description": "헬스장·홈 트레이닝 등 정해진 운동 루틴을 소화하세요",
+      "type": "self_care",
+      "interval": 2,
+      "unit": "day",
+      "estimatedMinutes": 60,
+      "priority": "medium",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    },
+    {
+      "name": "운동복·타월 세탁",
+      "description": "운동 후 사용한 운동복과 타월을 세탁하세요",
+      "type": "self_care",
+      "interval": 3,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ],
+  "hair": [
+    {
+      "name": "미용실 방문",
+      "description": "머리카락이 많이 자랐다면 미용실 예약을 잡으세요",
+      "type": "self_care",
+      "interval": 45,
+      "unit": "day",
+      "estimatedMinutes": 90,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    },
+    {
+      "name": "두피 케어",
+      "description": "두피 스케일링이나 두피 케어 제품으로 두피 건강을 챙기세요",
+      "type": "self_care",
+      "interval": 14,
+      "unit": "day",
+      "estimatedMinutes": 20,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ],
+  "nails": [
+    {
+      "name": "손발톱 정리",
+      "description": "손톱·발톱이 많이 자랐으면 깔끔하게 정리하세요",
+      "type": "self_care",
+      "interval": 14,
+      "unit": "day",
+      "estimatedMinutes": 15,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ],
+  "wax": [
+    {
+      "name": "왁싱·제모 예약",
+      "description": "다음 왁싱 또는 제모 일정을 미리 잡아두세요",
+      "type": "self_care",
+      "interval": 30,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ],
+  "dental": [
+    {
+      "name": "치과 정기 검진",
+      "description": "6개월 주기 치과 검진 일정을 챙기세요",
+      "type": "self_care",
+      "interval": 180,
+      "unit": "day",
+      "estimatedMinutes": 60,
+      "priority": "high",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    },
+    {
+      "name": "치실·구강 청결",
+      "description": "양치 후 치실로 치아 사이를 꼼꼼하게 청소하세요",
+      "type": "self_care",
+      "interval": 1,
+      "unit": "day",
+      "estimatedMinutes": 3,
+      "priority": "medium",
+      "category": "self_care",
+      "linkedFurnitureType": "wash_basin"
+    }
+  ],
+  "massage": [
+    {
+      "name": "마사지·스파 예약",
+      "description": "피로가 쌓였다면 마사지나 스파 예약을 잡아두세요",
+      "type": "self_care",
+      "interval": 30,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "low",
+      "category": "self_care",
+      "linkedFurnitureType": "personal_care"
+    }
+  ]
+}

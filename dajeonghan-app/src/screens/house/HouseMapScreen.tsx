@@ -466,25 +466,90 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     );
   };
 
+  const handleCharacterPress = () => {
+    if (!activeLayout) return;
+    // 레이아웃에서 personal_care 가구 탐색
+    for (const room of activeLayout.rooms) {
+      const found = room.furnitures.find((f) => f.type === 'personal_care');
+      if (found) {
+        navigation.navigate('FurnitureDetail', {
+          roomId: room.id,
+          furnitureId: found.id,
+          furnitureType: found.type,
+        });
+        return;
+      }
+    }
+    // personal_care 가구가 없으면 안내
+    Alert.alert('퍼스널케어', '자기관리 항목을 온보딩 또는 가구 추가에서 설정하면 여기서 관리할 수 있습니다.');
+  };
+
   const renderCharacter = () => {
     if (!activeLayout) return null;
     
     const charX = activeLayout.character.position.x;
     const charY = activeLayout.character.position.y;
+    const charR = 30;
     const isSelected = isEditMode && editor.selectedItem?.type === 'character';
+
+    // personal_care 가구의 task counts 조회
+    let personalCareFurnitureId: string | null = null;
+    for (const room of activeLayout.rooms) {
+      const found = room.furnitures.find((f) => f.type === 'personal_care');
+      if (found) { personalCareFurnitureId = found.id; break; }
+    }
+    const counts = personalCareFurnitureId
+      ? (furnitureTaskCounts[personalCareFurnitureId] ?? { today: 0, overdue: 0, dirtyScore: 0 })
+      : { today: 0, overdue: 0, dirtyScore: 0 };
+    const hasOverdue = counts.overdue > 0;
+
+    // 뱃지 위치: 원의 오른쪽 상단 끝
+    const badgeX = charX + charR - 8;
+    const badgeY1 = charY - charR + 8;        // 연체 뱃지
+    const badgeY2 = hasOverdue ? badgeY1 + 18 : badgeY1; // 오늘 뱃지
+
     return (
-      <G onPress={() => !isEditMode && Alert.alert('알림', '캐릭터 클릭!')}>
+      <G onPress={() => !isEditMode && handleCharacterPress()}>
+        {/* 편집 모드 선택 테두리 */}
         {isSelected && (
-          <Circle cx={charX} cy={charY} r={30} fill="transparent" stroke={Colors.accent} strokeWidth={3} />
+          <Circle cx={charX} cy={charY} r={charR + 4} fill="transparent" stroke={Colors.accent} strokeWidth={3} />
         )}
+
+        {/* 캐릭터 배경 원 — 가구의 Rect에 해당 */}
         <Circle
           cx={charX}
           cy={charY}
-          r={30}
-          fill="transparent"
-          stroke="transparent"
-          strokeWidth={0}
+          r={charR}
+          fill={Colors.surface}
+          stroke={hasOverdue ? Colors.error : Colors.primary}
+          strokeWidth={hasOverdue ? 3 : 2}
+          opacity={0.9}
         />
+
+        {/* 연체 펄스 */}
+        {hasOverdue && (
+          <PulseEffect x={charX} y={charY} r={charR} color={Colors.error} show={hasOverdue} />
+        )}
+
+        {/* 연체 뱃지 (빨간) */}
+        {counts.overdue > 0 && (
+          <>
+            <Circle cx={badgeX} cy={badgeY1} r={10} fill={Colors.error} />
+            <SvgText x={badgeX} y={badgeY1 + 4} fontSize="11" fill="white" textAnchor="middle" fontWeight="bold">
+              {counts.overdue}
+            </SvgText>
+          </>
+        )}
+
+        {/* 오늘 뱃지 (주황) */}
+        {counts.today > 0 && (
+          <>
+            <Circle cx={badgeX} cy={badgeY2} r={10} fill="#FF8C00" />
+            <SvgText x={badgeX} y={badgeY2 + 4} fontSize="11" fill="white" textAnchor="middle" fontWeight="bold">
+              {counts.today}
+            </SvgText>
+          </>
+        )}
       </G>
     );
   };
@@ -521,6 +586,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       { name: '욕실', types: ['toilet', 'bathtub', 'shower', 'mirror', 'wash_basin'] as FurnitureType[] },
       { name: '거실', types: ['sofa', 'tv', 'table', 'plant'] as FurnitureType[] },
       { name: '서재', types: ['desk', 'chair', 'bookshelf'] as FurnitureType[] },
+      { name: '생활 관리', types: ['pet', 'medicine_cabinet', 'car', 'baby_station'] as FurnitureType[] },
       { name: '기타', types: ['washing_machine'] as FurnitureType[] },
     ];
     return (

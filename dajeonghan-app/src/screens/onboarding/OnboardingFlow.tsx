@@ -6,7 +6,7 @@ import { PersonaSelectionScreen } from './PersonaSelectionScreen';
 import { QuestionScreen } from './QuestionScreen';
 import { FirstTasksScreen } from './FirstTasksScreen';
 import { HouseLayoutSelectionScreen } from '@/screens/house/HouseLayoutSelectionScreen';
-import { OnboardingService, OnboardingAnswers } from '@/services/OnboardingService';
+import { OnboardingService, OnboardingAnswers, ExtraFurnitureConfig } from '@/services/OnboardingService';
 import { PersonaType } from '@/types/user.types';
 import { HouseLayout } from '@/types/house.types';
 import { Task } from '@/types/task.types';
@@ -130,35 +130,44 @@ export const OnboardingFlow: React.FC<Props> = ({
       // userId가 교체된 태스크 목록 준비
       const tasksWithId = allTasks.map((t) => ({ ...t, userId: finalUserId }));
 
-      // 1. 집 레이아웃(+기본 가구) 저장 — Task 저장보다 먼저 실행
+      // 1. 집 레이아웃(+기본 가구 + 조건부 신규 가구) 저장
       const hasWasher = profileWithId?.environment?.hasWasher ?? true;
+      const rawAnswers = profileWithId?.onboardingResponse?.rawAnswers as OnboardingAnswers ?? {};
+      const extraFurnitures: ExtraFurnitureConfig = {
+        hasPet: profileWithId?.environment?.hasPet ?? false,
+        petType: profileWithId?.environment?.petType,
+        hasMedicine: rawAnswers.medicine === true,
+        hasCar: profileWithId?.environment?.hasCar ?? false,
+        hasInfant: profileWithId?.environment?.hasInfant ?? false,
+        hasSelfCare: (profileWithId?.environment?.selfCareItems?.length ?? 0) > 0,
+        hasPlant: profileWithId?.environment?.hasPlant ?? false,
+      };
       const savedLayout = await OnboardingService.createAndSaveLayout(
         finalUserId,
         selectedLayoutType,
-        hasWasher
+        hasWasher,
+        extraFurnitures
       );
 
       // 2. lifeObject 문서 생성 → Task의 objectId를 실제 Firestore ID로 교체
-      //    (직접 추가 Task와 동일한 구조를 갖게 하여 HouseMapScreen 집계 및
-      //     lifeObject 조회가 정상 작동하도록 함)
       const tasksWithLifeObjects = await OnboardingService.createLifeObjectsForTasks(
         finalUserId,
         tasksWithId
       );
 
-      // 3. 실제 objectId로 가구-Task 연동 (레이아웃 linkedObjectIds 업데이트)
-      const templates = selectedPersona
+      // 3. 전체 Task를 linkedFurnitureType 기준으로 가구에 연동
+      const cleaningTemplates = selectedPersona
         ? OnboardingService.getCleaningTemplates(selectedPersona)
         : [];
-      const linkedLayout = OnboardingService.linkTasksToFurnitures(
+      const linkedLayout = OnboardingService.linkAllTasksToFurnitures(
         savedLayout,
         tasksWithLifeObjects,
-        templates
+        cleaningTemplates
       );
       // 연동 결과를 Firestore에 반영
       const { saveHouseLayout } = await import('@/services/houseService');
       await saveHouseLayout(linkedLayout);
-      console.log('✅ 가구-Task 연동 완료');
+      console.log('✅ 가구-Task 연동 완료 (전체 Task 포함)');
 
       // 4. objectId가 교체된 태스크 저장
       if (tasksWithLifeObjects.length > 0) {
@@ -208,8 +217,9 @@ export const OnboardingFlow: React.FC<Props> = ({
         />
       )}
       {step === 'tasks' && (
-        <FirstTasksScreen 
-          tasks={firstTasks} 
+        <FirstTasksScreen
+          tasks={firstTasks}
+          allTasks={allTasks}
           onStart={handleStart}
           onBack={handleTasksBack}
         />

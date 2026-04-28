@@ -3,6 +3,7 @@
     {
       "id": "washer",
       "question": "세탁기가 있나요?",
+      "tooltip": "세탁 방식에 맞는 침구·빨래 Task를 만들어드려요",
       "type": "boolean",
       "options": [
         { "id": "yes", "label": "있어요", "value": true },
@@ -11,7 +12,8 @@
     },
     {
       "id": "dryer",
-      "question": "건조기가 있나요?",
+      "question": "건조기도 있나요?",
+      "tooltip": "건조기가 있으면 세탁·건조 Task를 따로 관리해드려요",
       "type": "boolean",
       "condition": { "washer": true },
       "options": [
@@ -22,17 +24,19 @@
     {
       "id": "cooking",
       "question": "요리는 얼마나 자주 하나요?",
+      "tooltip": "요리 빈도에 따라 싱크대·가스레인지 청소 주기가 달라져요",
       "type": "select",
       "options": [
-        { "id": "rarely", "label": "거의 안 함", "value": "rarely" },
-        { "id": "sometimes", "label": "가끔", "value": "sometimes" },
-        { "id": "often", "label": "자주", "value": "often" },
-        { "id": "daily", "label": "매일", "value": "daily" }
+        { "id": "rarely", "label": "거의 안 해요\n(배달·외식 위주)", "value": "rarely" },
+        { "id": "sometimes", "label": "가끔 해요\n(주 2~3회)", "value": "sometimes" },
+        { "id": "often", "label": "자주 해요\n(주 4~5회)", "value": "often" },
+        { "id": "daily", "label": "매일 해요", "value": "daily" }
       ]
     },
     {
-      "id": "medicine",
-      "question": "복용 중인 약이나 영양제가 있나요?",
+      "id": "has_pet",
+      "question": "반려동물과 함께 살고 있나요?",
+      "tooltip": "반려동물이 있으면 털 청소·위생 관리 Task가 추가돼요",
       "type": "boolean",
       "options": [
         { "id": "yes", "label": "있어요", "value": true },
@@ -40,35 +44,83 @@
       ]
     },
     {
-      "id": "self_care_level",
-      "question": "자기관리는 얼마나 하시나요?",
+      "id": "pet_type",
+      "question": "어떤 반려동물인가요?",
+      "tooltip": "종류에 따라 맞춤 관리 Task를 드려요",
       "type": "select",
+      "condition": { "has_pet": true },
       "options": [
-        { "id": "basic", "label": "기본만 (세안, 손톱 정리)", "value": "basic" },
-        { "id": "intermediate", "label": "보통 (스킨케어, 미용실)", "value": "intermediate" },
-        { "id": "advanced", "label": "철저히 (제모, 정기 관리)", "value": "advanced" },
-        { "id": "none", "label": "하지 않음", "value": "none" }
+        { "id": "dog", "label": "강아지", "value": "dog" },
+        { "id": "cat", "label": "고양이", "value": "cat" },
+        { "id": "other", "label": "그 외 반려동물", "value": "other" }
       ]
     },
     {
-      "id": "gender",
-      "question": "성별을 선택해주세요 (맞춤 추천용)",
-      "type": "select",
+      "id": "has_infant",
+      "question": "36개월 미만 아이가 있나요?",
+      "tooltip": "영아가 있으면 소독·젖병 세척 등 위생 Task가 추가돼요",
+      "type": "boolean",
       "options": [
-        { "id": "male", "label": "남성", "value": "male" },
-        { "id": "female", "label": "여성", "value": "female" },
-        { "id": "non_binary", "label": "논바이너리", "value": "non_binary" },
-        { "id": "skip", "label": "건너뛰기", "value": "all" }
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
+      ]
+    },
+    {
+      "id": "medicine",
+      "question": "매일 복용하는 약이나 영양제가 있나요?",
+      "tooltip": "있으면 복약 알림 Task를 자동으로 만들어드려요",
+      "type": "boolean",
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
+      ]
+    },
+    {
+      "id": "self_care",
+      "question": "주기적으로 챙기는 자기관리가 있나요?",
+      "tooltip": "선택한 항목마다 관리 주기 Task가 생겨요 (없으면 건너뛰어도 돼요)",
+      "type": "multiselect",
+      "options": [
+        { "id": "skincare", "label": "스킨케어 루틴", "value": "skincare" },
+        { "id": "gym", "label": "헬스 / 운동", "value": "gym" },
+        { "id": "hair", "label": "미용실·두피 관리", "value": "hair" },
+        { "id": "nails", "label": "손발톱 관리", "value": "nails" },
+        { "id": "wax", "label": "왁싱·제모", "value": "wax" },
+        { "id": "dental", "label": "치과 정기 검진", "value": "dental" },
+        { "id": "massage", "label": "마사지·스파", "value": "massage" }
+      ],
+      "allowSkip": true,
+      "skipLabel": "해당 없음"
+    },
+    {
+      "id": "plant",
+      "question": "반려식물을 키우고 있나요?",
+      "tooltip": "식물이 있으면 물주기·분갈이 Task를 추가해드려요",
+      "type": "boolean",
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
+      ]
+    },
+    {
+      "id": "car",
+      "question": "차량을 소유하고 있나요?",
+      "tooltip": "차가 있으면 엔진오일·타이어·세차 등 차량 관리 Task가 추가돼요",
+      "type": "boolean",
+      "options": [
+        { "id": "yes", "label": "있어요", "value": true },
+        { "id": "no", "label": "없어요", "value": false }
       ]
     },
     {
       "id": "notification",
       "question": "알림은 어떻게 받고 싶나요?",
+      "tooltip": "언제든지 설정에서 바꿀 수 있어요",
       "type": "select",
       "options": [
-        { "id": "digest", "label": "조용한 비서 (하루 2회 다이제스트)", "value": "digest" },
-        { "id": "immediate", "label": "강한 루틴 (즉시 알림)", "value": "immediate" },
-        { "id": "minimal", "label": "필요할 때만 (앱 내에서만)", "value": "minimal" }
+        { "id": "digest", "label": "조용한 비서\n하루 2번 모아서 알림", "value": "digest" },
+        { "id": "immediate", "label": "할 일 있을 때 바로\n즉시 알림", "value": "immediate" },
+        { "id": "minimal", "label": "앱 열었을 때만\n알림 최소화", "value": "minimal" }
       ]
     }
   ]

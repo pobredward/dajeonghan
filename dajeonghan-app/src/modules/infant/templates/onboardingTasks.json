@@ -1,0 +1,68 @@
+[
+  {
+    "name": "젖병·수유 용품 소독",
+    "description": "젖병·빨대컵·이유식 용품 등을 열탕 또는 전기소독기로 소독하세요",
+    "type": "cleaning",
+    "interval": 1,
+    "unit": "day",
+    "estimatedMinutes": 15,
+    "priority": "high",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  },
+  {
+    "name": "장난감 세척 및 소독",
+    "description": "아이가 입에 물거나 자주 만지는 장난감을 세척하고 소독하세요",
+    "type": "cleaning",
+    "interval": 3,
+    "unit": "day",
+    "estimatedMinutes": 20,
+    "priority": "high",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  },
+  {
+    "name": "아기 세탁물 세탁",
+    "description": "아기 전용 세제로 옷·손수건·턱받이 등을 세탁하세요",
+    "type": "cleaning",
+    "interval": 2,
+    "unit": "day",
+    "estimatedMinutes": 10,
+    "priority": "high",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  },
+  {
+    "name": "기저귀 쓰레기 처리",
+    "description": "사용한 기저귀를 위생적으로 처리하고 쓰레기통을 비워주세요",
+    "type": "cleaning",
+    "interval": 1,
+    "unit": "day",
+    "estimatedMinutes": 5,
+    "priority": "high",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  },
+  {
+    "name": "아기 목욕",
+    "description": "아기를 목욕시키고 보습 케어를 해주세요",
+    "type": "self_care",
+    "interval": 2,
+    "unit": "day",
+    "estimatedMinutes": 20,
+    "priority": "medium",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  },
+  {
+    "name": "분유·이유식 재고 확인",
+    "description": "분유·이유식 재고가 충분한지 확인하고 부족하면 미리 주문하세요",
+    "type": "self_care",
+    "interval": 7,
+    "unit": "day",
+    "estimatedMinutes": 5,
+    "priority": "high",
+    "category": "infant",
+    "linkedFurnitureType": "baby_station"
+  }
+]

@@ -78,8 +78,13 @@ function getFurnitureName(type: FurnitureType): string {
     dresser: '화장대',
     drawer: '서랍장',
     wash_basin: '세면대',
+    pet: '반려동물',
+    medicine_cabinet: '약장',
+    car: '차량',
+    baby_station: '아기 용품',
+    personal_care: '퍼스널케어',
   };
-  return names[type];
+  return names[type] ?? type;
 }
 
 export interface UseHouseEditorReturn {

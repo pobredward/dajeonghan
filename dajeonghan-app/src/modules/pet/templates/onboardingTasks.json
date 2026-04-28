@@ -1,0 +1,151 @@
+{
+  "dog": [
+    {
+      "name": "강아지 산책",
+      "description": "강아지와 함께 규칙적으로 산책해주세요",
+      "type": "self_care",
+      "interval": 1,
+      "unit": "day",
+      "estimatedMinutes": 20,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "강아지 발 닦기",
+      "description": "산책 후 발바닥과 발 사이를 깨끗이 닦아주세요",
+      "type": "self_care",
+      "interval": 1,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "강아지 목욕",
+      "description": "털과 피부 건강을 위해 정기적으로 목욕시켜주세요",
+      "type": "self_care",
+      "interval": 14,
+      "unit": "day",
+      "estimatedMinutes": 40,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "강아지 귀 청소",
+      "description": "귀지가 쌓이지 않도록 면봉으로 가볍게 청소해주세요",
+      "type": "self_care",
+      "interval": 14,
+      "unit": "day",
+      "estimatedMinutes": 10,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "강아지 발톱 정리",
+      "description": "발톱이 너무 길어지지 않도록 정기적으로 다듬어주세요",
+      "type": "self_care",
+      "interval": 21,
+      "unit": "day",
+      "estimatedMinutes": 15,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "심장사상충·벼룩 예방약",
+      "description": "매월 심장사상충·벼룩 예방약을 챙겨주세요",
+      "type": "self_care",
+      "interval": 30,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    }
+  ],
+  "cat": [
+    {
+      "name": "고양이 화장실 청소",
+      "description": "매일 배변 패드나 모래를 확인하고 청소해주세요",
+      "type": "self_care",
+      "interval": 1,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "고양이 모래 전체 교체",
+      "description": "화장실 모래를 전체 교체하고 세척하세요",
+      "type": "self_care",
+      "interval": 14,
+      "unit": "day",
+      "estimatedMinutes": 20,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "고양이 빗질",
+      "description": "털 엉킴을 방지하고 털 날림을 줄이기 위해 빗질해주세요",
+      "type": "self_care",
+      "interval": 3,
+      "unit": "day",
+      "estimatedMinutes": 10,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "고양이 발톱 정리",
+      "description": "발톱 캡이나 발톱깎이로 발톱 길이를 관리해주세요",
+      "type": "self_care",
+      "interval": 21,
+      "unit": "day",
+      "estimatedMinutes": 15,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "내부 기생충·구충제",
+      "description": "정기적으로 구충제를 먹여주세요",
+      "type": "self_care",
+      "interval": 90,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    }
+  ],
+  "other": [
+    {
+      "name": "반려동물 사육장 청소",
+      "description": "케이지·수조·사육장을 청소하고 위생을 관리해주세요",
+      "type": "self_care",
+      "interval": 7,
+      "unit": "day",
+      "estimatedMinutes": 20,
+      "priority": "high",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    },
+    {
+      "name": "먹이·먹이 용품 점검",
+      "description": "먹이와 관련 용품 재고를 확인하고 보충해주세요",
+      "type": "self_care",
+      "interval": 7,
+      "unit": "day",
+      "estimatedMinutes": 5,
+      "priority": "medium",
+      "category": "pet",
+      "linkedFurnitureType": "pet"
+    }
+  ]
+}

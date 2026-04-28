@@ -17,13 +17,32 @@ export type NotificationMode = 'immediate' | 'digest' | 'minimal';
  * 사용자의 라이프스타일에 따른 프리셋
  */
 export type PersonaType = 
-  | 'student_20s_male'
-  | 'student_20s_female'
-  | 'worker_single'
-  | 'worker_roommate'
-  | 'newlywed'
+  | 'solo_young'
+  | 'solo_worker'
+  | 'couple_no_kid'
+  | 'family_with_kid'
+  | 'family_school_kid'
   | 'pet_owner'
+  | 'freelancer_homebody'
+  | 'senior_couple'
   | 'custom';
+
+/**
+ * 자기관리 항목
+ */
+export type SelfCareItem =
+  | 'skincare'
+  | 'gym'
+  | 'hair'
+  | 'nails'
+  | 'wax'
+  | 'massage'
+  | 'dental';
+
+/**
+ * 반려동물 타입
+ */
+export type PetType = 'dog' | 'cat' | 'other';
 
 /**
  * 요리 빈도
@@ -42,8 +61,12 @@ export interface UserEnvironment {
   usesCoinLaundry: boolean;
   cookingFrequency: CookingFrequency;
   hasPet: boolean;
-  petType?: string;
+  petType?: PetType;
   householdSize: number;
+  hasInfant: boolean;
+  hasCar: boolean;
+  hasPlant: boolean;
+  selfCareItems: SelfCareItem[];
 }
 
 /**

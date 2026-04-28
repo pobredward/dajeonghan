@@ -41,7 +41,12 @@ export type FurnitureType =
   | 'mirror'         // 거울
   | 'dresser'        // 화장대
   | 'drawer'         // 서랍장
-  | 'wash_basin';    // 세면대
+  | 'wash_basin'     // 세면대
+  | 'pet'            // 반려동물
+  | 'medicine_cabinet' // 약장
+  | 'car'            // 차량
+  | 'baby_station'   // 아기 용품 공간
+  | 'personal_care'; // 퍼스널케어 (헬스·왁싱·마사지 등 외부 서비스)
 
 /**
  * 가구별 특화 메타데이터
@@ -99,13 +104,47 @@ export interface DefaultFurnitureMetadata {
   customFields?: Record<string, any>; // 커스텀 필드
 }
 
+export interface PetFurnitureMetadata {
+  type: 'pet';
+  petType: 'dog' | 'cat' | 'other';
+  name?: string;
+  breed?: string;
+}
+
+export interface MedicineCabinetMetadata {
+  type: 'medicine_cabinet';
+  medicineCount?: number;
+}
+
+export interface CarMetadata {
+  type: 'car';
+  carType?: string;
+  lastOilChange?: Date;
+  lastInspection?: Date;
+}
+
+export interface BabyStationMetadata {
+  type: 'baby_station';
+  infantBirthDate?: Date;
+}
+
+export interface PersonalCareMetadata {
+  type: 'personal_care';
+  careItems?: string[];
+}
+
 export type FurnitureMetadata = 
   | FridgeMetadata 
   | BedMetadata 
   | DeskMetadata 
   | PlantMetadata
   | CleaningFurnitureMetadata
-  | DefaultFurnitureMetadata;
+  | DefaultFurnitureMetadata
+  | PetFurnitureMetadata
+  | MedicineCabinetMetadata
+  | CarMetadata
+  | BabyStationMetadata
+  | PersonalCareMetadata;
 
 /**
  * 가구 정보 (확장된 버전)
@@ -227,6 +266,11 @@ export const FURNITURE_DEFAULTS: Record<FurnitureType, {
   dresser: { emoji: '💄', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
   drawer: { emoji: '🗄️', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
   wash_basin: { emoji: '💧', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
+  pet: { emoji: '🐾', defaultSize: { width: 50, height: 50 }, category: 'living' },
+  medicine_cabinet: { emoji: '💊', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
+  car: { emoji: '🚗', defaultSize: { width: 50, height: 50 }, category: 'utility' },
+  baby_station: { emoji: '👶', defaultSize: { width: 50, height: 50 }, category: 'living' },
+  personal_care: { emoji: '🪄', defaultSize: { width: 50, height: 50 }, category: 'living' },
 };
 
 /**
@@ -307,6 +351,34 @@ export const createDefaultFurnitureMetadata = (furnitureType: FurnitureType): Fu
         cleaningFrequency: 7,
         cleaningSupplies: [],
         difficulty: 'medium',
+      };
+
+    case 'pet':
+      return {
+        type: 'pet',
+        petType: 'other',
+      };
+
+    case 'medicine_cabinet':
+      return {
+        type: 'medicine_cabinet',
+        medicineCount: 0,
+      };
+
+    case 'car':
+      return {
+        type: 'car',
+      };
+
+    case 'baby_station':
+      return {
+        type: 'baby_station',
+      };
+
+    case 'personal_care':
+      return {
+        type: 'personal_care',
+        careItems: [],
       };
     
     default:
