@@ -40,7 +40,8 @@ export type FurnitureType =
   | 'plant'          // 식물
   | 'mirror'         // 거울
   | 'dresser'        // 화장대
-  | 'drawer';        // 서랍장
+  | 'drawer'         // 서랍장
+  | 'wash_basin';    // 세면대
 
 /**
  * 가구별 특화 메타데이터
@@ -225,6 +226,7 @@ export const FURNITURE_DEFAULTS: Record<FurnitureType, {
   mirror: { emoji: '🪞', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
   dresser: { emoji: '💄', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
   drawer: { emoji: '🗄️', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
+  wash_basin: { emoji: '🪥', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
 };
 
 /**
@@ -298,6 +300,7 @@ export const createDefaultFurnitureMetadata = (furnitureType: FurnitureType): Fu
     case 'bathtub':
     case 'shower':
     case 'sink':
+    case 'wash_basin':
     case 'washing_machine':
       return {
         type: 'cleaning_furniture',
