@@ -226,7 +226,7 @@ export const FURNITURE_DEFAULTS: Record<FurnitureType, {
   mirror: { emoji: '🪞', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
   dresser: { emoji: '💄', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
   drawer: { emoji: '🗄️', defaultSize: { width: 50, height: 50 }, category: 'bedroom' },
-  wash_basin: { emoji: '🪥', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
+  wash_basin: { emoji: '💧', defaultSize: { width: 50, height: 50 }, category: 'bathroom' },
 };
 
 /**
