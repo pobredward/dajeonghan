@@ -2316,6 +2316,30 @@ const TaskDetailTabContent: React.FC<{
   );
 };
 
+// 주기를 한국어로 변환
+const getRecurrenceLabel = (recurrence: { type: string; interval?: number }): string => {
+  const { type, interval } = recurrence;
+  if (type === 'daily') return '매일';
+  if (type === 'weekly') {
+    const n = interval ?? 1;
+    if (n === 1) return '매주';
+    if (n === 2) return '격주';
+    return `${n}주마다`;
+  }
+  if (type === 'monthly') {
+    const n = interval ?? 1;
+    if (n === 1) return '매월';
+    if (n === 12) return '1년';
+    return `${n}개월`;
+  }
+  if (type === 'custom') {
+    const n = interval ?? 1;
+    if (n === 2) return '격일';
+    return `${n}일`;
+  }
+  return '';
+};
+
 // 템플릿 선택 컴포넌트
 const TaskTemplateSelection: React.FC<{
   furnitureType: string;
@@ -2346,48 +2370,45 @@ const TaskTemplateSelection: React.FC<{
         </View>
       </View>
 
+      {/* 우선순위 컬러 범례 */}
+      <View style={styles.priorityLegendRow}>
+        {([
+          { label: '중요', color: Colors.error },
+          { label: '보통', color: Colors.warning },
+          { label: '낮음', color: Colors.success },
+        ] as const).map(({ label, color }) => (
+          <View key={label} style={styles.priorityLegendItem}>
+            <View style={[styles.priorityLegendDot, { backgroundColor: color }]} />
+            <Text style={styles.priorityLegendText}>{label}</Text>
+          </View>
+        ))}
+      </View>
+
       {/* 템플릿 카드 그리드 */}
       <View style={styles.templateGrid}>
         {template.tasks.map((task) => (
           <TouchableOpacity
             key={task.id}
-            style={styles.templateCardNew}
+            style={[
+              styles.templateCardNew,
+              task.priority === 'high' && styles.templateCardNewHigh,
+              task.priority === 'medium' && styles.templateCardNewMedium,
+              task.priority === 'low' && styles.templateCardNewLow,
+            ]}
             onPress={() => onSelectTemplate(task)}
             activeOpacity={0.75}
           >
-            {/* 제목 + 우선순위 pill */}
-            <View style={styles.templateCardTitleRow}>
-              <Text style={styles.templateCardTitle} numberOfLines={1}>
-                {task.title}
-              </Text>
-              <View style={[
-                styles.priorityPill,
-                task.priority === 'high' && styles.priorityPillHigh,
-                task.priority === 'medium' && styles.priorityPillMedium,
-                task.priority === 'low' && styles.priorityPillLow,
-              ]}>
-                <Text style={[
-                  styles.priorityPillText,
-                  task.priority === 'high' && styles.priorityPillTextHigh,
-                  task.priority === 'medium' && styles.priorityPillTextMedium,
-                  task.priority === 'low' && styles.priorityPillTextLow,
-                ]}>
-                  {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+            {/* 제목 (2줄까지) */}
+            <Text style={styles.templateCardTitle} numberOfLines={2}>
+              {task.title}
+            </Text>
+
+            {/* 뱃지 행: 주기 칩 + 화살표 */}
+            <View style={styles.templateCardChipsRow}>
+              <View style={styles.templateCardRecurrenceChip}>
+                <Text style={styles.templateCardRecurrenceText}>
+                  🔄 {getRecurrenceLabel(task.defaultRecurrence)}
                 </Text>
-              </View>
-            </View>
-
-            {/* 설명 미리보기 */}
-            {task.description ? (
-              <Text style={styles.templateCardDesc} numberOfLines={1}>
-                {task.description}
-              </Text>
-            ) : null}
-
-            {/* 하단: 소요시간 칩 + 화살표 */}
-            <View style={styles.templateCardFooter}>
-              <View style={styles.taskChipTime}>
-                <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
               </View>
               <Text style={styles.templateCardArrow}>›</Text>
             </View>
@@ -2613,6 +2634,8 @@ const styles = StyleSheet.create({
   templateCardNew: {
     backgroundColor: Colors.white,
     borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.veryLightGray,
     padding: Spacing.md,
     margin: 4,
     flex: 1,
@@ -2624,39 +2647,71 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  templateCardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-    gap: 4,
+  templateCardNewHigh: {
+    borderLeftColor: Colors.error,
+  },
+  templateCardNewMedium: {
+    borderLeftColor: Colors.warning,
+  },
+  templateCardNewLow: {
+    borderLeftColor: Colors.success,
   },
   templateCardTitle: {
     ...Typography.label,
     color: Colors.textPrimary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    flex: 1,
     lineHeight: 18,
+    marginBottom: 8,
   },
-  templateCardDesc: {
-    ...Typography.caption,
+  priorityLegendRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  priorityLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  priorityLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  priorityLegendText: {
+    fontSize: 10,
     color: Colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 15,
-    marginBottom: Spacing.sm,
   },
-  templateCardFooter: {
+  templateCardChipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 2,
+  },
+  templateCardChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    flex: 1,
+  },
+  templateCardRecurrenceChip: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  templateCardRecurrenceText: {
+    fontSize: 11,
+    color: '#4A7FD4',
+    fontWeight: '600',
   },
   templateCardArrow: {
     fontSize: 18,
     color: Colors.lightGray,
     fontWeight: '600',
     lineHeight: 20,
+    marginLeft: 4,
   },
 
   // ── TaskCustomizationForm 새 스타일 ──
