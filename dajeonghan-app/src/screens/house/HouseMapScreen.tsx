@@ -518,7 +518,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     const categories = [
       { name: '주방', types: ['fridge', 'sink', 'stove'] as FurnitureType[] },
       { name: '침실', types: ['bed', 'closet', 'dresser', 'drawer'] as FurnitureType[] },
-      { name: '욕실', types: ['toilet', 'bathtub', 'shower', 'mirror'] as FurnitureType[] },
+      { name: '욕실', types: ['toilet', 'bathtub', 'shower', 'mirror', 'wash_basin'] as FurnitureType[] },
       { name: '거실', types: ['sofa', 'tv', 'table', 'plant'] as FurnitureType[] },
       { name: '서재', types: ['desk', 'chair', 'bookshelf'] as FurnitureType[] },
       { name: '기타', types: ['washing_machine'] as FurnitureType[] },
