@@ -42,7 +42,7 @@ export class FurnitureTaskService {
       const lifeObjectData: Omit<LifeObject, 'id' | 'createdAt' | 'updatedAt'> = {
         userId,
         type: templateTask.type,
-        name: `${furnitureName} - ${templateTask.title}`,
+        name: `${furnitureName} - ${customization.customTitle?.trim() || templateTask.title}`,
         metadata: this.createMetadataForType(templateTask.type, roomName, furnitureName),
       };
 
@@ -62,7 +62,7 @@ export class FurnitureTaskService {
       const taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> = {
         userId,
         objectId: lifeObjectRef.id,
-        title: templateTask.title,
+        title: customization.customTitle?.trim() || templateTask.title,
         description: templateTask.description,
         type: templateTask.type,
         recurrence,

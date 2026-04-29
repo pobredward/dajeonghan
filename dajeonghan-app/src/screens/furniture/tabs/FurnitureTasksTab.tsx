@@ -1575,6 +1575,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
               onHasTimeChange={setHasTime}
               estimatedMinutes={customization.estimatedMinutes ?? taskAddState.selectedTemplate.estimatedMinutes}
               onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
+              customTitle={customization.customTitle ?? ''}
+              onCustomTitleChange={(title) => onCustomizationChange({ ...customization, customTitle: title })}
             />
           )}
         </ScrollView>
@@ -2205,6 +2207,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                       onHasTimeChange={setHasTime}
                       estimatedMinutes={customization.estimatedMinutes ?? taskAddModal.template.estimatedMinutes}
                       onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
+                      customTitle={customization.customTitle ?? ''}
+                      onCustomTitleChange={(title) => onCustomizationChange({ ...customization, customTitle: title })}
                     />
                   )}
                 </ScrollView>
@@ -2432,6 +2436,8 @@ const TaskCustomizationForm: React.FC<{
   onHasTimeChange: (hasTime: boolean) => void;
   estimatedMinutes: number;
   onEstimatedMinutesChange: (minutes: number) => void;
+  customTitle: string;
+  onCustomTitleChange: (title: string) => void;
 }> = ({
   template,
   customization,
@@ -2445,6 +2451,8 @@ const TaskCustomizationForm: React.FC<{
   onHasTimeChange,
   estimatedMinutes,
   onEstimatedMinutesChange,
+  customTitle,
+  onCustomTitleChange,
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
   const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
@@ -2469,6 +2477,20 @@ const TaskCustomizationForm: React.FC<{
 
   return (
     <View style={styles.modernForm}>
+
+      {/* ── 제목 설정 섹션 ── */}
+      <View style={styles.titleSectionCard}>
+        <Text style={styles.titleSectionLabel}>제목 설정</Text>
+        <TextInput
+          style={styles.titleInput}
+          value={customTitle}
+          onChangeText={onCustomTitleChange}
+          placeholder={template.title}
+          placeholderTextColor={Colors.textSecondary}
+          returnKeyType="done"
+          maxLength={100}
+        />
+      </View>
 
       {/* ── 우선순위 설정 섹션 ── */}
       <View style={styles.prioritySectionCard}>
@@ -2715,6 +2737,35 @@ const styles = StyleSheet.create({
   },
 
   // ── TaskCustomizationForm 새 스타일 ──
+  titleSectionCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  titleSectionLabel: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 14,
+    marginBottom: Spacing.sm,
+  },
+  titleInput: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: Colors.background,
+  },
   prioritySectionCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,

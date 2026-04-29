@@ -66,4 +66,5 @@ export interface TaskCustomization {
   notificationMinutesBefore?: number;
   notificationTime?: string; // 알림 시간 (HH:MM 형식)
   hasTime?: boolean; // true면 startDate의 시·분을 nextDue에 그대로 반영
+  customTitle?: string; // 사용자 지정 제목
 }
