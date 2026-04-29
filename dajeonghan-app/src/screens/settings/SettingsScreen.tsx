@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +37,7 @@ const MenuRow: React.FC<MenuItem> = ({ title, onPress }) => (
 
 export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const { userId } = useAuth();
+  const [username, setUsername] = useState<string | undefined>();
   const [displayName, setDisplayName] = useState<string | undefined>();
   const [bio, setBio] = useState<string | undefined>();
   const [photoURL, setPhotoURL] = useState<string | undefined>();
@@ -48,6 +50,7 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const profile = await getUserProfile(userId);
       if (profile) {
+        setUsername(profile.username);
         setDisplayName(profile.displayName);
         setBio(profile.bio);
         setPhotoURL(profile.photoURL);
@@ -58,6 +61,18 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       setLoading(false);
     }
   }, [userId]);
+
+  const handleShareProfile = async () => {
+    if (!username) return;
+    try {
+      await Share.share({
+        message: `다정한에서 제 프로필을 확인해보세요! dajeonghan://user/${username}`,
+        url: `dajeonghan://user/${username}`,
+      });
+    } catch {
+      // 사용자가 공유를 취소한 경우 무시
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -101,6 +116,9 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.profileMeta}>
             <Text style={styles.profileName}>{displayName || '이름 미설정'}</Text>
+            {username ? (
+              <Text style={styles.profileUsername}>@{username}</Text>
+            ) : null}
             {bio ? <Text style={styles.profileBio}>{bio}</Text> : null}
 
             <View style={styles.followRow}>
@@ -124,13 +142,24 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.followLabel}>팔로잉</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => navigation.navigate('EditProfile')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.editButtonText}>편집</Text>
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate('EditProfile')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editButtonText}>편집</Text>
+                </TouchableOpacity>
+                {username ? (
+                  <TouchableOpacity
+                    style={[styles.editButton, styles.shareButton]}
+                    onPress={handleShareProfile}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.editButtonText}>공유</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           </View>
         </View>
@@ -212,6 +241,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 2,
   },
+  profileUsername: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
   profileBio: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
@@ -242,12 +276,19 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: Colors.veryLightGray,
   },
-  editButton: {
+  actionButtons: {
     marginLeft: 'auto' as any,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  editButton: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  shareButton: {
     borderColor: Colors.primary,
   },
   editButtonText: {

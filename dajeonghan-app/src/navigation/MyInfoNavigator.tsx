@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { EditProfileScreen } from '@/screens/settings/EditProfileScreen';
 import { FollowListScreen } from '@/screens/settings/FollowListScreen';
+import { UserSearchScreen } from '@/screens/settings/UserSearchScreen';
 import { AppSettingsScreen } from '@/screens/settings/AppSettingsScreen';
 import { AppInfoScreen } from '@/screens/settings/AppInfoScreen';
 import { AccountManagementScreen } from '@/screens/settings/AccountManagementScreen';
@@ -15,6 +16,7 @@ export type MyInfoStackParamList = {
   MyInfoMain: undefined;
   EditProfile: undefined;
   FollowList: { tab: 'followers' | 'following' };
+  UserSearch: undefined;
   AppSettings: undefined;
   AppInfo: undefined;
   AccountManagement: undefined;
@@ -62,6 +64,11 @@ export const MyInfoNavigator: React.FC = () => {
         name="FollowList"
         component={FollowListScreen}
         options={{ title: '팔로워/팔로잉' }}
+      />
+      <Stack.Screen
+        name="UserSearch"
+        component={UserSearchScreen}
+        options={{ title: '사용자 검색' }}
       />
       <Stack.Screen
         name="AppSettings"

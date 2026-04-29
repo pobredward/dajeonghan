@@ -2,6 +2,16 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // usernames 컬렉션: username → uid 매핑 (고유성 보장)
+    // - 읽기: 인증된 사용자 모두 허용 (검색·딥링크 조회 필요)
+    // - 쓰기: 해당 uid의 소유자만 허용 (본인 username만 설정 가능)
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    // TODO: 프로덕션 배포 전 아래 wildcard 규칙을 각 컬렉션별로 제한할 것
     match /{document=**} {
       allow read, write: if true;
     }

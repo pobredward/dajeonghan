@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
+import * as Linking from 'expo-linking';
 import { OnboardingFlow } from '@/screens/onboarding/OnboardingFlow';
 import { TabNavigator } from './TabNavigator';
 import { AuthNavigator } from './AuthNavigator';
 import { TermsOfServiceScreen } from '@/screens/legal/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@/screens/legal/PrivacyPolicyScreen';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserProfileModal } from '@/screens/settings/UserProfileModal';
+import { getPublicProfileByUsername } from '@/services/profileService';
+import type { PublicProfile } from '@/types/user.types';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -19,6 +23,14 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+const parseUserDeepLink = (url: string): string | null => {
+  const { path } = Linking.parse(url);
+  if (path?.startsWith('user/')) {
+    return path.replace('user/', '').split('?')[0];
+  }
+  return null;
+};
+
 export const RootNavigator: React.FC = () => {
   const {
     user,
@@ -29,6 +41,35 @@ export const RootNavigator: React.FC = () => {
     cancelGuestOnboarding,
     checkOnboardingStatus,
   } = useAuth();
+
+  const [deepLinkProfile, setDeepLinkProfile] = useState<PublicProfile | null>(null);
+  const [deepLinkModalVisible, setDeepLinkModalVisible] = useState(false);
+
+  const handleUserDeepLink = async (url: string) => {
+    const username = parseUserDeepLink(url);
+    if (!username) return;
+    try {
+      const profile = await getPublicProfileByUsername(username);
+      if (profile) {
+        setDeepLinkProfile(profile);
+        setDeepLinkModalVisible(true);
+      }
+    } catch {
+      // 프로필 로드 실패 시 무시
+    }
+  };
+
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUserDeepLink(url);
+    });
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleUserDeepLink(url);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   if (loading) {
     return (
@@ -45,6 +86,11 @@ export const RootNavigator: React.FC = () => {
 
   return (
     <NavigationContainer>
+      <UserProfileModal
+        visible={deepLinkModalVisible}
+        profile={deepLinkProfile}
+        onClose={() => setDeepLinkModalVisible(false)}
+      />
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

@@ -97,6 +97,7 @@ export interface UserProfile extends BaseEntity {
   onboardingDate?: Date;
   onboardingResponse?: OnboardingResponse;
   profileVersion: string;
+  username?: string;
   displayName?: string;
   bio?: string;
   photoURL?: string;
@@ -106,6 +107,7 @@ export interface UserProfile extends BaseEntity {
 
 export interface PublicProfile {
   userId: string;
+  username?: string;
   displayName?: string;
   photoURL?: string;
   bio?: string;

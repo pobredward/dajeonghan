@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,13 @@ import * as ImagePicker from 'expo-image-picker';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/services/firestoreService';
-import { updateProfile, uploadProfileImage } from '@/services/profileService';
+import {
+  updateProfile,
+  uploadProfileImage,
+  isUsernameAvailable,
+  setUsername as saveUsername,
+  USERNAME_REGEX,
+} from '@/services/profileService';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import type { MyInfoStackParamList } from '@/navigation/MyInfoNavigator';
 
@@ -30,8 +36,13 @@ interface Props {
 
 const BIO_MAX = 100;
 
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+
 export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { userId } = useAuth();
+  const [username, setUsername] = useState('');
+  const [originalUsername, setOriginalUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [photoURL, setPhotoURL] = useState<string | undefined>();
@@ -39,6 +50,7 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const displayNameRef = useRef<TextInput>(null);
   const bioRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -47,6 +59,8 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
       try {
         const profile = await getUserProfile(userId);
         if (profile) {
+          setUsername(profile.username ?? '');
+          setOriginalUsername(profile.username ?? '');
           setDisplayName(profile.displayName ?? '');
           setBio(profile.bio ?? '');
           setPhotoURL(profile.photoURL);
@@ -56,6 +70,34 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
       }
     })();
   }, [userId]);
+
+  const handleUsernameChange = (text: string) => {
+    const normalized = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsername(normalized);
+    setUsernameStatus('idle');
+  };
+
+  const checkUsername = useCallback(async () => {
+    if (!username) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (!USERNAME_REGEX.test(username)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    if (username === originalUsername) {
+      setUsernameStatus('available');
+      return;
+    }
+    setUsernameStatus('checking');
+    try {
+      const available = await isUsernameAvailable(username);
+      setUsernameStatus(available ? 'available' : 'taken');
+    } catch {
+      setUsernameStatus('idle');
+    }
+  }, [username, originalUsername]);
 
   const pickImage = async (source: 'gallery' | 'camera') => {
     let result: ImagePicker.ImagePickerResult;
@@ -113,23 +155,51 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!userId) return;
+
+    if (username && !USERNAME_REGEX.test(username)) {
+      Alert.alert('아이디 오류', '아이디는 영소문자, 숫자, 언더스코어만 사용 가능하며 3~20자여야 합니다.');
+      return;
+    }
+
+    if (username && username !== originalUsername && usernameStatus !== 'available') {
+      if (usernameStatus === 'taken') {
+        Alert.alert('아이디 오류', '이미 사용 중인 아이디입니다.');
+      } else {
+        Alert.alert('아이디 오류', '아이디 중복 확인을 완료해주세요.');
+      }
+      return;
+    }
+
     setSaving(true);
     try {
+      console.log('[EditProfile] handleSave 시작', { userId, username, originalUsername, usernameStatus });
+
       let finalPhotoURL = photoURL;
 
       if (localImageUri) {
+        console.log('[EditProfile] 이미지 업로드 시작');
         finalPhotoURL = await uploadProfileImage(userId, localImageUri);
+        console.log('[EditProfile] 이미지 업로드 완료', finalPhotoURL);
       }
 
+      console.log('[EditProfile] updateProfile 호출', { displayName: displayName.trim(), bio: bio.trim() });
       await updateProfile(userId, {
         displayName: displayName.trim(),
         bio: bio.trim(),
         photoURL: finalPhotoURL,
       });
+      console.log('[EditProfile] updateProfile 완료');
+
+      if (username && username !== originalUsername) {
+        console.log('[EditProfile] saveUsername 호출', { username, originalUsername });
+        await saveUsername(userId, username, originalUsername || undefined);
+        console.log('[EditProfile] saveUsername 완료');
+      }
 
       navigation.goBack();
-    } catch (e) {
-      Alert.alert('오류', '저장에 실패했습니다. 다시 시도해주세요.');
+    } catch (e: any) {
+      console.error('[EditProfile] 저장 실패', e?.code, e?.message, e);
+      Alert.alert('오류', `저장에 실패했습니다.\n${e?.message ?? ''}`);
     } finally {
       setSaving(false);
     }
@@ -177,8 +247,38 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* 입력 폼 */}
           <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>닉네임</Text>
+            <Text style={styles.fieldLabel}>아이디</Text>
+            <View style={styles.usernameRow}>
+              <TextInput
+                style={[styles.input, styles.usernameInput]}
+                value={username}
+                onChangeText={handleUsernameChange}
+                onBlur={checkUsername}
+                placeholder="영소문자, 숫자, _ (3~20자)"
+                placeholderTextColor={Colors.textDisabled}
+                returnKeyType="next"
+                onSubmitEditing={() => displayNameRef.current?.focus()}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+              />
+              {usernameStatus === 'checking' && (
+                <ActivityIndicator size="small" color={Colors.primary} style={styles.usernameIndicator} />
+              )}
+            </View>
+            {usernameStatus === 'available' && (
+              <Text style={styles.usernameHint}>사용 가능한 아이디입니다.</Text>
+            )}
+            {usernameStatus === 'taken' && (
+              <Text style={[styles.usernameHint, styles.usernameHintError]}>이미 사용 중인 아이디입니다.</Text>
+            )}
+            {usernameStatus === 'invalid' && (
+              <Text style={[styles.usernameHint, styles.usernameHintError]}>영소문자, 숫자, 언더스코어(_)만 사용 가능하며 3~20자여야 합니다.</Text>
+            )}
+
+            <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>닉네임</Text>
             <TextInput
+              ref={displayNameRef}
               style={styles.input}
               value={displayName}
               onChangeText={setDisplayName}
@@ -288,13 +388,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   input: {
-    ...Typography.body,
+    fontSize: Typography.body.fontSize,
+    fontWeight: Typography.body.fontWeight,
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: Colors.veryLightGray,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
     backgroundColor: Colors.background,
   },
   bioInput: {
@@ -306,6 +407,25 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'right',
     marginTop: 4,
+  },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  usernameInput: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 4,
+  },
+  usernameIndicator: {
+    marginLeft: Spacing.sm,
+  },
+  usernameHint: {
+    ...Typography.caption,
+    color: Colors.primary,
+    marginTop: 4,
+  },
+  usernameHintError: {
+    color: Colors.error,
   },
 
   /* 저장 버튼 */
