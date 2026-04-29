@@ -78,10 +78,13 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     const credential = EmailAuthProvider.credential(email, password);
     const userCredential = await linkWithCredential(currentUser, credential);
 
+    // 이메일 인증 발송 (연결 후 emailVerified=false 상태이므로)
+    await sendEmailVerification(userCredential.user);
+
     // 계정 연결 로그
     await logAccountLink(userCredential.user.uid, 'email');
 
-    console.log('✅ 이메일 계정 연결 성공');
+    console.log('✅ 이메일 계정 연결 성공, 인증 이메일 발송 완료');
     return userCredential.user;
   } catch (error: any) {
     console.error('❌ 이메일 계정 연결 실패:', error);
@@ -196,8 +199,9 @@ export const getLinkedProviders = (): string[] => {
 /**
  * 이메일/비밀번호로 로그인
  *
- * emailVerified=false인 경우 'auth/email-not-verified' 코드를 가진 에러를 throw합니다.
- * AuthScreen에서 이 코드를 감지해 EmailVerificationScreen으로 이동합니다.
+ * emailVerified=false인 경우 세션을 유지한 채로 'auth/email-not-verified' 코드를 가진 에러를 throw합니다.
+ * AuthScreen에서 이 코드를 감지해 EmailVerificationScreen으로 이동하며,
+ * 화면을 벗어날 때 signOut을 처리합니다.
  */
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
   try {
@@ -205,8 +209,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     const user = userCredential.user;
 
     if (!user.emailVerified) {
-      // 미인증 상태로 세션이 열렸으므로 로그아웃 처리
-      await auth.signOut();
+      // 세션을 유지한 채로 에러를 throw → EmailVerificationScreen에서 재발송/인증 확인 가능
       const err: any = new Error('이메일 인증이 필요합니다.\n받은편지함의 인증 링크를 클릭해주세요.');
       err.code = 'auth/email-not-verified';
       throw err;
@@ -283,6 +286,11 @@ export const resendEmailVerification = async (): Promise<void> => {
     console.log('✅ 인증 이메일 재발송 완료');
   } catch (error: any) {
     console.error('❌ 인증 이메일 재발송 실패:', error);
+
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error('잠시 후 다시 시도해주세요. (이메일 발송 횟수 초과)');
+    }
+
     throw new Error(`재발송 실패: ${error.message}`);
   }
 };

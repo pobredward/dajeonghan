@@ -85,8 +85,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
     await currentUser.reload();
-    setUser({ ...currentUser } as User);
-    await checkOnboardingStatus(currentUser.uid);
+    // reload() 후 auth.currentUser를 다시 참조해야 갱신된 User 객체(메서드 포함)를 얻을 수 있음
+    const refreshed = auth.currentUser;
+    if (refreshed) {
+      setUser(refreshed);
+      await checkOnboardingStatus(refreshed.uid);
+    }
   };
 
   return (

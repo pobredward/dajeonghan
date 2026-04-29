@@ -85,8 +85,8 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
       // 성공 시 AuthContext의 onAuthStateChanged가 자동으로 처리
     } catch (e: any) {
       if ((e as any).code === 'auth/email-not-verified') {
-        // 미인증 계정 → 인증 화면으로 이동 (signInWithEmail 내부에서 이미 signOut됨)
-        navigation.navigate('EmailVerification', { email: email.trim() });
+        // 미인증 계정 → 인증 화면으로 이동 (세션 유지 상태, 화면 이탈 시 signOut 처리)
+        navigation.navigate('EmailVerification', { email: email.trim(), fromLogin: true });
       } else {
         Alert.alert('로그인 실패', e.message);
       }

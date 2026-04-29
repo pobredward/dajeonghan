@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   View,
   Text,
   TouchableOpacity,
@@ -8,13 +9,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { auth } from '@/config/firebase';
-import { resendEmailVerification, deleteCurrentUser } from '@/services/authService';
+import { resendEmailVerification, deleteCurrentUser, signOut } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 type Props = {
   navigation: StackNavigationProp<AuthStackParamList, 'EmailVerification'>;
@@ -22,26 +26,56 @@ type Props = {
 };
 
 export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { email } = route.params;
+  const { email, fromLogin = false } = route.params;
   const { refreshUser } = useAuth();
   const [checking, setChecking] = useState(false);
   const [resending, setResending] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [leavingAccount, setLeavingAccount] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 재발송 쿨다운 타이머
+  const startCooldown = () => {
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, []);
+
+  // Android 하드웨어 백버튼 차단
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => true;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, []),
+  );
 
   const handleCheckVerification = async () => {
     setChecking(true);
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        Alert.alert('오류', '로그인 상태가 아닙니다. 다시 시도해주세요.');
+        Alert.alert('오류', '로그인 상태가 아닙니다. 로그인 화면으로 돌아가 다시 시도해주세요.');
+        navigation.navigate('Login');
         return;
       }
 
-      // Firebase에서 최신 인증 상태 가져오기
       await currentUser.reload();
 
-      if (currentUser.emailVerified) {
-        // refreshUser로 AuthContext 상태 갱신 → RootNavigator가 온보딩/메인으로 자동 전환
+      if (auth.currentUser?.emailVerified) {
         await refreshUser();
       } else {
         Alert.alert(
@@ -57,9 +91,11 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
   };
 
   const handleResend = async () => {
+    if (cooldown > 0) return;
     setResending(true);
     try {
       await resendEmailVerification();
+      startCooldown();
       Alert.alert('재발송 완료', `${email}으로 인증 이메일을 다시 보냈습니다.`);
     } catch (e: any) {
       Alert.alert('재발송 실패', e.message);
@@ -68,6 +104,33 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
     }
   };
 
+  // 화면을 떠날 때: fromLogin 경로라면 signOut, 회원가입 경로라면 미인증 계정 삭제
+  const handleLeave = async () => {
+    setLeavingAccount(true);
+    try {
+      if (fromLogin) {
+        // 로그인 시도로 진입한 경우: 세션을 종료만 하고 계정은 유지
+        await signOut();
+        navigation.navigate('Login');
+      } else {
+        // 회원가입 직후 진입한 경우: 미인증 고아 계정 삭제 후 회원가입으로
+        try {
+          await deleteCurrentUser();
+        } catch {
+          // 삭제 실패해도 진행
+        }
+        navigation.navigate('SignUp');
+      }
+    } catch {
+      // signOut 실패해도 Login으로 이동
+      navigation.navigate('Login');
+    } finally {
+      setLeavingAccount(false);
+    }
+  };
+
+  const isResendDisabled = resending || cooldown > 0;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.container}>
@@ -75,7 +138,11 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
         <Text style={styles.title}>이메일을 확인해주세요</Text>
         <Text style={styles.description}>
           <Text style={styles.emailText}>{email}</Text>
-          {'\n'}으로 인증 이메일을 발송했습니다.{'\n\n'}
+          {'\n'}
+          {fromLogin
+            ? '로 인증 이메일이 발송된 적 있습니다.'
+            : '으로 인증 이메일을 발송했습니다.'}
+          {'\n\n'}
           이메일의 링크를 클릭한 후{'\n'}"인증 완료 확인" 버튼을 눌러주세요.
         </Text>
 
@@ -94,40 +161,33 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
 
         <View style={styles.subRow}>
           <TouchableOpacity
-            style={resending && styles.buttonDisabled}
+            style={isResendDisabled ? styles.buttonDisabled : undefined}
             onPress={handleResend}
-            disabled={resending}
+            disabled={isResendDisabled}
             activeOpacity={0.7}
           >
             {resending ? (
               <ActivityIndicator color={Colors.primary} size="small" />
             ) : (
-              <Text style={styles.subLink}>인증 이메일 재발송</Text>
+              <Text style={styles.subLink}>
+                {cooldown > 0 ? `재발송 (${cooldown}초 후 가능)` : '인증 이메일 재발송'}
+              </Text>
             )}
           </TouchableOpacity>
 
           <Text style={styles.subDot}>·</Text>
 
           <TouchableOpacity
-            onPress={async () => {
-              setDeletingAccount(true);
-              try {
-                // 미인증 계정을 삭제하여 고아 계정이 쌓이지 않도록 처리
-                await deleteCurrentUser();
-              } catch {
-                // 삭제 실패해도 로그인 화면으로 이동 (signOut은 이미 됐을 수 있음)
-              } finally {
-                setDeletingAccount(false);
-                navigation.navigate('SignUp');
-              }
-            }}
-            disabled={deletingAccount}
+            onPress={handleLeave}
+            disabled={leavingAccount}
             activeOpacity={0.7}
           >
-            {deletingAccount ? (
+            {leavingAccount ? (
               <ActivityIndicator color={Colors.primary} size="small" />
             ) : (
-              <Text style={styles.subLink}>다른 이메일로 가입</Text>
+              <Text style={styles.subLink}>
+                {fromLogin ? '로그인으로 돌아가기' : '다른 이메일로 가입'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>

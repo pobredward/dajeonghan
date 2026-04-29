@@ -12,7 +12,11 @@ import { PrivacyPolicyScreen } from '@/screens/legal/PrivacyPolicyScreen';
 export type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
-  EmailVerification: { email: string };
+  /**
+   * fromLogin: true → 로그인 시도 후 미인증 경로 (세션이 살아 있음, 화면 이탈 시 signOut 필요)
+   * fromLogin: false(기본) → 회원가입 직후 경로
+   */
+  EmailVerification: { email: string; fromLogin?: boolean };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
