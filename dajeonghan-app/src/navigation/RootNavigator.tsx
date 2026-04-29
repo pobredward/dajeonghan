@@ -11,6 +11,7 @@ import { PrivacyPolicyScreen } from '@/screens/legal/PrivacyPolicyScreen';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserProfileModal } from '@/screens/settings/UserProfileModal';
 import { getPublicProfileByUsername } from '@/services/profileService';
+import { useNotificationListener } from '@/hooks/useNotificationListener';
 import type { PublicProfile } from '@/types/user.types';
 
 export type RootStackParamList = {
@@ -31,7 +32,11 @@ const parseUserDeepLink = (url: string): string | null => {
   return null;
 };
 
-export const RootNavigator: React.FC = () => {
+/**
+ * NavigationContainer 내부에서 마운트되어야 useNavigation이 동작합니다.
+ * useNotificationListener를 여기에 배치하여 NavigationContainer 컨텍스트를 보장합니다.
+ */
+const NavigatorContent: React.FC = () => {
   const {
     user,
     userId,
@@ -41,6 +46,8 @@ export const RootNavigator: React.FC = () => {
     cancelGuestOnboarding,
     checkOnboardingStatus,
   } = useAuth();
+
+  useNotificationListener();
 
   const [deepLinkProfile, setDeepLinkProfile] = useState<PublicProfile | null>(null);
   const [deepLinkModalVisible, setDeepLinkModalVisible] = useState(false);
@@ -85,7 +92,7 @@ export const RootNavigator: React.FC = () => {
   const shouldShowOnboarding = (user && !isOnboarded) || isGuestOnboarding;
 
   return (
-    <NavigationContainer>
+    <>
       <UserProfileModal
         visible={deepLinkModalVisible}
         profile={deepLinkProfile}
@@ -161,6 +168,14 @@ export const RootNavigator: React.FC = () => {
           />
         )}
       </Stack.Navigator>
+    </>
+  );
+};
+
+export const RootNavigator: React.FC = () => {
+  return (
+    <NavigationContainer>
+      <NavigatorContent />
     </NavigationContainer>
   );
 };

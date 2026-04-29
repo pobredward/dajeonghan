@@ -15,7 +15,7 @@ export { LifeEngineService } from './LifeEngineService';
 
 export type { PrioritizedTask } from './PriorityCalculator';
 export type { PostponeReason } from './PostponeEngine';
-export type { DigestContent } from './NotificationOrchestrator';
+export type { OrchestratorDigest } from './NotificationOrchestrator';
 export type {
   CompleteTaskResult,
   PostponeTaskResult,

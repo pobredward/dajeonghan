@@ -10,7 +10,7 @@
 import { Task } from '../types/task.types';
 import { UserProfile } from '../types/user.types';
 import * as Notifications from 'expo-notifications';
-import { differenceInHours, differenceInDays } from 'date-fns';
+import { differenceInHours } from 'date-fns';
 
 /**
  * 알림 설정 (앱 시작 시 호출)
@@ -25,7 +25,12 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export interface DigestContent {
+/**
+ * NotificationOrchestrator.generateDigest()의 반환 타입.
+ * notification.types.ts의 DigestContent(섹션 기반)와 달리,
+ * 오케스트레이터는 태스크 목록 원본을 함께 반환합니다.
+ */
+export interface OrchestratorDigest {
   title: string;
   body: string;
   tasks: Task[];
@@ -113,7 +118,7 @@ export class NotificationOrchestrator {
   static generateDigest(
     tasks: Task[],
     digestTime: string
-  ): DigestContent {
+  ): OrchestratorDigest {
     const sortedTasks = tasks
       .filter(t => t.status === 'pending')
       .sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0))
@@ -158,7 +163,7 @@ export class NotificationOrchestrator {
   static async scheduleDigestNotification(
     userId: string,
     digestTime: string,
-    digest: DigestContent
+    digest: OrchestratorDigest
   ): Promise<string> {
     try {
       const [hours, minutes] = digestTime.split(':').map(Number);

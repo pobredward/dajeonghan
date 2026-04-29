@@ -16,7 +16,6 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 const db = admin.firestore();
-const messaging = admin.messaging();
 
 // ============================================================================
 // Step 10: 성장 전략 - 재참여 캠페인
@@ -259,9 +258,11 @@ export const sendMorningDigest = functions
           return;
         }
 
+        const { title, body } = await buildDigestContent(userId, 'morning');
+
         await sendExpoPushNotification(pushToken, {
-          title: '오늘의 할 일 📋',
-          body: '다정한과 함께 하루를 시작해보세요',
+          title,
+          body,
           data: { type: 'morning_digest' }
         });
 
@@ -298,9 +299,11 @@ export const sendEveningDigest = functions
         const pushToken = profile.expoPushToken;
         if (!pushToken) return;
 
+        const { title, body } = await buildDigestContent(userId, 'evening');
+
         await sendExpoPushNotification(pushToken, {
-          title: '오늘 하루 수고하셨어요 🌙',
-          body: '내일도 다정한과 함께해요',
+          title,
+          body,
           data: { type: 'evening_digest' }
         });
 
@@ -379,6 +382,61 @@ export const cleanupUserData = functions
 // ============================================================================
 // 헬퍼 함수
 // ============================================================================
+
+/**
+ * 사용자별 Firestore 데이터를 조회하여 개인화된 다이제스트 제목/본문을 생성합니다.
+ * 클라이언트 DigestService와 동일한 로직을 서버에서 재현합니다.
+ */
+async function buildDigestContent(
+  userId: string,
+  time: 'morning' | 'evening'
+): Promise<{ title: string; body: string }> {
+  const title = time === 'morning' ? '☀️ 오늘의 할 일' : '🌙 오늘 남은 일';
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTs = admin.firestore.Timestamp.fromDate(today);
+
+    // 오늘 마감이거나 이미 지난 pending 태스크 조회
+    const tasksSnap = await db
+      .collection(`users/${userId}/tasks`)
+      .where('status', '==', 'pending')
+      .get();
+
+    const summaryParts: string[] = [];
+
+    const cleaningTasks = tasksSnap.docs.filter(d => d.data().type === 'cleaning');
+    const foodTasks = tasksSnap.docs.filter(d => d.data().type === 'food');
+    const medicineTasks = tasksSnap.docs.filter(d => d.data().type === 'medicine');
+
+    if (cleaningTasks.length > 0) {
+      summaryParts.push(`🧹 청소 ${cleaningTasks.length}개`);
+    }
+    if (foodTasks.length > 0) {
+      summaryParts.push(`🥗 식재료 ${foodTasks.length}개`);
+    }
+    // 약 알림은 오전 다이제스트에만 포함
+    if (time === 'morning' && medicineTasks.length > 0) {
+      summaryParts.push(`💊 약 ${medicineTasks.length}회`);
+    }
+
+    if (summaryParts.length === 0) {
+      const body = time === 'morning'
+        ? '오늘은 할 일이 없어요!'
+        : '오늘 할 일을 모두 끝냈어요!';
+      return { title, body };
+    }
+
+    return { title, body: summaryParts.join(' · ') };
+  } catch (error) {
+    console.error(`${userId} 다이제스트 내용 생성 실패:`, error);
+    const fallback = time === 'morning'
+      ? '다정한과 함께 하루를 시작해보세요'
+      : '오늘 하루도 수고하셨어요';
+    return { title, body: fallback };
+  }
+}
 
 async function sendExpoPushNotification(
   pushToken: string,

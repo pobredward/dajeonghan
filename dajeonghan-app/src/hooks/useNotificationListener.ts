@@ -20,16 +20,23 @@ export const useNotificationListener = () => {
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data as any;
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      const type = data?.type as string | undefined;
 
-      if (data.type === 'medicine') {
-        navigation.navigate('Medicine' as never);
-      } else if (data.type === 'food') {
-        navigation.navigate('Fridge' as never);
-      } else if (data.type === 'cleaning' || data.type === 'task') {
-        navigation.navigate('Cleaning' as never);
-      } else if (data.type === 'digest') {
-        navigation.navigate('Home' as never);
+      // 로컬 알림 타입: 관련 탭으로 이동
+      // 약/식재료/청소 → 집 탭(HouseMap), 다이제스트/태스크 → 달력 탭
+      if (type === 'medicine' || type === 'food' || type === 'cleaning' || type === 'task') {
+        navigation.navigate('HouseMap' as never);
+      } else if (
+        type === 'digest' ||
+        type === 'morning_digest' ||
+        type === 'evening_digest' ||
+        type === 'weekly_report'
+      ) {
+        navigation.navigate('Calendar' as never);
+      } else if (type === 'streak_reminder' || type === 'reengagement') {
+        // 스트릭/재참여 → 달력(오늘 할 일 확인 유도)
+        navigation.navigate('Calendar' as never);
       }
 
       NotificationService.clearBadge();
