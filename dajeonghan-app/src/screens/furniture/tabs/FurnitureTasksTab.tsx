@@ -118,7 +118,9 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   const [upcomingCollapsed, setUpcomingCollapsed] = useState<boolean>(false);
 
   // Task 세부 모달 인라인 편집
-  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | null>(null);
+  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | 'title' | 'description' | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editDescription, setEditDescription] = useState<string>('');
   const [editRecurrenceUnit, setEditRecurrenceUnit] = useState<'day' | 'week' | 'month'>('week');
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState<number>(1);
   const [editStartDate, setEditStartDate] = useState<Date>(new Date());
@@ -1034,6 +1036,48 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     }
   };
 
+  const handleUpdateTitle = async (task: Task, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed || !userId) return;
+    try {
+      await updateTask(userId, task.id, { title: trimmed });
+      setFurnitureData(prev => prev ? {
+        ...prev,
+        linkedTasks: prev.linkedTasks.map(t =>
+          t.id === task.id ? { ...t, title: trimmed } : t
+        ),
+      } : prev);
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, title: trimmed } : null,
+      }));
+      setEditingField(null);
+    } catch (error) {
+      Alert.alert('오류', '제목 변경에 실패했습니다.');
+    }
+  };
+
+  const handleUpdateDescription = async (task: Task, newDescription: string) => {
+    if (!userId) return;
+    const trimmed = newDescription.trim();
+    try {
+      await updateTask(userId, task.id, { description: trimmed || undefined });
+      setFurnitureData(prev => prev ? {
+        ...prev,
+        linkedTasks: prev.linkedTasks.map(t =>
+          t.id === task.id ? { ...t, description: trimmed || undefined } : t
+        ),
+      } : prev);
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, description: trimmed || undefined } : null,
+      }));
+      setEditingField(null);
+    } catch (error) {
+      Alert.alert('오류', '설명 변경에 실패했습니다.');
+    }
+  };
+
   const handleUpdatePriority = async (task: Task, newPriority: PriorityLevel) => {
     if (!userId || !task.id) return;
     try {
@@ -1576,7 +1620,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
               estimatedMinutes={customization.estimatedMinutes ?? taskAddState.selectedTemplate.estimatedMinutes}
               onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
               customTitle={customization.customTitle ?? ''}
-              onCustomTitleChange={(title) => onCustomizationChange({ ...customization, customTitle: title })}
+              onCustomTitleChange={(title) => setCustomization(prev => ({ ...prev, customTitle: title }))}
             />
           )}
         </ScrollView>
@@ -1761,7 +1805,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     )}
 
                     <View style={styles.detailHeaderRow}>
-                      <Text style={styles.detailTitle} numberOfLines={2}>{task.title}</Text>
+                      <Text style={[styles.detailTitle, { flex: 1 }]} numberOfLines={2}>{task.title}</Text>
                       <TouchableOpacity
                         style={styles.closeButton}
                         onPress={() => setTaskDetailModal({ visible: false, task: null })}
@@ -1813,6 +1857,139 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                           )}
                         </View>
                       )}
+                      {/* 제목 행 */}
+                      <TouchableOpacity
+                        style={[
+                          styles.detailSummaryRowItem,
+                          styles.detailSummaryRowItemBorder,
+                          editingField === 'title' && styles.detailSummaryRowItemActive,
+                        ]}
+                        onPress={() => {
+                          if (editingField === 'title') {
+                            setEditingField(null);
+                          } else {
+                            setEditTitle(task.title);
+                            setEditingField('title');
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.detailSummaryIcon}>✏️</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailSummaryLabel}>제목</Text>
+                          <Text style={[
+                            styles.detailSummaryValue,
+                            editingField === 'title' && { color: Colors.primary },
+                          ]}>
+                            {task.title}
+                          </Text>
+                        </View>
+                        <Text style={[
+                          styles.detailEditIcon,
+                          editingField === 'title' && { color: Colors.primary, opacity: 1 },
+                        ]}>
+                          {editingField === 'title' ? '▲' : '✏️'}
+                        </Text>
+                      </TouchableOpacity>
+                      {editingField === 'title' && (
+                        <View style={styles.detailEditPanelInCard}>
+                          <TextInput
+                            style={styles.titleInput}
+                            value={editTitle}
+                            onChangeText={setEditTitle}
+                            placeholder={task.title}
+                            placeholderTextColor={Colors.textSecondary}
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={() => handleUpdateTitle(task, editTitle)}
+                            maxLength={100}
+                          />
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateTitle(task, editTitle)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 설명 행 */}
+                      <TouchableOpacity
+                        style={[
+                          styles.detailSummaryRowItem,
+                          styles.detailSummaryRowItemBorder,
+                          editingField === 'description' && styles.detailSummaryRowItemActive,
+                        ]}
+                        onPress={() => {
+                          if (editingField === 'description') {
+                            setEditingField(null);
+                          } else {
+                            setEditDescription(task.description ?? '');
+                            setEditingField('description');
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.detailSummaryIcon}>📝</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailSummaryLabel}>설명</Text>
+                          <Text style={[
+                            styles.detailSummaryValue,
+                            editingField === 'description' && { color: Colors.primary },
+                            !task.description && { color: Colors.textSecondary },
+                          ]}>
+                            {task.description || '미입력'}
+                          </Text>
+                        </View>
+                        <Text style={[
+                          styles.detailEditIcon,
+                          editingField === 'description' && { color: Colors.primary, opacity: 1 },
+                        ]}>
+                          {editingField === 'description' ? '▲' : '✏️'}
+                        </Text>
+                      </TouchableOpacity>
+                      {editingField === 'description' && (
+                        <View style={styles.detailEditPanelInCard}>
+                          <TextInput
+                            style={[styles.titleInput, styles.descriptionInput]}
+                            value={editDescription}
+                            onChangeText={setEditDescription}
+                            placeholder="설명을 입력하세요"
+                            placeholderTextColor={Colors.textSecondary}
+                            autoFocus
+                            multiline
+                            returnKeyType="default"
+                            maxLength={500}
+                          />
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateDescription(task, editDescription)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
                       {task.recurrence?.type === 'fixed' && (
                         <TouchableOpacity
                           style={[
@@ -1985,13 +2162,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                             </TouchableOpacity>
                           </View>
                         </View>
-                      </View>
-                    )}
-
-                    {/* 설명 */}
-                    {task.description && (
-                      <View style={styles.detailDescBox}>
-                        <Text style={styles.detailDescription}>{task.description}</Text>
                       </View>
                     )}
 
@@ -2208,7 +2378,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                       estimatedMinutes={customization.estimatedMinutes ?? taskAddModal.template.estimatedMinutes}
                       onEstimatedMinutesChange={(m) => onCustomizationChange({ ...customization, estimatedMinutes: m })}
                       customTitle={customization.customTitle ?? ''}
-                      onCustomTitleChange={(title) => onCustomizationChange({ ...customization, customTitle: title })}
+                      onCustomTitleChange={(title) => setCustomization(prev => ({ ...prev, customTitle: title }))}
                     />
                   )}
                 </ScrollView>
@@ -5094,6 +5264,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  detailEditPanelInCard: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+    backgroundColor: Colors.background,
+  },
+  descriptionInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   detailEditPanelHeaderRecurrence: {
     flexDirection: 'row',

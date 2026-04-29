@@ -10,6 +10,7 @@ import {
   Animated,
   Modal,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
@@ -97,13 +98,15 @@ export const CalendarScreen: React.FC = () => {
   const [taskLoadingStates, setTaskLoadingStates] = useState<Record<string, boolean>>({});
 
   // 편집 state
-  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | null>(null);
+  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | 'title' | 'description' | null>(null);
   const [editRecurrenceUnit, setEditRecurrenceUnit] = useState<'day' | 'week' | 'month'>('week');
   const [editRecurrenceInterval, setEditRecurrenceInterval] = useState<number>(1);
   const [editStartDate, setEditStartDate] = useState<Date>(new Date());
   const [editSelectedDays, setEditSelectedDays] = useState<DayOfWeek[]>([]);
   const [editMinutes, setEditMinutes] = useState<number>(15);
   const [editHasTime, setEditHasTime] = useState<boolean>(false);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editDescription, setEditDescription] = useState<string>('');
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
@@ -378,6 +381,43 @@ export const CalendarScreen: React.FC = () => {
     } catch (e) {
       console.error('[CalendarScreen] 소요시간 업데이트 실패:', e);
       Alert.alert('오류', '소요시간 수정에 실패했습니다.');
+    }
+  }, [userId]);
+
+  const handleUpdateTitle = useCallback(async (task: Task, newTitle: string) => {
+    if (!userId) return;
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    try {
+      await updateTask(userId, String(task.id), { title: trimmed } as Partial<Task>);
+      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, title: trimmed } : t));
+      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, title: trimmed } : t));
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, title: trimmed } : null,
+      }));
+      setEditingField(null);
+    } catch (e) {
+      console.error('[CalendarScreen] 제목 업데이트 실패:', e);
+      Alert.alert('오류', '제목 수정에 실패했습니다.');
+    }
+  }, [userId]);
+
+  const handleUpdateDescription = useCallback(async (task: Task, newDescription: string) => {
+    if (!userId) return;
+    const trimmed = newDescription.trim();
+    try {
+      await updateTask(userId, String(task.id), { description: trimmed || undefined } as Partial<Task>);
+      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, description: trimmed || undefined } : t));
+      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, description: trimmed || undefined } : t));
+      setTaskDetailModal(prev => ({
+        ...prev,
+        task: prev.task ? { ...prev.task, description: trimmed || undefined } : null,
+      }));
+      setEditingField(null);
+    } catch (e) {
+      console.error('[CalendarScreen] 설명 업데이트 실패:', e);
+      Alert.alert('오류', '설명 수정에 실패했습니다.');
     }
   }, [userId]);
 
@@ -742,6 +782,129 @@ export const CalendarScreen: React.FC = () => {
                           )}
                         </View>
                       )}
+                      {/* 제목 행 */}
+                      <TouchableOpacity
+                        style={[
+                          styles.detailSummaryRowItem,
+                          styles.detailSummaryRowItemBorder,
+                          editingField === 'title' && styles.detailSummaryRowItemActive,
+                        ]}
+                        onPress={() => {
+                          if (editingField === 'title') {
+                            setEditingField(null);
+                          } else {
+                            setEditTitle(task.title);
+                            setEditingField('title');
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.detailSummaryIcon}>✏️</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailSummaryLabel}>제목</Text>
+                          <Text style={[
+                            styles.detailSummaryValue,
+                            editingField === 'title' && { color: Colors.primary },
+                          ]}>
+                            {task.title}
+                          </Text>
+                        </View>
+                        <Text style={styles.detailEditIcon}>{editingField === 'title' ? '▲' : '✏️'}</Text>
+                      </TouchableOpacity>
+                      {editingField === 'title' && (
+                        <View style={styles.detailEditPanelInCard}>
+                          <TextInput
+                            style={styles.titleInput}
+                            value={editTitle}
+                            onChangeText={setEditTitle}
+                            placeholder={task.title}
+                            placeholderTextColor={Colors.textSecondary}
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={() => handleUpdateTitle(task, editTitle)}
+                            maxLength={100}
+                          />
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateTitle(task, editTitle)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* 설명 행 */}
+                      <TouchableOpacity
+                        style={[
+                          styles.detailSummaryRowItem,
+                          styles.detailSummaryRowItemBorder,
+                          editingField === 'description' && styles.detailSummaryRowItemActive,
+                        ]}
+                        onPress={() => {
+                          if (editingField === 'description') {
+                            setEditingField(null);
+                          } else {
+                            setEditDescription(task.description ?? '');
+                            setEditingField('description');
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.detailSummaryIcon}>📝</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailSummaryLabel}>설명</Text>
+                          <Text style={[
+                            styles.detailSummaryValue,
+                            editingField === 'description' && { color: Colors.primary },
+                            !task.description && { color: Colors.textSecondary },
+                          ]}>
+                            {task.description || '미입력'}
+                          </Text>
+                        </View>
+                        <Text style={styles.detailEditIcon}>{editingField === 'description' ? '▲' : '✏️'}</Text>
+                      </TouchableOpacity>
+                      {editingField === 'description' && (
+                        <View style={styles.detailEditPanelInCard}>
+                          <TextInput
+                            style={[styles.titleInput, styles.descriptionInput]}
+                            value={editDescription}
+                            onChangeText={setEditDescription}
+                            placeholder="설명을 입력하세요"
+                            placeholderTextColor={Colors.textSecondary}
+                            autoFocus
+                            multiline
+                            returnKeyType="default"
+                            maxLength={500}
+                          />
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateDescription(task, editDescription)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
                       {task.recurrence?.type === 'fixed' && (
                         <>
                           <TouchableOpacity
@@ -872,15 +1035,6 @@ export const CalendarScreen: React.FC = () => {
                           </View>
                         </View>
                       )}
-                      {task.description ? (
-                        <View style={styles.detailSummaryRowItem}>
-                          <Text style={styles.detailSummaryIcon}>📝</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.detailSummaryLabel}>설명</Text>
-                            <Text style={styles.detailSummaryValue}>{task.description}</Text>
-                          </View>
-                        </View>
-                      ) : null}
                     </View>
                   </ScrollView>
 
@@ -1264,6 +1418,28 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
     borderWidth: 1,
     borderColor: Colors.veryLightGray,
+  },
+  detailEditPanelInCard: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
+    backgroundColor: Colors.background,
+  },
+  titleInput: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: Colors.white,
+  },
+  descriptionInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   detailEditPanelHeaderMinutes: {
     borderColor: Colors.warning + '40',
