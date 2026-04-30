@@ -799,7 +799,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
                       ) : (
                         displayLayout.character?.position && (
                           <View key="character-label" style={[styles.furnitureLabel, { left: displayLayout.character.position.x - 20, top: displayLayout.character.position.y - 20 }]}>
-                            <TouchableOpacity onPress={() => Alert.alert('알림', '캐릭터 클릭!')}>
+                            <TouchableOpacity onPress={handleCharacterPress}>
                               <Text style={styles.furnitureEmojiLabel}>🧑</Text>
                             </TouchableOpacity>
                           </View>
