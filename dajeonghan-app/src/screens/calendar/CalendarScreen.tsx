@@ -511,7 +511,25 @@ export const CalendarScreen: React.FC = () => {
     isMonthChangeTrigger.current = true;
     setCurrentYear(month.year);
     setCurrentMonth(month.month);
-    setSelectedDate(toDateKey(new Date(month.year, month.month - 1, 1)));
+
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth() + 1;
+
+    const isPast = month.year < todayYear || (month.year === todayYear && month.month < todayMonth);
+    const isCurrent = month.year === todayYear && month.month === todayMonth;
+
+    let defaultDate: Date;
+    if (isCurrent) {
+      defaultDate = today;
+    } else if (isPast) {
+      // 해당 월의 마지막 날
+      defaultDate = new Date(month.year, month.month, 0);
+    } else {
+      // 미래 월: 1일
+      defaultDate = new Date(month.year, month.month - 1, 1);
+    }
+    setSelectedDate(toDateKey(defaultDate));
   }, []);
 
   const handleDayPress = useCallback((day: { dateString: string }) => {
@@ -573,12 +591,11 @@ export const CalendarScreen: React.FC = () => {
               <View style={[
                 styles.dayCellRect,
                 allDone ? styles.dayCellRectDone : styles.dayCellRectPending,
-                isSelected && styles.dayCellRectSelected,
               ]}>
                 {allDone ? (
                   <Text style={styles.dayCellCheckText}>✓</Text>
                 ) : (
-                  <Text style={[styles.dayCellCountText, isSelected && { color: Colors.white }]}>{total}</Text>
+                  <Text style={styles.dayCellCountText}>{total}</Text>
                 )}
               </View>
             ) : (
@@ -586,13 +603,21 @@ export const CalendarScreen: React.FC = () => {
               <View style={[styles.dayCellRect, styles.dayCellRectEmpty]} />
             )}
             {/* 날짜 숫자: 항상 아래 표시 */}
-            <Text style={[
-              styles.dayCellDaySmall,
-              { color: isSelected ? Colors.primary : textColor },
-              isToday && !isSelected && styles.dayCellDayToday,
-            ]}>
-              {date.day}
-            </Text>
+            {isSelected ? (
+              <View style={styles.dayCellSelectedCircle}>
+                <Text style={styles.dayCellDaySelected}>{date.day}</Text>
+              </View>
+            ) : isToday ? (
+              <View style={styles.dayCellTodayCircle}>
+                <Text style={[styles.dayCellDaySmall, styles.dayCellDayTodayInCircle]}>
+                  {date.day}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.dayCellDaySmall, { color: textColor }]}>
+                {date.day}
+              </Text>
+            )}
           </View>
         </TouchableOpacity>
       );
@@ -1370,12 +1395,14 @@ const styles = StyleSheet.create({
   dayCellRectEmpty: { backgroundColor: Colors.veryLightGray },
   dayCellRectPending: { backgroundColor: '#D0D0D0' },
   dayCellRectDone: { backgroundColor: '#D0E8D0', borderWidth: 1.5, borderColor: Colors.secondary },
-  dayCellRectSelected: { backgroundColor: Colors.primary },
-  dayCellCountText: { fontSize: 13, fontWeight: '700', lineHeight: 16, color: Colors.darkGray },
+  dayCellCountText: { fontSize: 13, fontWeight: '700', lineHeight: 16, color: Colors.white },
   dayCellCheckText: { fontSize: 13, fontWeight: '700', lineHeight: 16, color: Colors.secondary },
   // 날짜 숫자 (아래, 항상 표시)
   dayCellDaySmall: { fontSize: 11, fontWeight: '500', lineHeight: 13 },
-  dayCellDayToday: { color: Colors.primary, fontWeight: '700' },
+  dayCellSelectedCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
+  dayCellDaySelected: { fontSize: 11, fontWeight: '800', color: Colors.white, lineHeight: 13 },
+  dayCellTodayCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#BBBBBB', justifyContent: 'center', alignItems: 'center' },
+  dayCellDayTodayInCircle: { fontSize: 11, fontWeight: '700', color: Colors.white, lineHeight: 13 },
 
   // 필터
   filterRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.sm },
