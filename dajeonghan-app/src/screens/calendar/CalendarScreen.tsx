@@ -108,11 +108,14 @@ export const CalendarScreen: React.FC = () => {
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
 
+  const [outerScrollEnabled, setOuterScrollEnabled] = useState(true);
+
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
   const isFirstLoad = useRef(true);
   const yearRef = useRef(currentYear);
   const monthRef = useRef(currentMonth);
+  const initialDateRef = useRef(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
 
   useEffect(() => { yearRef.current = currentYear; }, [currentYear]);
   useEffect(() => { monthRef.current = currentMonth; }, [currentMonth]);
@@ -524,27 +527,36 @@ export const CalendarScreen: React.FC = () => {
 
       const counts = dayCountMap[date.dateString];
       const total = counts ? counts.pending + counts.overdue + counts.completed : 0;
-      const countColor = counts?.overdue > 0
-        ? Colors.error
-        : counts?.pending > 0
-        ? Colors.primary
-        : Colors.textDisabled;
+      const allDone = total > 0 && counts.pending === 0 && counts.overdue === 0;
 
       return (
         <TouchableOpacity onPress={() => !isDisabled && onPress(date)} activeOpacity={0.65} disabled={isDisabled}>
-          <View style={[styles.dayCell, isSelected && styles.dayCellSelected]}>
+          <View style={styles.dayCell}>
+            {total > 0 ? (
+              /* task 있는 날: 라운드 사각형 뱃지 (위) */
+              <View style={[
+                styles.dayCellRect,
+                allDone ? styles.dayCellRectDone : styles.dayCellRectPending,
+                isSelected && styles.dayCellRectSelected,
+              ]}>
+                {allDone ? (
+                  <Text style={styles.dayCellCheckText}>✓</Text>
+                ) : (
+                  <Text style={[styles.dayCellCountText, isSelected && { color: Colors.white }]}>{total}</Text>
+                )}
+              </View>
+            ) : (
+              /* task 없는 날: 연한 박스 (내용 없음) */
+              <View style={[styles.dayCellRect, styles.dayCellRectEmpty]} />
+            )}
+            {/* 날짜 숫자: 항상 아래 표시 */}
             <Text style={[
-              styles.dayCellText,
-              { color: isSelected ? Colors.white : textColor },
-              isToday && !isSelected && styles.dayCellToday,
+              styles.dayCellDaySmall,
+              { color: isSelected ? Colors.primary : textColor },
+              isToday && !isSelected && styles.dayCellDayToday,
             ]}>
               {date.day}
             </Text>
-            {total > 0 && (
-              <Text style={[styles.dayCellCount, { color: isSelected ? Colors.white : countColor }]}>
-                {total}
-              </Text>
-            )}
           </View>
         </TouchableOpacity>
       );
@@ -568,6 +580,7 @@ export const CalendarScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={outerScrollEnabled}
       >
         {/* ─── 연체 요약 배너 ─────────────────────────────── */}
         {filteredOverdue.length > 0 && (
@@ -603,15 +616,28 @@ export const CalendarScreen: React.FC = () => {
         )}
 
         {/* ─── 월간 달력 ──────────────────────────────────── */}
-        <View style={styles.calendarCard}>
+        <View
+          style={styles.calendarCard}
+          onTouchStart={() => setOuterScrollEnabled(false)}
+          onTouchEnd={() => setOuterScrollEnabled(true)}
+          onTouchCancel={() => setOuterScrollEnabled(true)}
+        >
           <Calendar
-            current={`${currentYear}-${String(currentMonth).padStart(2, '0')}-01`}
+            current={initialDateRef.current}
             markedDates={markedDates}
             onDayPress={handleDayPress}
             onMonthChange={handleMonthChange}
             dayComponent={renderDayComponent}
-            hideExtraDays={false}
+            hideExtraDays={true}
             enableSwipeMonths
+            renderHeader={(date) => {
+              if (!date) return null;
+              const year = date.getFullYear();
+              const month = date.getMonth() + 1;
+              return (
+                <Text style={styles.calendarHeaderText}>{year}년 {month}월</Text>
+              );
+            }}
             theme={calendarTheme}
             style={styles.calendar}
           />
@@ -1278,11 +1304,19 @@ const styles = StyleSheet.create({
   // 달력
   calendarCard: { marginTop: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
   calendar: { borderRadius: 16, paddingBottom: 4 },
-  dayCell: { width: 30, height: 34, borderRadius: 15, justifyContent: 'center', alignItems: 'center', paddingTop: 1 },
-  dayCellSelected: { backgroundColor: Colors.primary },
-  dayCellText: { ...Typography.bodySmall, fontWeight: '500' },
-  dayCellToday: { color: Colors.primary, fontWeight: '700' },
-  dayCellCount: { fontSize: 8, fontWeight: '700', lineHeight: 10, textAlign: 'center' },
+  calendarHeaderText: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
+  dayCell: { width: 32, height: 52, justifyContent: 'flex-start', alignItems: 'center', paddingTop: 2 },
+  // 라운드 사각형 뱃지 (위)
+  dayCellRect: { width: 28, height: 28, borderRadius: 7, justifyContent: 'center', alignItems: 'center', marginBottom: 3 },
+  dayCellRectEmpty: { backgroundColor: Colors.veryLightGray },
+  dayCellRectPending: { backgroundColor: '#D0D0D0' },
+  dayCellRectDone: { backgroundColor: '#D0E8D0', borderWidth: 1.5, borderColor: Colors.secondary },
+  dayCellRectSelected: { backgroundColor: Colors.primary },
+  dayCellCountText: { fontSize: 13, fontWeight: '700', lineHeight: 16, color: Colors.darkGray },
+  dayCellCheckText: { fontSize: 13, fontWeight: '700', lineHeight: 16, color: Colors.secondary },
+  // 날짜 숫자 (아래, 항상 표시)
+  dayCellDaySmall: { fontSize: 11, fontWeight: '500', lineHeight: 13 },
+  dayCellDayToday: { color: Colors.primary, fontWeight: '700' },
 
   // 필터
   filterRow: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.sm },

@@ -14,7 +14,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
-import { HouseLayout, Room, Furniture, FurnitureType, FURNITURE_DEFAULTS } from '@/types/house.types';
+import { HouseLayout, Room, Furniture, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
 import { Task } from '@/types/task.types';
 import { getHouseLayout, saveHouseLayout } from '@/services/houseService';
 import { getTasks } from '@/services/firestoreService';
@@ -466,8 +466,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     );
   };
 
-  const handleCharacterPress = () => {
-    if (!activeLayout) return;
+  const handleCharacterPress = async () => {
+    if (!activeLayout || !userId) return;
+
     // 레이아웃에서 personal_care 가구 탐색
     for (const room of activeLayout.rooms) {
       const found = room.furnitures.find((f) => f.type === 'personal_care');
@@ -480,8 +481,42 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         return;
       }
     }
-    // personal_care 가구가 없으면 안내
-    Alert.alert('퍼스널케어', '자기관리 항목을 온보딩 또는 가구 추가에서 설정하면 여기서 관리할 수 있습니다.');
+
+    // personal_care 가구가 없으면 자동 생성 후 진입
+    try {
+      const targetRoom =
+        activeLayout.rooms.find((r) => r.type === 'living_room') ?? activeLayout.rooms[0];
+      if (!targetRoom) return;
+
+      const defaults = FURNITURE_DEFAULTS['personal_care'];
+      const x = 10 + (targetRoom.furnitures.length % 5) * 60;
+      const y = 10 + Math.floor(targetRoom.furnitures.length / 5) * 60;
+      const newFurnitureId = `personal_care_${Date.now()}`;
+      const newFurniture: Furniture = {
+        id: newFurnitureId,
+        type: 'personal_care',
+        name: defaults.emoji,
+        emoji: defaults.emoji,
+        position: { x, y },
+        size: defaults.defaultSize,
+        rotation: 0,
+        linkedObjectIds: [],
+        dirtyScore: 0,
+        furnitureMetadata: createDefaultFurnitureMetadata('personal_care'),
+      };
+
+      targetRoom.furnitures.push(newFurniture);
+      activeLayout.updatedAt = new Date();
+      await saveHouseLayout(activeLayout);
+
+      navigation.navigate('FurnitureDetail', {
+        roomId: targetRoom.id,
+        furnitureId: newFurnitureId,
+        furnitureType: 'personal_care',
+      });
+    } catch (error) {
+      console.error('personal_care 가구 자동 생성 실패:', error);
+    }
   };
 
   const renderCharacter = () => {
