@@ -108,8 +108,6 @@ export const CalendarScreen: React.FC = () => {
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
 
-  const [outerScrollEnabled, setOuterScrollEnabled] = useState(true);
-
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
   const isFirstLoad = useRef(true);
@@ -580,7 +578,6 @@ export const CalendarScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={outerScrollEnabled}
       >
         {/* ─── 연체 요약 배너 ─────────────────────────────── */}
         {filteredOverdue.length > 0 && (
@@ -616,12 +613,7 @@ export const CalendarScreen: React.FC = () => {
         )}
 
         {/* ─── 월간 달력 ──────────────────────────────────── */}
-        <View
-          style={styles.calendarCard}
-          onTouchStart={() => setOuterScrollEnabled(false)}
-          onTouchEnd={() => setOuterScrollEnabled(true)}
-          onTouchCancel={() => setOuterScrollEnabled(true)}
-        >
+        <View style={styles.calendarCard}>
           <Calendar
             current={initialDateRef.current}
             markedDates={markedDates}
