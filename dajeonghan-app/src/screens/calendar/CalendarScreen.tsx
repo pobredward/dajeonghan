@@ -23,6 +23,8 @@ import { Colors, Typography, Spacing } from '@/constants';
 import { Shadows } from '@/constants/Spacing';
 import {
   isTaskCompleted,
+  isOccurrenceCompleted,
+  expandTaskOccurrences,
   buildMarkedDates,
   getMonthRange,
   toDateKey,
@@ -63,6 +65,42 @@ function getDateCategory(task: Task): 'overdue' | 'today' | 'upcoming' {
   if (due < today) return 'overdue';
   if (due.getTime() === today.getTime()) return 'today';
   return 'upcoming';
+}
+
+/**
+ * Task의 completionDates를 기준으로, 아직 완료되지 않은 가장 이른 미래(또는 오늘) 발생일을 반환합니다.
+ * 홈 탭 등에서 "다음 예정일" 표시에 사용되는 nextDue를 갱신하기 위해 사용합니다.
+ */
+function computeNextPendingDue(task: Task, completionDates: string[]): Date | null {
+  if (!task.recurrence?.nextDue) return null;
+  const interval = task.recurrence.interval || 1;
+  const unit = task.recurrence.unit || 'day';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let candidate = new Date(task.recurrence.nextDue);
+  candidate.setHours(0, 0, 0, 0);
+
+  // 오늘보다 이전이면 앞으로 전진
+  let safetyCount = 0;
+  while (candidate < today && safetyCount < 366) {
+    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
+    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
+    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
+    safetyCount++;
+  }
+
+  // 미완료 날짜를 찾을 때까지 최대 366회 전진
+  safetyCount = 0;
+  while (completionDates.includes(candidate.toDateString()) && safetyCount < 366) {
+    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
+    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
+    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
+    safetyCount++;
+  }
+
+  return candidate;
 }
 
 // ─── 메인 컴포넌트 ────────────────────────────────────────────
@@ -142,10 +180,12 @@ export const CalendarScreen: React.FC = () => {
   const fetchData = useCallback(async (year: number, month: number) => {
     if (!userId) return;
     try {
-      const { start, end } = getMonthRange(year, month);
+      const { start } = getMonthRange(year, month);
+      // nextDue가 이미 이후 달로 이동한 반복 Task도 포함하기 위해 종료일을 3개월 뒤로 확장
+      const extendedEnd = new Date(year, month + 2, 0, 23, 59, 59, 999);
       const [monthData, overdueData] = await Promise.all([
         getTasks(userId, {
-          filter: { dueDateRange: { start, end } },
+          filter: { dueDateRange: { start, end: extendedEnd } },
           sort: 'dueDate',
           sortDirection: 'asc',
         }),
@@ -184,75 +224,63 @@ export const CalendarScreen: React.FC = () => {
   }, [overdueTasks.length]);
 
   // ─── 완료 핸들러 ─────────────────────────────────────────
-  const handleCompleteTask = useCallback(async (task: Task) => {
+  /**
+   * occurrenceDate: 달력에서 클릭한 발생 날짜.
+   * 반복 Task는 nextDue를 이동하지 않고 completionDates에 해당 날짜만 추가/제거합니다.
+   * 일회성 Task는 기존과 동일하게 isCompleted 토글입니다.
+   */
+  const handleCompleteTask = useCallback(async (task: Task, occurrenceDate?: Date) => {
     const taskId = String(task.id);
     if (!userId || !taskId) return;
 
-    const currentlyCompleted = isTaskCompleted(task);
+    // 달력에서 호출 시 occurrenceDate 기준으로, 상세 모달 등에서 호출 시 nextDue 기준으로 판정
+    const targetDate = occurrenceDate ?? (task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : new Date());
+    targetDate.setHours(0, 0, 0, 0);
+
+    const currentlyCompleted = occurrenceDate
+      ? isOccurrenceCompleted(task, targetDate)
+      : isTaskCompleted(task);
+
     setTaskLoadingStates(prev => ({ ...prev, [taskId]: true }));
 
     try {
       let updatedFields: Partial<Task>;
 
-      if (currentlyCompleted) {
-        // 완료 취소
-        if (task.recurrence?.type === 'fixed') {
-          const currentDue = task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : new Date();
-          const interval = task.recurrence.interval || 1;
-          const unit = task.recurrence.unit || 'day';
-          const previousDue = new Date(currentDue);
-          if (unit === 'day') previousDue.setDate(previousDue.getDate() - interval);
-          else if (unit === 'week') previousDue.setDate(previousDue.getDate() - interval * 7);
-          else if (unit === 'month') previousDue.setMonth(previousDue.getMonth() - interval);
+      if (task.recurrence?.type === 'fixed') {
+        const dateStr = targetDate.toDateString();
+        const completionDates = [...(task.completionDates || [])];
 
-          const completionDates = [...(task.completionDates || [])];
-          const dueDateString = currentDue.toDateString();
-          const idx = completionDates.indexOf(dueDateString);
+        if (currentlyCompleted) {
+          // 완료 취소: completionDates에서 해당 날짜 제거
+          const idx = completionDates.indexOf(dateStr);
           if (idx > -1) completionDates.splice(idx, 1);
-
-          updatedFields = {
-            recurrence: { ...task.recurrence, nextDue: previousDue },
-            lastCompletedAt: completionDates.length > 0 ? new Date() : undefined,
-            completionDates,
-            status: 'pending',
-            updatedAt: new Date(),
-          };
         } else {
-          updatedFields = {
-            isCompleted: false,
-            status: 'pending',
-            updatedAt: new Date(),
-          };
+          // 완료 처리: completionDates에 해당 날짜 추가
+          if (!completionDates.includes(dateStr)) completionDates.push(dateStr);
         }
+
+        // nextDue는 completionDates에 없는 가장 이른 미래 발생일로 업데이트
+        // (홈 탭 등 다른 화면의 "다음 예정일" 표시를 위해 유지)
+        const nextPendingDue = computeNextPendingDue(task, completionDates);
+
+        updatedFields = {
+          completionDates,
+          lastCompletedAt: currentlyCompleted ? (completionDates.length > 0 ? new Date() : undefined) : new Date(),
+          completionHistory: currentlyCompleted
+            ? task.completionHistory
+            : [...(task.completionHistory || []), { date: new Date(), postponed: false }],
+          recurrence: nextPendingDue
+            ? { ...task.recurrence!, nextDue: nextPendingDue }
+            : task.recurrence,
+          status: 'pending',
+          updatedAt: new Date(),
+        };
       } else {
-        // 완료 처리
-        if (task.recurrence?.type === 'fixed') {
-          const currentDue = task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : new Date();
-          const nextDue = new Date(currentDue);
-          const interval = task.recurrence.interval || 1;
-          const unit = task.recurrence.unit || 'day';
-          if (unit === 'day') nextDue.setDate(nextDue.getDate() + interval);
-          else if (unit === 'week') nextDue.setDate(nextDue.getDate() + interval * 7);
-          else if (unit === 'month') nextDue.setMonth(nextDue.getMonth() + interval);
-
-          const completionDates = task.completionDates ? [...task.completionDates] : [];
-          const dueDateString = currentDue.toDateString();
-          if (!completionDates.includes(dueDateString)) completionDates.push(dueDateString);
-
-          updatedFields = {
-            recurrence: { ...task.recurrence, nextDue },
-            lastCompletedAt: new Date(),
-            completionDates,
-            completionHistory: [...(task.completionHistory || []), { date: new Date(), postponed: false }],
-            status: 'pending',
-            updatedAt: new Date(),
-          };
+        // 일회성 Task
+        if (currentlyCompleted) {
+          updatedFields = { isCompleted: false, status: 'pending', updatedAt: new Date() };
         } else {
-          updatedFields = {
-            isCompleted: true,
-            completedAt: new Date(),
-            updatedAt: new Date(),
-          };
+          updatedFields = { isCompleted: true, completedAt: new Date(), updatedAt: new Date() };
         }
       }
 
@@ -261,13 +289,10 @@ export const CalendarScreen: React.FC = () => {
       // 낙관적 UI 업데이트
       setMonthTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
       if (currentlyCompleted) {
-        // 완료 취소 → 연체 목록 내 task 필드 갱신 (다시 연체 상태)
         setOverdueTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
       } else {
-        // 완료 처리 → 연체 목록에서 제거
         setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
       }
-      // 모달 내 task도 갱신
       if (taskDetailModal.task?.id === taskId) {
         setTaskDetailModal(prev => prev.task ? { ...prev, task: { ...prev.task, ...updatedFields } } : prev);
       }
@@ -423,43 +448,56 @@ export const CalendarScreen: React.FC = () => {
   }, [userId]);
 
   // ─── 파생 데이터 ──────────────────────────────────────────
+
+  // 현재 달의 시작·끝 (occurrence 전개 범위)
+  const { start: monthStart, end: monthEnd } = useMemo(
+    () => getMonthRange(currentYear, currentMonth),
+    [currentYear, currentMonth]
+  );
+
+  // 반복 Task를 날짜별 가상 인스턴스로 전개
+  const monthOccurrences = useMemo(
+    () => expandTaskOccurrences(monthTasks, monthStart, monthEnd),
+    [monthTasks, monthStart, monthEnd]
+  );
+
   const { markedDates } = useMemo(
     () => buildMarkedDates(monthTasks, selectedDate),
     [monthTasks, selectedDate]
   );
 
-  const selectedDayTasks = useMemo(() => {
-    const tasks = monthTasks.filter(task => {
-      if (!task.recurrence?.nextDue) return false;
-      return toDateKey(new Date(task.recurrence.nextDue)) === selectedDate;
-    });
-    const filtered = filter === 'all' ? tasks : tasks.filter(t => t.type === filter);
+  const selectedDayOccurrences = useMemo(() => {
+    const occ = monthOccurrences.filter(o => toDateKey(o.occurrenceDate) === selectedDate);
+    const filtered = filter === 'all' ? occ : occ.filter(o => o.task.type === filter);
     return filtered.sort((a, b) => {
-      const scoreA = isTaskCompleted(a) ? 1 : 0;
-      const scoreB = isTaskCompleted(b) ? 1 : 0;
+      const scoreA = a.isCompleted ? 1 : 0;
+      const scoreB = b.isCompleted ? 1 : 0;
       return scoreA - scoreB;
     });
-  }, [monthTasks, selectedDate, filter]);
+  }, [monthOccurrences, selectedDate, filter]);
 
   const filteredOverdue = useMemo(
     () => (filter === 'all' ? overdueTasks : overdueTasks.filter(t => t.type === filter)),
     [overdueTasks, filter]
   );
 
-  // 날짜별 task 개수 집계 (모듈 필터 연동)
+  // 날짜별 task 개수 집계 (모듈 필터 연동, occurrence 기반)
   const dayCountMap = useMemo(() => {
     const map: Record<string, { pending: number; overdue: number; completed: number }> = {};
-    const source = filter === 'all' ? monthTasks : monthTasks.filter(t => t.type === filter);
-    for (const task of source) {
-      if (!task.recurrence?.nextDue) continue;
-      const key = toDateKey(new Date(task.recurrence.nextDue));
+    const source = filter === 'all' ? monthOccurrences : monthOccurrences.filter(o => o.task.type === filter);
+    for (const occ of source) {
+      const key = toDateKey(occ.occurrenceDate);
       if (!map[key]) map[key] = { pending: 0, overdue: 0, completed: 0 };
-      if (isTaskCompleted(task)) map[key].completed++;
-      else if (getDateCategory(task) === 'overdue') map[key].overdue++;
-      else map[key].pending++;
+      if (occ.isCompleted) map[key].completed++;
+      else {
+        const occMs = occ.occurrenceDate.getTime();
+        const todayMs = new Date().setHours(0, 0, 0, 0);
+        if (occMs < todayMs) map[key].overdue++;
+        else map[key].pending++;
+      }
     }
     return map;
-  }, [monthTasks, filter]);
+  }, [monthOccurrences, filter]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -649,21 +687,23 @@ export const CalendarScreen: React.FC = () => {
           <View style={styles.selectedHeader}>
             <Text style={styles.selectedDateLabel}>{selectedDateLabel}</Text>
             <View style={styles.selectedCountBadge}>
-              <Text style={styles.selectedCountText}>{selectedDayTasks.length}</Text>
+              <Text style={styles.selectedCountText}>{selectedDayOccurrences.length}</Text>
             </View>
           </View>
 
-          {selectedDayTasks.length === 0 ? (
+          {selectedDayOccurrences.length === 0 ? (
             <EmptyDay />
           ) : (
-            selectedDayTasks.map(task => (
+            selectedDayOccurrences.map(occ => (
               <TaskCard
-                key={task.id}
-                task={task}
-                furnitureEmoji={furnitureEmojiMap[task.objectId]}
-                isLoading={taskLoadingStates[task.id] || false}
-                onPress={() => openDetailModal(task)}
-                onCheck={() => handleCompleteTask(task)}
+                key={`${occ.task.id}-${toDateKey(occ.occurrenceDate)}`}
+                task={occ.task}
+                occurrenceDate={occ.occurrenceDate}
+                isCompleted={occ.isCompleted}
+                furnitureEmoji={furnitureEmojiMap[occ.task.objectId]}
+                isLoading={taskLoadingStates[String(occ.task.id)] || false}
+                onPress={() => openDetailModal(occ.task)}
+                onCheck={() => handleCompleteTask(occ.task, occ.occurrenceDate)}
               />
             ))
           )}
@@ -734,7 +774,13 @@ export const CalendarScreen: React.FC = () => {
           ]}>
             {taskDetailModal.task && (() => {
               const task = taskDetailModal.task!;
-              const completed = isTaskCompleted(task);
+              // 달력에서 선택된 날짜 기준으로 완료 판정
+              const [selY, selM, selD] = selectedDate.split('-').map(Number);
+              const selDateObj = new Date(selY, selM - 1, selD);
+              selDateObj.setHours(0, 0, 0, 0);
+              const completed = task.recurrence?.type === 'fixed'
+                ? isOccurrenceCompleted(task, selDateObj)
+                : isTaskCompleted(task);
               const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
               const today = new Date(); today.setHours(0, 0, 0, 0);
               const nextDue = dueDate ? new Date(dueDate) : null;
@@ -1061,7 +1107,13 @@ export const CalendarScreen: React.FC = () => {
                     <View style={styles.detailActionsRow}>
                       <TouchableOpacity
                         style={[styles.detailActionCompactBtn, completed ? styles.detailCompleteBtnUndo : styles.detailCompleteBtnDone]}
-                        onPress={() => { handleCompleteTask(task); setTaskDetailModal({ visible: false, task: null }); }}
+                        onPress={() => {
+                          const [y, m, d] = selectedDate.split('-').map(Number);
+                          const selDate = new Date(y, m - 1, d);
+                          selDate.setHours(0, 0, 0, 0);
+                          handleCompleteTask(task, selDate);
+                          setTaskDetailModal({ visible: false, task: null });
+                        }}
                         activeOpacity={0.85}
                       >
                         <Text style={styles.detailActionCompactIcon}>{completed ? '↩' : '✓'}</Text>
@@ -1119,19 +1171,34 @@ export const CalendarScreen: React.FC = () => {
 // ─── TaskCard 컴포넌트 ────────────────────────────────────────
 interface TaskCardProps {
   task: Task;
+  /** 달력에서 클릭된 발생 날짜. 카테고리(오늘/연체/예정) 판정에 사용 */
+  occurrenceDate?: Date;
+  /** occurrence 기반 완료 여부. 미전달 시 isTaskCompleted(task)로 fallback */
+  isCompleted?: boolean;
   furnitureEmoji?: string;
   isLoading: boolean;
   onPress: () => void;
   onCheck: () => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, furnitureEmoji, isLoading, onPress, onCheck }) => {
-  const completed = isTaskCompleted(task);
-  const category = getDateCategory(task);
-  const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
+const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: isCompletedProp, furnitureEmoji, isLoading, onPress, onCheck }) => {
+  const completed = isCompletedProp !== undefined ? isCompletedProp : isTaskCompleted(task);
+
+  // occurrenceDate가 있으면 해당 날짜 기준으로 카테고리 판정, 없으면 nextDue 기준
+  const categoryDate = occurrenceDate ?? (task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null);
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const categoryDateMs = categoryDate ? new Date(categoryDate).setHours(0, 0, 0, 0) : null;
+  const category: 'overdue' | 'today' | 'upcoming' = categoryDateMs === null
+    ? 'upcoming'
+    : categoryDateMs < today.getTime()
+    ? 'overdue'
+    : categoryDateMs === today.getTime()
+    ? 'today'
+    : 'upcoming';
+
+  const dueDate = occurrenceDate ?? (task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null);
   const overdueDays = dueDate && category === 'overdue'
-    ? Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date().getTime() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
   const accentStyle = category === 'overdue'

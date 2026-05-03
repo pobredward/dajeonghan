@@ -43,6 +43,117 @@ export function isTaskCompleted(task: Task): boolean {
 }
 
 // ─────────────────────────────────────────────
+// 달력 가상 발생 인스턴스 (Virtual Occurrence)
+// ─────────────────────────────────────────────
+
+/**
+ * 특정 날짜에 대한 Task 발생 인스턴스.
+ * 달력에서 날짜마다 반복 Task를 독립적으로 표시하기 위해 사용합니다.
+ */
+export interface TaskOccurrence {
+  task: Task;
+  occurrenceDate: Date;
+  isCompleted: boolean;
+}
+
+/**
+ * 특정 날짜의 발생에 대한 완료 여부를 반환합니다.
+ * completionDates 배열에 해당 날짜의 toDateString()이 있으면 완료입니다.
+ */
+export function isOccurrenceCompleted(task: Task, occurrenceDate: Date): boolean {
+  if (!task.completionDates || task.completionDates.length === 0) return false;
+  const dateStr = occurrenceDate.toDateString();
+  return task.completionDates.includes(dateStr);
+}
+
+/**
+ * Task 배열을 받아 monthStart~monthEnd 기간 내의 모든 가상 발생 인스턴스를 반환합니다.
+ *
+ * - fixed(반복) Task: 반복 규칙(unit, interval)으로 달 내 모든 발생 날짜 계산
+ *   - Task 생성일(createdAt) 이전 날짜는 발생 날짜로 포함하지 않습니다.
+ *   - 과거 미완료 발생(연체)도 포함합니다 — 해당 날짜를 선택하면 카드로 보여야 합니다.
+ * - 일회성 Task: nextDue가 달 범위 안에 있으면 그대로 1개 반환
+ */
+export function expandTaskOccurrences(
+  tasks: Task[],
+  monthStart: Date,
+  monthEnd: Date,
+): TaskOccurrence[] {
+  const occurrences: TaskOccurrence[] = [];
+
+  const msStart = monthStart.getTime();
+  const msEnd = monthEnd.getTime();
+
+  for (const task of tasks) {
+    if (!task.recurrence?.nextDue) continue;
+
+    if (task.recurrence.type !== 'fixed') {
+      // 일회성 Task: nextDue가 달 범위 내이면 그대로 추가
+      const due = new Date(task.recurrence.nextDue);
+      due.setHours(0, 0, 0, 0);
+      if (due.getTime() >= msStart && due.getTime() <= msEnd) {
+        occurrences.push({
+          task,
+          occurrenceDate: due,
+          isCompleted: isOccurrenceCompleted(task, due),
+        });
+      }
+      continue;
+    }
+
+    // 반복(fixed) Task: nextDue를 기준으로 역산하여 달 범위 내 모든 발생 날짜 계산
+    const interval = task.recurrence.interval || 1;
+    const unit = task.recurrence.unit || 'day';
+
+    // Task 생성일을 발생 하한선으로 사용 (createdAt 이전 날짜는 발생 없음)
+    const taskCreatedAt = task.createdAt ? new Date(task.createdAt) : null;
+    if (taskCreatedAt) taskCreatedAt.setHours(0, 0, 0, 0);
+    const taskOriginMs = taskCreatedAt ? taskCreatedAt.getTime() : 0;
+
+    // 달 범위와 Task 생성일 중 더 늦은 날짜를 실질적인 시작 하한으로 사용
+    const effectiveStart = Math.max(msStart, taskOriginMs);
+
+    // nextDue에서 interval씩 빼며 effectiveStart 이전으로 이동 → 달 내 첫 번째 발생 기준점을 구함
+    let anchor = new Date(task.recurrence.nextDue);
+    anchor.setHours(0, 0, 0, 0);
+
+    const maxIterations = 1500; // 무한루프 방지
+    let safetyCount = 0;
+    while (anchor.getTime() > effectiveStart && safetyCount < maxIterations) {
+      if (unit === 'day') anchor.setDate(anchor.getDate() - interval);
+      else if (unit === 'week') anchor.setDate(anchor.getDate() - interval * 7);
+      else if (unit === 'month') anchor.setMonth(anchor.getMonth() - interval);
+      safetyCount++;
+    }
+
+    // anchor가 effectiveStart보다 이전이면 다음 발생으로 전진
+    while (anchor.getTime() < effectiveStart) {
+      if (unit === 'day') anchor.setDate(anchor.getDate() + interval);
+      else if (unit === 'week') anchor.setDate(anchor.getDate() + interval * 7);
+      else if (unit === 'month') anchor.setMonth(anchor.getMonth() + interval);
+    }
+
+    // anchor부터 달 끝까지 모든 발생 날짜 추가 (연체 포함)
+    let current = new Date(anchor);
+    safetyCount = 0;
+    while (current.getTime() <= msEnd && safetyCount < maxIterations) {
+      const occDate = new Date(current);
+      occurrences.push({
+        task,
+        occurrenceDate: occDate,
+        isCompleted: isOccurrenceCompleted(task, occDate),
+      });
+      if (unit === 'day') current.setDate(current.getDate() + interval);
+      else if (unit === 'week') current.setDate(current.getDate() + interval * 7);
+      else if (unit === 'month') current.setMonth(current.getMonth() + interval);
+      safetyCount++;
+    }
+  }
+
+  return occurrences;
+}
+
+// ─────────────────────────────────────────────
 // 날짜 그룹핑
 // ─────────────────────────────────────────────
 
