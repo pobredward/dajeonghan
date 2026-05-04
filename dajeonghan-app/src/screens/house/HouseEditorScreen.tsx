@@ -21,7 +21,7 @@ import {
   FURNITURE_DEFAULTS,
   ROOM_COLORS,
 } from '@/types/house.types';
-import { saveHouseLayout } from '@/services/houseService';
+import { saveHouseLayout, removeFurniture } from '@/services/houseService';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
 
 type HouseEditorRouteProp = RouteProp<HouseStackParamList, 'HouseEditor'>;
@@ -735,7 +735,14 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
     setShowFurnitureMenu(false);
   };
 
-  const handleDeleteFurniture = (roomId: string, furnitureId: string) => {
+  const handleDeleteFurniture = async (roomId: string, furnitureId: string) => {
+    try {
+      await removeFurniture(layout.userId, roomId, furnitureId);
+    } catch (error) {
+      console.error('Failed to delete furniture:', error);
+      Alert.alert('오류', '가구를 삭제하는데 실패했습니다.');
+      return;
+    }
     const updatedRooms = layout.rooms.map((r) =>
       r.id === roomId
         ? { ...r, furnitures: r.furnitures.filter((f) => f.id !== furnitureId) }
@@ -1458,7 +1465,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
             <>
               <TouchableOpacity 
                 style={[styles.floatingButton, styles.floatingButtonDanger]} 
-                onPress={() => handleDeleteFurniture(selectedItem.roomId, selectedItem.id)}
+                onPress={async () => handleDeleteFurniture(selectedItem.roomId, selectedItem.id)}
               >
                 <Text style={styles.floatingButtonIcon}>🗑️</Text>
               </TouchableOpacity>

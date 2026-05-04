@@ -16,7 +16,7 @@ import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '@/constants';
 import { HouseLayout, Room, Furniture, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
 import { Task } from '@/types/task.types';
-import { getHouseLayout, saveHouseLayout } from '@/services/houseService';
+import { getHouseLayout, saveHouseLayout, removeFurniture } from '@/services/houseService';
 import { getTasks } from '@/services/firestoreService';
 import { useAuth } from '@/contexts/AuthContext';
 import { PulseEffect } from '@/components/AnimationEffects';
@@ -972,9 +972,27 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
             )}
             {editor.selectedItem?.type === 'furniture' && (
               <>
-                <TouchableOpacity style={[styles.floatingButton, styles.floatingButtonDanger]} onPress={() => {
+                <TouchableOpacity style={[styles.floatingButton, styles.floatingButtonDanger]} onPress={async () => {
+                  if (!userId) return;
                   const sel = editor.selectedItem as { type: 'furniture'; roomId: string; id: string };
-                  editor.handleDeleteFurniture(sel.roomId, sel.id);
+                  try {
+                    await removeFurniture(userId, sel.roomId, sel.id);
+                    editor.handleDeleteFurniture(sel.roomId, sel.id);
+                    setViewLayout((prev) => prev
+                      ? {
+                          ...prev,
+                          rooms: prev.rooms.map((r) =>
+                            r.id === sel.roomId
+                              ? { ...r, furnitures: r.furnitures.filter((f) => f.id !== sel.id) }
+                              : r
+                          ),
+                        }
+                      : prev
+                    );
+                  } catch (error) {
+                    console.error('Failed to delete furniture:', error);
+                    Alert.alert('오류', '가구를 삭제하는데 실패했습니다.');
+                  }
                 }}>
                   <Text style={styles.floatingButtonIcon}>🗑️</Text>
                 </TouchableOpacity>

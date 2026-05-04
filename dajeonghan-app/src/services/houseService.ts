@@ -27,7 +27,9 @@ import {
   convertDatesToTimestamps,
   convertTimestampsToDates,
   dateToTimestamp,
+  hardDeleteTask,
 } from './firestoreService';
+import { FurnitureTaskService } from './furnitureTaskService';
 
 /**
  * 집 레이아웃 저장
@@ -157,13 +159,16 @@ export const addFurniture = async (
 };
 
 /**
- * 가구 삭제
+ * 가구 삭제 (연동 Task 영구 삭제 포함)
  */
 export const removeFurniture = async (
   userId: string,
   roomId: string,
   furnitureId: string
 ): Promise<void> => {
+  const tasks = await FurnitureTaskService.getFurnitureTasks(userId, furnitureId);
+  await Promise.all(tasks.map((t) => hardDeleteTask(userId, t.id)));
+
   const layout = await getHouseLayout(userId);
   if (!layout) throw new Error('House layout not found');
 
