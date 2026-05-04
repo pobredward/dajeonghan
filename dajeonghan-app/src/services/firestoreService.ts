@@ -26,7 +26,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Task, TaskQueryOptions, TaskLog, DoseLog } from '../types/task.types';
-import { LifeObject } from '../types/lifeobject.types';
 import { UserProfile } from '../types/user.types';
 
 // ============================================================================
@@ -254,83 +253,6 @@ export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
     .filter(task => !task.deletedAt); // 클라이언트에서 deletedAt 필터링
 };
 
-// ============================================================================
-// LifeObject CRUD
-// ============================================================================
-
-/**
- * LifeObject 저장
- */
-export const saveLifeObject = async (obj: LifeObject): Promise<void> => {
-  const objRef = doc(db, `users/${obj.userId}/objects/${obj.id}`);
-  const firestoreObj = convertDatesToTimestamps(obj);
-  await setDoc(objRef, firestoreObj);
-};
-
-/**
- * LifeObject 조회
- */
-export const getLifeObject = async (userId: string, objectId: string): Promise<LifeObject | null> => {
-  const objRef = doc(db, `users/${userId}/objects/${objectId}`);
-  const objSnap = await getDoc(objRef);
-
-  if (!objSnap.exists()) return null;
-
-  const data = objSnap.data();
-  return convertTimestampsToDates<LifeObject>({ id: objSnap.id, ...data });
-};
-
-/**
- * LifeObject 수정
- */
-export const updateLifeObject = async (userId: string, objectId: string, updates: Partial<LifeObject>): Promise<void> => {
-  const objRef = doc(db, `users/${userId}/objects/${objectId}`);
-  const firestoreUpdates = {
-    ...convertDatesToTimestamps(updates),
-    updatedAt: dateToTimestamp(new Date()),
-  };
-  await updateDoc(objRef, firestoreUpdates);
-};
-
-/**
- * LifeObject 삭제 (소프트 삭제)
- */
-export const deleteLifeObject = async (userId: string, objectId: string): Promise<void> => {
-  const objRef = doc(db, `users/${userId}/objects/${objectId}`);
-  await updateDoc(objRef, {
-    deletedAt: dateToTimestamp(new Date()),
-  });
-};
-
-/**
- * 사용자의 모든 LifeObject 조회
- */
-export const getLifeObjects = async (userId: string, moduleType?: string): Promise<LifeObject[]> => {
-  console.log('getLifeObjects 호출됨, userId:', userId, 'moduleType:', moduleType);
-  const objsRef = collection(db, `users/${userId}/lifeObjects`); // 경로 수정
-  const constraints: QueryConstraint[] = [];
-
-  if (moduleType) {
-    constraints.push(where('type', '==', moduleType));
-  }
-
-  const q = query(objsRef, ...constraints);
-  const querySnapshot = await getDocs(q);
-  
-  console.log('Firestore에서 가져온 LifeObject 개수:', querySnapshot.docs.length);
-
-  // deletedAt이 없거나 null인 문서만 필터링
-  const objects = querySnapshot.docs
-    .map(doc => {
-      const data = doc.data();
-      console.log('LifeObject 문서 데이터:', { id: doc.id, deletedAt: data.deletedAt, name: data.name });
-      return convertTimestampsToDates<LifeObject>({ id: doc.id, ...data });
-    })
-    .filter(obj => !obj.deletedAt);
-
-  console.log('필터링된 LifeObject 개수:', objects.length);
-  return objects;
-};
 
 // ============================================================================
 // UserProfile CRUD
@@ -450,10 +372,3 @@ export const saveTasks = async (tasks: Task[]): Promise<void> => {
   await Promise.all(promises);
 };
 
-/**
- * 여러 LifeObject를 한 번에 저장
- */
-export const saveLifeObjects = async (objects: LifeObject[]): Promise<void> => {
-  const promises = objects.map(obj => saveLifeObject(obj));
-  await Promise.all(promises);
-};

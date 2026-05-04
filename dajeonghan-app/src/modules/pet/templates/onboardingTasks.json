@@ -53,7 +53,8 @@
       "estimatedMinutes": 15,
       "priority": "medium",
       "category": "pet",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_nail_trim"
     },
     {
       "name": "심장사상충·벼룩 예방약",
@@ -64,7 +65,8 @@
       "estimatedMinutes": 5,
       "priority": "high",
       "category": "pet",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_preventive_medicine"
     }
   ],
   "cat": [
@@ -99,7 +101,8 @@
       "estimatedMinutes": 10,
       "priority": "medium",
       "category": "pet",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_grooming"
     },
     {
       "name": "고양이 발톱 정리",
@@ -110,7 +113,8 @@
       "estimatedMinutes": 15,
       "priority": "medium",
       "category": "pet",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_nail_trim"
     },
     {
       "name": "내부 기생충·구충제",
@@ -145,7 +149,8 @@
       "estimatedMinutes": 5,
       "priority": "medium",
       "category": "pet",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_food_water"
     }
   ]
 }

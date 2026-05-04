@@ -1,11 +1,14 @@
-import { LifeObject } from '@/types/lifeobject.types';
-
 /**
  * 약/영양제 아이템
  */
-export interface Medicine extends LifeObject {
+export interface Medicine {
+  id: string;
+  userId: string;
   type: 'medicine';
+  name: string;
   metadata: MedicineMetadata;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**

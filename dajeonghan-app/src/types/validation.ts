@@ -5,7 +5,6 @@
  */
 
 import { Task, TaskCreateInput } from './task.types';
-import { LifeObject } from './lifeobject.types';
 import { UserProfile } from './user.types';
 import { SharedTemplate } from './template.types';
 
@@ -16,7 +15,7 @@ export const isValidTask = (task: Partial<Task>): task is Task => {
   return !!(
     task.id &&
     task.userId &&
-    task.objectId &&
+    task.furnitureId &&
     task.title &&
     task.type &&
     task.recurrence &&
@@ -36,7 +35,7 @@ export const isValidTask = (task: Partial<Task>): task is Task => {
 export const isValidTaskCreateInput = (input: Partial<TaskCreateInput>): input is TaskCreateInput => {
   return !!(
     input.userId &&
-    input.objectId &&
+    input.furnitureId &&
     input.title &&
     input.type &&
     input.recurrence &&
@@ -44,21 +43,6 @@ export const isValidTaskCreateInput = (input: Partial<TaskCreateInput>): input i
     input.status &&
     input.estimatedMinutes !== undefined &&
     input.notificationSettings
-  );
-};
-
-/**
- * LifeObject 검증
- */
-export const isValidLifeObject = (obj: Partial<LifeObject>): obj is LifeObject => {
-  return !!(
-    obj.id &&
-    obj.userId &&
-    obj.type &&
-    obj.name &&
-    obj.metadata &&
-    obj.createdAt &&
-    obj.updatedAt
   );
 };
 
@@ -91,7 +75,6 @@ export const isValidSharedTemplate = (template: Partial<SharedTemplate>): templa
     template.description &&
     Array.isArray(template.tags) &&
     template.category &&
-    Array.isArray(template.lifeObjects) &&
     Array.isArray(template.tasks) &&
     typeof template.usageCount === 'number' &&
     typeof template.likeCount === 'number' &&

@@ -10,7 +10,7 @@ describe('RecurrenceEngine', () => {
   const mockTask: Task = {
     id: 'test-task-1',
     userId: 'test-user',
-    objectId: 'test-object',
+    furnitureId: 'test-furniture',
     title: '테스트 작업',
     type: 'cleaning',
     recurrence: {

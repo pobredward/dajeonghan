@@ -12,8 +12,6 @@ import { Task } from '@/types/task.types';
 import { HouseLayout, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
 import { CleaningService } from '@/modules/cleaning/CleaningService';
 import { getLayoutTemplate, saveHouseLayout } from '@/services/houseService';
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import * as Crypto from 'expo-crypto';
 import personas from '@/templates/personas.json';
 import cleaningTemplatesData from '@/modules/cleaning/templates/cleaningTemplates.json';
@@ -59,6 +57,7 @@ interface OnboardingTaskTemplate {
   priority: 'urgent' | 'high' | 'medium' | 'low';
   category: string;
   linkedFurnitureType?: FurnitureType;
+  templateItemId?: string;
 }
 
 /**
@@ -217,7 +216,7 @@ export class OnboardingService {
         position: { x, y },
         size: defaults?.defaultSize ?? { width: 50, height: 50 },
         rotation: 0,
-        linkedObjectIds: [],
+        linkedTaskIds: [],
         dirtyScore: 0,
         furnitureMetadata: createDefaultFurnitureMetadata(type),
       });
@@ -251,7 +250,7 @@ export class OnboardingService {
   }
 
   /**
-   * 청소 Task의 objectId를 해당 가구의 linkedObjectIds에 연결합니다.
+   * 청소 Task의 id를 해당 가구의 linkedTaskIds에 연결합니다.
    * @deprecated linkAllTasksToFurnitures를 사용하세요.
    */
   static linkTasksToFurnitures(
@@ -272,8 +271,8 @@ export class OnboardingService {
       const furniture = room?.furnitures.find((f) => f.id === target.furnitureId);
       if (!furniture) return;
 
-      if (!furniture.linkedObjectIds.includes(task.objectId)) {
-        furniture.linkedObjectIds.push(task.objectId);
+      if (!furniture.linkedTaskIds.includes(task.id)) {
+        furniture.linkedTaskIds.push(task.id);
         console.log(`🔗 "${task.title}" → ${template.linkedFurnitureType} (${target.furnitureId})`);
       }
     });
@@ -311,8 +310,8 @@ export class OnboardingService {
       const furniture = room?.furnitures.find((f) => f.id === target.furnitureId);
       if (!furniture) continue;
 
-      if (!furniture.linkedObjectIds.includes(task.objectId)) {
-        furniture.linkedObjectIds.push(task.objectId);
+      if (!furniture.linkedTaskIds.includes(task.id)) {
+        furniture.linkedTaskIds.push(task.id);
         console.log(`🔗 "${task.title}" → ${linkedType} (${target.furnitureId})`);
       }
     }
@@ -439,7 +438,7 @@ export class OnboardingService {
       return {
         id: taskId,
         userId,
-        objectId: `onboarding_obj_${userId}_${startIndex + i}`,
+        furnitureId: '',
         title: template.name,
         description: template.description,
         type: template.type as any,
@@ -459,42 +458,11 @@ export class OnboardingService {
         },
         completionHistory: [],
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        ...(template.templateItemId ? { templateItemId: template.templateItemId } : {}),
         createdAt: now,
         updatedAt: now,
       } as Task;
     });
-  }
-
-  /**
-   * 온보딩 Task마다 lifeObjects 컬렉션에 문서를 생성하고 objectId를 실제 Firestore ID로 교체합니다.
-   */
-  static async createLifeObjectsForTasks(
-    userId: string,
-    tasks: Task[]
-  ): Promise<Task[]> {
-    const updatedTasks = await Promise.all(
-      tasks.map(async (task) => {
-        const lifeObjectData = {
-          userId,
-          type: task.type,
-          name: task.title,
-          metadata: {
-            room: (task as any).metadata?.room ?? '전체',
-            difficulty: (task as any).metadata?.difficulty ?? 2,
-            healthPriority: (task as any).metadata?.healthPriority ?? false,
-          },
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
-        const ref = await addDoc(
-          collection(db, 'users', userId, 'lifeObjects'),
-          lifeObjectData
-        );
-        return { ...task, objectId: ref.id };
-      })
-    );
-    console.log(`✅ lifeObjects 생성 완료 (${updatedTasks.length}개)`);
-    return updatedTasks;
   }
 
   /**

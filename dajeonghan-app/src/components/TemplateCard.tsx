@@ -55,7 +55,7 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, compact = fal
         
         <View style={styles.stat}>
           <Text style={styles.statIcon}>📝</Text>
-          <Text style={styles.statText}>{template.tasks.length + template.lifeObjects.length}</Text>
+          <Text style={styles.statText}>{template.tasks.length}</Text>
         </View>
       </View>
       

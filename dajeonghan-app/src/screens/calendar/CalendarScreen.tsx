@@ -123,7 +123,7 @@ export const CalendarScreen: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [overdueExpanded, setOverdueExpanded] = useState(false);
 
-  // 가구 이모지 맵 (objectId → 가구 emoji)
+  // 가구 이모지 맵 (furnitureId → 가구 emoji)
   const [furnitureEmojiMap, setFurnitureEmojiMap] = useState<Record<string, string>>({});
 
   // 모달 state
@@ -173,9 +173,7 @@ export const CalendarScreen: React.FC = () => {
       const map: Record<string, string> = {};
       layout.rooms?.forEach(room => {
         room.furnitures?.forEach(furniture => {
-          furniture.linkedObjectIds?.forEach(objectId => {
-            map[objectId] = furniture.emoji;
-          });
+          map[furniture.id] = furniture.emoji;
         });
       });
       setFurnitureEmojiMap(map);
@@ -670,7 +668,7 @@ export const CalendarScreen: React.FC = () => {
               <View style={styles.overdueList}>
                 {filteredOverdue.map(task => (
                   <TouchableOpacity key={task.id} style={styles.overdueRow} onPress={() => openDetailModal(task)} activeOpacity={0.75}>
-                    <Text style={styles.overdueRowIcon}>{furnitureEmojiMap[task.objectId] || getModuleIcon(task.type)}</Text>
+                    <Text style={styles.overdueRowIcon}>{furnitureEmojiMap[task.furnitureId] || getModuleIcon(task.type)}</Text>
                     <View style={styles.overdueRowContent}>
                       <Text style={styles.overdueRowTitle} numberOfLines={1}>{task.title}</Text>
                       {task.recurrence?.nextDue && (
@@ -736,7 +734,7 @@ export const CalendarScreen: React.FC = () => {
                 task={occ.task}
                 occurrenceDate={occ.occurrenceDate}
                 isCompleted={occ.isCompleted}
-                furnitureEmoji={furnitureEmojiMap[occ.task.objectId]}
+                furnitureEmoji={furnitureEmojiMap[occ.task.furnitureId]}
                 isLoading={taskLoadingStates[String(occ.task.id)] || false}
                 onPress={() => openDetailModal(occ.task)}
                 onCheck={() => handleCompleteTask(occ.task, occ.occurrenceDate)}
@@ -836,7 +834,7 @@ export const CalendarScreen: React.FC = () => {
               else if (diffDays !== null && diffDays <= 3) { bannerBg = Colors.primary + '12'; bannerText = `D-${diffDays}`; }
 
               const bannerTextColor = completed ? Colors.success : isOverdue ? Colors.error : isDueToday ? Colors.warning : Colors.primary;
-              const furnitureEmoji = furnitureEmojiMap[task.objectId];
+              const furnitureEmoji = furnitureEmojiMap[task.furnitureId];
 
               return (
                 <>

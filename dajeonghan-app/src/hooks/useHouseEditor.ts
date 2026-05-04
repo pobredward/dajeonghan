@@ -378,7 +378,7 @@ export function useHouseEditor(initialLayout: HouseLayout): UseHouseEditorReturn
         x: room.size.width / 2 - defaults.defaultSize.width / 2,
         y: room.size.height / 2 - defaults.defaultSize.height / 2,
       },
-      size: defaults.defaultSize, rotation: 0, linkedObjectIds: [], dirtyScore: 0,
+      size: defaults.defaultSize, rotation: 0, linkedTaskIds: [], dirtyScore: 0,
     };
 
     setLayout(prev => ({

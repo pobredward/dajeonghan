@@ -34,9 +34,8 @@ LocaleConfig.locales['kr'] = {
 };
 LocaleConfig.defaultLocale = 'kr';
 import { Room, Furniture } from '@/types/house.types';
-import { LifeObject } from '@/types/lifeobject.types';
 import { Task, PriorityLevel } from '@/types/task.types';
-import { getLifeObjects, getTasks, updateTask, deleteTask } from '@/services/firestoreService';
+import { getTasks, updateTask, deleteTask } from '@/services/firestoreService';
 import { getTemplateByFurnitureType } from '@/data/furnitureTaskTemplates';
 import { TaskTemplateItem, TaskCustomization, TaskTemplateDetail } from '@/types/furnitureTaskTemplate.types';
 import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
@@ -59,7 +58,6 @@ type DayOfWeek = RecurrenceDayOfWeek;
 type TaskAddTab = 'why' | 'how' | 'schedule';
 
 interface FurnitureWithData extends Furniture {
-  linkedObjects: LifeObject[];
   linkedTasks: Task[];
   calculatedDirtyScore: number;
 }
@@ -243,7 +241,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     if (!furnitureData) {
       setFurnitureData({
         ...furniture,
-        linkedObjects: [],
         linkedTasks: [],
         calculatedDirtyScore: furniture.dirtyScore || 0,
       });
@@ -274,42 +271,12 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     try {
       setLoading(true);
       
-      // 모든 LifeObject와 Task 가져오기
-      const allObjects = await getLifeObjects(userId!);
       const allTasks = await getTasks(userId!);
-      
-      console.log('getTasks에서 반환된 첫 번째 태스크:', allTasks[0]);
-      console.log('모든 태스크 ID들:', allTasks.map(task => ({ 
-        id: task.id, 
-        idType: typeof task.id,
-        keys: Object.keys(task)
-      })));
-
-      // 이 가구에 연결된 데이터 필터링
-      const linkedObjects = allObjects.filter((obj) =>
-        furniture.linkedObjectIds.includes(obj.id)
-      );
 
       const linkedTasks = allTasks.filter((task) =>
-        furniture.linkedObjectIds.includes(task.objectId) && 
+        furniture.linkedTaskIds.includes(task.id) && 
         !isTaskCompleted(task)
       );
-      
-      console.log('전체 태스크 수:', allTasks.length);
-      console.log('연결된 태스크들:', linkedTasks.map(task => ({
-        id: task.id,
-        idType: typeof task.id,
-        title: task.title,
-        objectId: task.objectId,
-        fullTask: task
-      })));
-      
-      // Task ID 유효성 검사
-      linkedTasks.forEach(task => {
-        if (typeof task.id !== 'string' || !task.id) {
-          console.error('잘못된 Task ID:', task.id, typeof task.id, task);
-        }
-      });
 
       // dirtyScore 계산: 연체 Task 1개당 기본 15점 + 연체 일수당 5점(최대 30점)
       const now = new Date();
@@ -332,7 +299,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
 
       setFurnitureData({
         ...furniture,
-        linkedObjects,
         linkedTasks,
         calculatedDirtyScore: Math.min(calculatedDirtyScore, 100),
       });
@@ -343,7 +309,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       // 오류 발생 시 기본 데이터 설정
       setFurnitureData({
         ...furniture,
-        linkedObjects: [],
         linkedTasks: [],
         calculatedDirtyScore: furniture.dirtyScore || 0,
       });
@@ -739,8 +704,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       }
       
       // Task 완료 후 Firestore의 가구 dirtyScore 비동기 동기화 (평면도 반영)
-      if (userId && task.objectId) {
-        FurnitureTaskService.syncDirtyScoreAfterTaskComplete(userId, task.objectId).catch(
+      if (userId && task.furnitureId) {
+        FurnitureTaskService.syncDirtyScoreAfterTaskComplete(userId, task.furnitureId).catch(
           (e) => console.error('dirtyScore 동기화 오류:', e)
         );
       }
@@ -1170,9 +1135,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     );
   }
 
-  const { linkedTasks, linkedObjects, calculatedDirtyScore } = furnitureData || {
+  const { linkedTasks, calculatedDirtyScore } = furnitureData || {
     linkedTasks: [],
-    linkedObjects: [],
     calculatedDirtyScore: 0
   };
 

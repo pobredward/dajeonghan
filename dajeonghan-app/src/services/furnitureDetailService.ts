@@ -10,13 +10,11 @@ import {
   FurnitureMetadata,
   createDefaultFurnitureMetadata 
 } from '@/types/house.types';
-import { LifeObject } from '@/types/lifeobject.types';
 import { Task } from '@/types/task.types';
-import { getLifeObjects, getTasks } from '@/services/firestoreService';
+import { getTasks } from '@/services/firestoreService';
 import { getHouseLayout, updateFurniture } from '@/services/houseService';
 
 export interface FurnitureDetailData extends Furniture {
-  linkedObjects: LifeObject[];
   linkedTasks: Task[];
   calculatedDirtyScore: number;
   roomName: string;
@@ -43,26 +41,16 @@ export class FurnitureDetailService {
       const furniture = room.furnitures.find(f => f.id === furnitureId);
       if (!furniture) return null;
 
-      // 연결된 LifeObject와 Task 가져오기
-      const [allObjects, allTasks] = await Promise.all([
-        getLifeObjects(userId),
-        getTasks(userId)
-      ]);
-
-      const linkedObjects = allObjects.filter((obj) =>
-        furniture.linkedObjectIds.includes(obj.id)
-      );
+      const allTasks = await getTasks(userId);
 
       const linkedTasks = allTasks.filter((task) =>
-        furniture.linkedObjectIds.includes(task.objectId)
+        furniture.linkedTaskIds.includes(task.id)
       );
 
-      // dirtyScore 계산
       const calculatedDirtyScore = this.calculateDirtyScore(linkedTasks);
 
       return {
         ...furniture,
-        linkedObjects,
         linkedTasks,
         calculatedDirtyScore,
         roomName: room.name,

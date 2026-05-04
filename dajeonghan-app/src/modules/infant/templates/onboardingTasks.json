@@ -8,7 +8,8 @@
     "estimatedMinutes": 15,
     "priority": "high",
     "category": "infant",
-    "linkedFurnitureType": "baby_station"
+    "linkedFurnitureType": "baby_station",
+    "templateItemId": "baby_bottle_sterilize"
   },
   {
     "name": "장난감 세척 및 소독",
@@ -19,7 +20,8 @@
     "estimatedMinutes": 20,
     "priority": "high",
     "category": "infant",
-    "linkedFurnitureType": "baby_station"
+    "linkedFurnitureType": "baby_station",
+    "templateItemId": "baby_toy_clean"
   },
   {
     "name": "아기 세탁물 세탁",
@@ -30,7 +32,8 @@
     "estimatedMinutes": 10,
     "priority": "high",
     "category": "infant",
-    "linkedFurnitureType": "baby_station"
+    "linkedFurnitureType": "baby_station",
+    "templateItemId": "baby_laundry"
   },
   {
     "name": "기저귀 쓰레기 처리",
@@ -63,6 +66,7 @@
     "estimatedMinutes": 5,
     "priority": "high",
     "category": "infant",
-    "linkedFurnitureType": "baby_station"
+    "linkedFurnitureType": "baby_station",
+    "templateItemId": "baby_supplies_check"
   }
 ]

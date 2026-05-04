@@ -213,14 +213,12 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       // 인덱스 없이 전체 pending task를 가져와 클라이언트에서 분류
       const allTasks = await getTasks(userId, { filter: { status: 'pending' } });
 
-      // objectId → furnitureId 역방향 매핑 빌드 (viewLayout의 linkedObjectIds 기반)
+      // furnitureId 역방향 매핑 빌드 (Task.furnitureId 기반)
       const objectToFurniture: Record<string, string> = {};
-      viewLayout?.rooms?.forEach(room => {
-        room.furnitures?.forEach(furniture => {
-          furniture.linkedObjectIds?.forEach(objectId => {
-            objectToFurniture[objectId] = furniture.id;
-          });
-        });
+      allTasks.forEach((t: Task) => {
+        if (t.furnitureId) {
+          objectToFurniture[t.id] = t.furnitureId;
+        }
       });
 
       const today = new Date();
@@ -232,7 +230,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       const now = new Date();
 
       allTasks.forEach((task: Task) => {
-        const furnitureId = objectToFurniture[task.objectId];
+        const furnitureId = task.furnitureId || objectToFurniture[task.id];
         if (!furnitureId) return;
 
         if (!counts[furnitureId]) counts[furnitureId] = { today: 0, overdue: 0, dirtyScore: 0 };
@@ -500,7 +498,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
         position: { x, y },
         size: defaults.defaultSize,
         rotation: 0,
-        linkedObjectIds: [],
+        linkedTaskIds: [],
         dirtyScore: 0,
         furnitureMetadata: createDefaultFurnitureMetadata('personal_care'),
       };

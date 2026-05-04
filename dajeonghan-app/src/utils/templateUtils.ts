@@ -82,9 +82,7 @@ export function validateTemplate(template: Partial<SharedTemplate>): {
   }
   
   if (!template.tasks || template.tasks.length === 0) {
-    if (!template.lifeObjects || template.lifeObjects.length === 0) {
-      errors.push('최소 1개 이상의 테스크 또는 객체를 선택해주세요');
-    }
+    errors.push('최소 1개 이상의 테스크를 선택해주세요');
   }
   
   return {
@@ -101,7 +99,7 @@ export function calculateTemplateStats(template: SharedTemplate): {
   estimatedTime: number;
   popularityScore: number;
 } {
-  const totalItems = template.tasks.length + template.lifeObjects.length;
+  const totalItems = template.tasks.length;
   
   const estimatedTime = template.tasks.reduce((sum, task) => {
     return sum + (task.estimatedMinutes || 0);

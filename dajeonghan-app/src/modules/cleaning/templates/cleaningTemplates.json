@@ -20,7 +20,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -41,7 +42,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -53,7 +56,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -104,7 +108,8 @@
       "estimatedMinutes": 5,
       "healthPriority": false,
       "priority": "low",
-      "linkedFurnitureType": "mirror"
+      "linkedFurnitureType": "mirror",
+      "templateItemId": "mirror_clean"
     }
   ],
   "solo_worker": [
@@ -128,7 +133,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -149,7 +155,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -161,7 +169,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -215,7 +224,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -236,7 +246,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -248,7 +260,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -289,7 +302,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "bathtub"
+      "linkedFurnitureType": "bathtub",
+      "templateItemId": "bathtub_clean"
     },
     {
       "name": "칫솔 교체",
@@ -323,7 +337,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -354,7 +369,9 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -366,7 +383,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "bathtub"
+      "linkedFurnitureType": "bathtub",
+      "templateItemId": "bathtub_clean"
     },
     {
       "name": "냉장고 정리",
@@ -377,7 +395,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -431,7 +450,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -452,7 +472,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -464,7 +486,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -538,7 +561,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "반려동물 밥·물그릇 세척",
@@ -570,7 +594,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -582,7 +608,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -646,7 +673,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -667,7 +695,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "desk"
+      "linkedFurnitureType": "desk",
+      "templateItemId": "desk_organize"
     },
     {
       "name": "침구 세탁",
@@ -678,7 +707,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -690,7 +721,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -764,7 +796,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "냉장고 유통기한 점검",
@@ -775,7 +808,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_expiry_check"
     },
     {
       "name": "바닥 청소",
@@ -796,7 +830,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -871,7 +907,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -893,7 +931,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소",
@@ -914,7 +953,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "fridge"
+      "linkedFurnitureType": "fridge",
+      "templateItemId": "fridge_organize"
     },
     {
       "name": "쓰레기 분리수거",
@@ -955,7 +995,8 @@
       "estimatedMinutes": 5,
       "healthPriority": false,
       "priority": "low",
-      "linkedFurnitureType": "mirror"
+      "linkedFurnitureType": "mirror",
+      "templateItemId": "mirror_clean"
     }
   ],
   "worker_single": [
@@ -979,7 +1020,9 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "requiresTools": ["세탁기"],
+      "requiresTools": [
+        "세탁기"
+      ],
       "linkedFurnitureType": "washing_machine"
     },
     {
@@ -991,7 +1034,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "sink"
+      "linkedFurnitureType": "sink",
+      "templateItemId": "sink_daily_clean"
     },
     {
       "name": "바닥 청소 (주말)",

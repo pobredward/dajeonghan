@@ -149,19 +149,13 @@ export const OnboardingFlow: React.FC<Props> = ({
         extraFurnitures
       );
 
-      // 2. lifeObject 문서 생성 → Task의 objectId를 실제 Firestore ID로 교체
-      const tasksWithLifeObjects = await OnboardingService.createLifeObjectsForTasks(
-        finalUserId,
-        tasksWithId
-      );
-
-      // 3. 전체 Task를 linkedFurnitureType 기준으로 가구에 연동
+      // 2. 전체 Task를 linkedFurnitureType 기준으로 가구에 연동
       const cleaningTemplates = selectedPersona
         ? OnboardingService.getCleaningTemplates(selectedPersona)
         : [];
       const linkedLayout = OnboardingService.linkAllTasksToFurnitures(
         savedLayout,
-        tasksWithLifeObjects,
+        tasksWithId,
         cleaningTemplates
       );
       // 연동 결과를 Firestore에 반영
@@ -169,10 +163,24 @@ export const OnboardingFlow: React.FC<Props> = ({
       await saveHouseLayout(linkedLayout);
       console.log('✅ 가구-Task 연동 완료 (전체 Task 포함)');
 
-      // 4. objectId가 교체된 태스크 저장
-      if (tasksWithLifeObjects.length > 0) {
-        await saveTasks(tasksWithLifeObjects);
-        console.log(`✅ ${tasksWithLifeObjects.length}개 태스크 저장 완료`);
+      // 3. furnitureId 업데이트: linkedLayout에서 각 Task가 연결된 furnitureId를 반영
+      const furnitureIdMap: Record<string, string> = {};
+      linkedLayout.rooms.forEach(room => {
+        room.furnitures.forEach(furniture => {
+          furniture.linkedTaskIds.forEach(taskId => {
+            furnitureIdMap[taskId] = furniture.id;
+          });
+        });
+      });
+      const tasksWithFurnitureId = tasksWithId.map(task => ({
+        ...task,
+        furnitureId: furnitureIdMap[task.id] ?? task.furnitureId,
+      }));
+
+      // 4. Task 저장
+      if (tasksWithFurnitureId.length > 0) {
+        await saveTasks(tasksWithFurnitureId);
+        console.log(`✅ ${tasksWithFurnitureId.length}개 태스크 저장 완료`);
       }
 
       onComplete();

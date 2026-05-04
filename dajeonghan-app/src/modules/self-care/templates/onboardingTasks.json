@@ -33,7 +33,8 @@
       "estimatedMinutes": 60,
       "priority": "medium",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_gym"
     },
     {
       "name": "운동복·타월 세탁",
@@ -57,7 +58,8 @@
       "estimatedMinutes": 90,
       "priority": "low",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_hair"
     },
     {
       "name": "두피 케어",
@@ -81,7 +83,8 @@
       "estimatedMinutes": 15,
       "priority": "low",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_nails"
     }
   ],
   "wax": [
@@ -94,7 +97,8 @@
       "estimatedMinutes": 5,
       "priority": "low",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_wax"
     }
   ],
   "dental": [
@@ -107,7 +111,8 @@
       "estimatedMinutes": 60,
       "priority": "high",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_dental"
     },
     {
       "name": "치실·구강 청결",
@@ -131,7 +136,8 @@
       "estimatedMinutes": 5,
       "priority": "low",
       "category": "self_care",
-      "linkedFurnitureType": "personal_care"
+      "linkedFurnitureType": "personal_care",
+      "templateItemId": "personal_care_massage"
     }
   ]
 }

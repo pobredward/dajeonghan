@@ -1,13 +1,16 @@
-import { LifeObject } from '@/types/lifeobject.types';
-
 /**
  * 식재료 아이템
  * 
  * 냉장고에 보관 중인 식재료를 나타냅니다.
  */
-export interface FoodItem extends LifeObject {
+export interface FoodItem {
+  id: string;
+  userId: string;
   type: 'food';
+  name: string;
   metadata: FoodMetadata;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**

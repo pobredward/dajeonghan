@@ -721,7 +721,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
       },
       size: defaults.defaultSize,
       rotation: 0,
-      linkedObjectIds: [],
+      linkedTaskIds: [],
       dirtyScore: 0,
     };
 

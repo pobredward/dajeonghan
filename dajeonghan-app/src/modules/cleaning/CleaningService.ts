@@ -92,7 +92,7 @@ export class CleaningService {
     return {
       id: taskId,
       userId,
-      objectId: `cleaning_obj_${userId}_${index}`,
+      furnitureId: '',
       title: template.name,
       description: `${template.room} 청소 작업`,
       type: 'cleaning',
@@ -113,6 +113,7 @@ export class CleaningService {
       completionHistory: [],
       dirtyScore: 0,
       metadata,
+      ...(template.templateItemId ? { templateItemId: template.templateItemId } : {}),
       createdAt: now,
       updatedAt: now
     };

@@ -53,7 +53,7 @@ describe('CleaningService', () => {
       const task: CleaningTask = {
         id: 'test_task_1',
         userId: 'test_user',
-        objectId: 'test_obj',
+        furnitureId: 'test_furniture',
         title: '화장실 청소',
         description: '화장실 청소 작업',
         type: 'cleaning',
@@ -97,7 +97,7 @@ describe('CleaningService', () => {
       const healthTask: CleaningTask = {
         id: 'test_task_1',
         userId: 'test_user',
-        objectId: 'test_obj',
+        furnitureId: 'test_furniture',
         title: '화장실 청소',
         description: '화장실 청소 작업',
         type: 'cleaning',
@@ -155,7 +155,7 @@ describe('CleaningService', () => {
         {
           id: 'task_1',
           userId,
-          objectId: 'obj_1',
+          furnitureId: 'furniture_1',
           title: '환기',
           description: '환기 작업',
           type: 'cleaning',
@@ -186,7 +186,7 @@ describe('CleaningService', () => {
         {
           id: 'task_2',
           userId,
-          objectId: 'obj_2',
+          furnitureId: 'furniture_2',
           title: '거울 닦기',
           description: '거울 닦기 작업',
           type: 'cleaning',
@@ -233,7 +233,7 @@ describe('CleaningService', () => {
         {
           id: 'task_1',
           userId,
-          objectId: 'obj_1',
+          furnitureId: 'furniture_1',
           title: '화장실 청소',
           description: '화장실 청소 작업',
           type: 'cleaning',
@@ -264,7 +264,7 @@ describe('CleaningService', () => {
         {
           id: 'task_2',
           userId,
-          objectId: 'obj_2',
+          furnitureId: 'furniture_2',
           title: '거실 청소',
           description: '거실 청소 작업',
           type: 'cleaning',
@@ -310,7 +310,7 @@ describe('CleaningService', () => {
         {
           id: 'task_1',
           userId,
-          objectId: 'obj_1',
+          furnitureId: 'furniture_1',
           title: '화장실 청소',
           description: '화장실 청소 작업',
           type: 'cleaning',
@@ -341,7 +341,7 @@ describe('CleaningService', () => {
         {
           id: 'task_2',
           userId,
-          objectId: 'obj_2',
+          furnitureId: 'furniture_2',
           title: '거실 청소',
           description: '거실 청소 작업',
           type: 'cleaning',

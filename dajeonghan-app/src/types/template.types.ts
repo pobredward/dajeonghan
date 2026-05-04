@@ -7,7 +7,6 @@
 
 import { BaseEntity } from './common.types';
 import { Task } from './task.types';
-import { LifeObject } from './lifeobject.types';
 
 /**
  * 템플릿 카테고리
@@ -24,11 +23,6 @@ export type TemplateCategory =
   | 'minimalist'
   | 'weekend_warrior'
   | 'custom';
-
-/**
- * 템플릿 내 LifeObject (userId, id, 날짜 제외)
- */
-export type TemplateLifeObject = Omit<LifeObject, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 
 /**
  * 템플릿 내 Task (userId, id, nextDue 제외)
@@ -53,7 +47,6 @@ export interface SharedTemplate extends BaseEntity {
   category: TemplateCategory;
   thumbnail?: string;
   
-  lifeObjects: TemplateLifeObject[];
   tasks: TemplateTask[];
   
   usageCount: number;

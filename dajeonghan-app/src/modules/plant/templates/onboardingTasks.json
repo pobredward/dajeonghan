@@ -8,7 +8,8 @@
     "estimatedMinutes": 5,
     "priority": "medium",
     "category": "plant",
-    "linkedFurnitureType": "plant"
+    "linkedFurnitureType": "plant",
+    "templateItemId": "plant_water"
   },
   {
     "name": "식물 잎 닦기·분무",
@@ -30,7 +31,8 @@
     "estimatedMinutes": 5,
     "priority": "low",
     "category": "plant",
-    "linkedFurnitureType": "plant"
+    "linkedFurnitureType": "plant",
+    "templateItemId": "plant_fertilize"
   },
   {
     "name": "분갈이 시기 점검",

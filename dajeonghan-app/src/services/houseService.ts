@@ -133,7 +133,7 @@ export const updateRoom = async (
 export const addFurniture = async (
   userId: string,
   roomId: string,
-  furniture: Omit<Furniture, 'id' | 'linkedObjectIds' | 'dirtyScore'>
+  furniture: Omit<Furniture, 'id' | 'linkedTaskIds' | 'dirtyScore'>
 ): Promise<string> => {
   const layout = await getHouseLayout(userId);
   if (!layout) throw new Error('House layout not found');
@@ -145,7 +145,7 @@ export const addFurniture = async (
   const newFurniture: Furniture = {
     id: furnitureId,
     ...furniture,
-    linkedObjectIds: [],
+    linkedTaskIds: [],
     dirtyScore: 0,
   };
 
@@ -227,7 +227,7 @@ const makePresetFurniture = (
     },
     size: defaults.defaultSize,
     rotation: 0,
-    linkedObjectIds: [],
+    linkedTaskIds: [],
     dirtyScore: 0,
   };
 };
@@ -696,13 +696,13 @@ export const getLayoutTemplate = (
 };
 
 /**
- * 가구에 LifeObject 연결
+ * 가구에 Task 연결
  */
-export const linkLifeObjectToFurniture = async (
+export const linkTaskToFurniture = async (
   userId: string,
   roomId: string,
   furnitureId: string,
-  lifeObjectId: string
+  taskId: string
 ): Promise<void> => {
   const layout = await getHouseLayout(userId);
   if (!layout) throw new Error('House layout not found');
@@ -713,21 +713,21 @@ export const linkLifeObjectToFurniture = async (
   const furniture = room.furnitures.find((f) => f.id === furnitureId);
   if (!furniture) throw new Error('Furniture not found');
 
-  if (!furniture.linkedObjectIds.includes(lifeObjectId)) {
-    furniture.linkedObjectIds.push(lifeObjectId);
+  if (!furniture.linkedTaskIds.includes(taskId)) {
+    furniture.linkedTaskIds.push(taskId);
     layout.updatedAt = new Date();
     await saveHouseLayout(layout);
   }
 };
 
 /**
- * 가구에서 LifeObject 연결 해제
+ * 가구에서 Task 연결 해제
  */
-export const unlinkLifeObjectFromFurniture = async (
+export const unlinkTaskFromFurniture = async (
   userId: string,
   roomId: string,
   furnitureId: string,
-  lifeObjectId: string
+  taskId: string
 ): Promise<void> => {
   const layout = await getHouseLayout(userId);
   if (!layout) throw new Error('House layout not found');
@@ -738,36 +738,11 @@ export const unlinkLifeObjectFromFurniture = async (
   const furniture = room.furnitures.find((f) => f.id === furnitureId);
   if (!furniture) throw new Error('Furniture not found');
 
-  furniture.linkedObjectIds = furniture.linkedObjectIds.filter(
-    (id) => id !== lifeObjectId
+  furniture.linkedTaskIds = furniture.linkedTaskIds.filter(
+    (id) => id !== taskId
   );
   layout.updatedAt = new Date();
   await saveHouseLayout(layout);
-};
-
-/**
- * 가구 타입에 맞는 LifeObject 가져오기
- */
-export const getLifeObjectsForFurniture = async (
-  userId: string,
-  furnitureType: string
-): Promise<any[]> => {
-  const { getLifeObjects } = await import('./firestoreService');
-  
-  // 가구 타입별 LifeObject 타입 매핑
-  const typeMapping: Record<string, string> = {
-    fridge: 'food',
-    sink: 'cleaning',
-    toilet: 'cleaning',
-    bed: 'self_care',
-    desk: 'self_development',
-    closet: 'self_care',
-  };
-
-  const objectType = typeMapping[furnitureType];
-  if (!objectType) return [];
-
-  return await getLifeObjects(userId, objectType);
 };
 
 /**
@@ -791,12 +766,11 @@ export const calculateFurnitureDirtyScore = async (
     }
   }
 
-  if (!furniture || furniture.linkedObjectIds.length === 0) return 0;
+  if (!furniture || furniture.linkedTaskIds.length === 0) return 0;
 
-  // 연결된 LifeObject의 Task들 가져오기
   const allTasks = await getTasks(userId);
   const linkedTasks = allTasks.filter((task) =>
-    furniture!.linkedObjectIds.includes(task.objectId)
+    furniture!.linkedTaskIds.includes(task.id)
   );
 
   // 연체된 Task 개수로 dirtyScore 계산 (자정 기준으로 연체 판정)

@@ -20,11 +20,11 @@ export type { CompletionHistory, Recurrence, NotificationSettings, ModuleType, P
 /**
  * Task 메인 인터페이스
  * 
- * LifeObject에 연결되어 실제 해야 할 작업을 나타냅니다.
+ * 가구에 직접 연결되어 실제 해야 할 작업을 나타냅니다.
  * 주기 관리, 우선순위, 알림 설정, 완료 이력 등을 포함합니다.
  */
 export interface Task extends UserOwnedEntity {
-  objectId: string;
+  furnitureId: string; // 연결된 가구 ID
   title: string;
   description?: string;
   type: ModuleType;
@@ -36,7 +36,6 @@ export interface Task extends UserOwnedEntity {
   completionHistory: CompletionHistory[];
   dirtyScore?: number;
   urgencyScore?: number;
-  furnitureId?: string; // 가구 연결용
   templateItemId?: string; // 가구 템플릿 Task 연결용 (fetchTaskTemplateDetail에 사용)
   isCompleted?: boolean; // 일회성 태스크 완료 여부
   completedAt?: Date; // 완료 일시
@@ -49,6 +48,7 @@ export interface Task extends UserOwnedEntity {
  * (자동 생성 필드 제외)
  */
 export type TaskCreateInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completionHistory' | 'dirtyScore' | 'urgencyScore'>;
+
 
 /**
  * Task 수정 시 필요한 입력 데이터
@@ -67,7 +67,7 @@ export type TaskAction = 'completed' | 'postponed' | 'skipped';
  */
 export interface TaskLog extends UserOwnedEntity {
   taskId: string;
-  objectId: string;
+  furnitureId: string;
   action: TaskAction;
   timestamp: Date;
   note?: string;

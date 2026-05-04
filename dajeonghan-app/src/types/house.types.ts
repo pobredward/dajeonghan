@@ -60,7 +60,7 @@ export interface FridgeMetadata {
 }
 
 export interface FridgeInventoryItem {
-  foodId: string; // LifeObject ID 참조
+  foodId: string; // Task ID 참조
   location: 'refrigerator' | 'freezer' | 'vegetable_drawer'; // 위치
   quantity: string; // 수량 (예: "2개", "500g")
   addedDate: Date; // 추가일
@@ -163,7 +163,7 @@ export interface Furniture {
     height: number;
   };
   rotation: number; // 0, 90, 180, 270
-  linkedObjectIds: string[]; // 연결된 LifeObject ID들
+  linkedTaskIds: string[]; // 연결된 Task ID들
   dirtyScore: number; // 0-100
   furnitureMetadata?: FurnitureMetadata; // 가구별 특화 데이터
 }
@@ -210,7 +210,7 @@ export interface HouseLayout extends UserOwnedEntity {
 /**
  * 가구 생성 입력
  */
-export type FurnitureCreateInput = Omit<Furniture, 'id' | 'linkedObjectIds' | 'dirtyScore'>;
+export type FurnitureCreateInput = Omit<Furniture, 'id' | 'linkedTaskIds' | 'dirtyScore'>;
 
 /**
  * 방 생성 입력

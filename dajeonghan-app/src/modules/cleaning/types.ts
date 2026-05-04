@@ -1,17 +1,5 @@
 import { Task } from '@/types/task.types';
-import { LifeObject } from '@/types/lifeobject.types';
 import { FurnitureType } from '@/types/house.types';
-
-/**
- * 청소 객체 (CleaningObject)
- * 
- * 방/공간 기반의 청소 항목을 정의합니다.
- * 예: 화장실 청소, 거실 바닥 청소 등
- */
-export interface CleaningObject extends LifeObject {
-  type: 'cleaning';
-  metadata: CleaningMetadata;
-}
 
 /**
  * 청소 메타데이터
@@ -93,6 +81,7 @@ export interface CleaningTemplateItem {
   requiresTools?: string[];
   seasonalAdjustment?: boolean;
   linkedFurnitureType?: FurnitureType;
+  templateItemId?: string;
 }
 
 /**
