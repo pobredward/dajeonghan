@@ -77,6 +77,7 @@ export class FurnitureTaskService {
             : [0.5], // 30분 = 0.5시간
         },
         completionHistory: [],
+        templateItemId: templateTask.id,
       };
 
       const taskRef = await addDoc(

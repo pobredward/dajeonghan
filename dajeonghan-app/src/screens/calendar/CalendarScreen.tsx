@@ -11,7 +11,11 @@ import {
   Modal,
   Alert,
   TextInput,
+  Image,
+  Linking,
 } from 'react-native';
+import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
+import { TaskTemplateDetail } from '@/types/furnitureTaskTemplate.types';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
 import { useFocusEffect } from '@react-navigation/native';
@@ -145,6 +149,10 @@ export const CalendarScreen: React.FC = () => {
   const [editHasTime, setEditHasTime] = useState<boolean>(false);
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
+
+  // 상세 모달 탭 state
+  const [detailActiveTab, setDetailActiveTab] = useState<'info' | 'why' | 'how'>('info');
+  const [detailTemplateDetail, setDetailTemplateDetail] = useState<TaskTemplateDetail | null>(null);
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
@@ -551,6 +559,9 @@ export const CalendarScreen: React.FC = () => {
       setEditSelectedDays((recurrence.selectedDays ?? []) as DayOfWeek[]);
     }
     setEditMinutes(task.estimatedMinutes > 0 ? task.estimatedMinutes : 15);
+    // 탭 초기화 및 템플릿 상세 정보 조회
+    setDetailActiveTab('info');
+    setDetailTemplateDetail(fetchTaskTemplateDetail(task.templateItemId ?? String(task.id)));
     detailModalAnim.setValue(0);
     setTaskDetailModal({ visible: true, task });
     Animated.timing(detailModalAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start();
@@ -848,9 +859,73 @@ export const CalendarScreen: React.FC = () => {
                     <Text style={styles.detailModuleLabel}>{getModuleLabel(task.type)}</Text>
                   </View>
 
+                  {/* 탭 바 */}
+                  {(() => {
+                    const hasWhy = !!(detailTemplateDetail?.whyNeeded);
+                    const hasHow = !!(detailTemplateDetail?.howTo || detailTemplateDetail?.imageUrls?.length);
+                    const tabs: { key: 'info' | 'why' | 'how'; label: string; available: boolean }[] = [
+                      { key: 'info', label: '정보', available: true },
+                      { key: 'why', label: '이유', available: hasWhy },
+                      { key: 'how', label: '진행방법', available: hasHow },
+                    ];
+                    return (
+                      <View style={styles.detailTabBar}>
+                        {tabs.map((tab) => {
+                          const isActive = detailActiveTab === tab.key;
+                          const isDisabled = !tab.available;
+                          return (
+                            <TouchableOpacity
+                              key={tab.key}
+                              style={[
+                                styles.detailTabBarItem,
+                                isActive && styles.detailTabBarItemActive,
+                                isDisabled && styles.detailTabBarItemDisabled,
+                              ]}
+                              onPress={() => { if (!isDisabled) setDetailActiveTab(tab.key); }}
+                              activeOpacity={isDisabled ? 1 : 0.75}
+                              disabled={isDisabled}
+                            >
+                              <Text style={[
+                                styles.detailTabBarItemText,
+                                isActive && styles.detailTabBarItemTextActive,
+                                isDisabled && styles.detailTabBarItemTextDisabled,
+                              ]}>
+                                {tab.label}
+                              </Text>
+                              {!tab.available && (
+                                <View style={styles.detailTabBarPrepBadge}>
+                                  <Text style={styles.detailTabBarPrepBadgeText}>준비중</Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    );
+                  })()}
+
                   {/* 스크롤 콘텐츠 */}
                   <ScrollView style={styles.detailScrollContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.md }}>
-                    <View style={styles.detailSummaryCardV2}>
+                    {/* 이유 탭 */}
+                    {detailActiveTab === 'why' && (
+                      <CalendarTaskDetailTabContent
+                        content={detailTemplateDetail?.whyNeeded}
+                        icon="📌"
+                        title="왜 해야 하나요?"
+                      />
+                    )}
+                    {/* 진행방법 탭 */}
+                    {detailActiveTab === 'how' && (
+                      <CalendarTaskDetailTabContent
+                        content={detailTemplateDetail?.howTo}
+                        icon="📋"
+                        title="어떻게 하나요?"
+                        imageUrls={detailTemplateDetail?.imageUrls}
+                        referenceLinks={detailTemplateDetail?.referenceLinks}
+                      />
+                    )}
+                    {/* 정보 탭 */}
+                    {detailActiveTab === 'info' && <View style={styles.detailSummaryCardV2}>
                       {dueDate && (
                         <View style={styles.detailSummaryRowItem}>
                           <Text style={styles.detailSummaryIcon}>📅</Text>
@@ -1124,7 +1199,7 @@ export const CalendarScreen: React.FC = () => {
                           </View>
                         </View>
                       )}
-                    </View>
+                    </View>}
                   </ScrollView>
 
                   {/* 고정 액션 버튼 */}
@@ -1336,6 +1411,61 @@ const EmptyDay: React.FC = () => (
     <Text style={styles.emptyDayIcon}>✅</Text>
     <Text style={styles.emptyDayText}>이 날에는 할 일이 없어요</Text>
     <Text style={styles.emptyDaySubtext}>여유로운 하루입니다</Text>
+  </View>
+);
+
+const CalendarTaskDetailTabContent: React.FC<{
+  content?: string;
+  icon: string;
+  title: string;
+  imageUrls?: string[];
+  referenceLinks?: { label: string; url: string }[];
+}> = ({ content, icon, title, imageUrls, referenceLinks }) => (
+  <View style={styles.calDetailTabContainer}>
+    <View style={styles.calDetailTabTitleRow}>
+      <Text style={styles.calDetailTabIcon}>{icon}</Text>
+      <Text style={styles.calDetailTabTitle}>{title}</Text>
+    </View>
+    {content ? (
+      <Text style={styles.calDetailTabContent}>{content}</Text>
+    ) : (
+      <View style={styles.calDetailTabEmptyBox}>
+        <Text style={styles.calDetailTabEmptyText}>아직 내용이 준비 중이에요</Text>
+      </View>
+    )}
+    {imageUrls && imageUrls.length > 0 && (
+      <View style={styles.calDetailTabImageList}>
+        {imageUrls.map((url, idx) => (
+          <Image
+            key={idx}
+            source={{ uri: url }}
+            style={styles.calDetailTabImage}
+            resizeMode="cover"
+          />
+        ))}
+      </View>
+    )}
+    {referenceLinks && referenceLinks.length > 0 && (
+      <View style={styles.calDetailTabLinkList}>
+        <Text style={styles.calDetailTabLinkSectionLabel}>참고 자료</Text>
+        {referenceLinks.map((link, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={styles.calDetailTabLinkItem}
+            onPress={() => Linking.openURL(link.url)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.calDetailTabLinkIcon}>
+              {link.url.includes('youtube.com') || link.url.includes('youtu.be') ? '▶' : '🔗'}
+            </Text>
+            <Text style={styles.calDetailTabLinkLabel} numberOfLines={1}>
+              {link.label}
+            </Text>
+            <Text style={styles.calDetailTabLinkArrow}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    )}
   </View>
 );
 
@@ -1594,4 +1724,119 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.veryLightGray, alignItems: 'center',
   },
   detailInlineCancelBtnText: { ...Typography.labelSmall, color: Colors.textSecondary, fontWeight: '600' },
+
+  // 상세 모달 탭 바
+  detailTabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.veryLightGray,
+    backgroundColor: Colors.surface,
+  },
+  detailTabBarItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm + 2,
+    gap: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  detailTabBarItemActive: {
+    borderBottomColor: Colors.primary,
+  },
+  detailTabBarItemDisabled: {
+    opacity: 0.45,
+  },
+  detailTabBarItemText: {
+    ...Typography.labelSmall,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  detailTabBarItemTextActive: {
+    color: Colors.primary,
+  },
+  detailTabBarItemTextDisabled: {
+    color: Colors.textDisabled,
+  },
+  detailTabBarPrepBadge: {
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  detailTabBarPrepBadgeText: {
+    fontSize: 9,
+    color: Colors.textSecondary,
+  },
+
+  // 탭 콘텐츠 (CalendarTaskDetailTabContent)
+  calDetailTabContainer: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  calDetailTabTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  calDetailTabIcon: { fontSize: 18 },
+  calDetailTabTitle: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+  },
+  calDetailTabContent: {
+    ...Typography.bodySmall,
+    color: Colors.textPrimary,
+    lineHeight: 22,
+  },
+  calDetailTabEmptyBox: {
+    backgroundColor: Colors.veryLightGray,
+    borderRadius: 10,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  calDetailTabEmptyText: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+  },
+  calDetailTabImageList: {
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  calDetailTabImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+  },
+  calDetailTabLinkList: {
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  calDetailTabLinkSectionLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  calDetailTabLinkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  calDetailTabLinkIcon: { fontSize: 14 },
+  calDetailTabLinkLabel: {
+    ...Typography.bodySmall,
+    color: Colors.primary,
+    flex: 1,
+  },
+  calDetailTabLinkArrow: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
 });

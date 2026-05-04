@@ -37,6 +37,7 @@ export interface Task extends UserOwnedEntity {
   dirtyScore?: number;
   urgencyScore?: number;
   furnitureId?: string; // 가구 연결용
+  templateItemId?: string; // 가구 템플릿 Task 연결용 (fetchTaskTemplateDetail에 사용)
   isCompleted?: boolean; // 일회성 태스크 완료 여부
   completedAt?: Date; // 완료 일시
   lastCompletedAt?: Date; // 마지막 완료 일시 (반복 태스크용)
