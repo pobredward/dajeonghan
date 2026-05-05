@@ -39,7 +39,7 @@ export type RoomType =
  * Task를 확장하여 청소 특화 필드 추가
  */
 export interface CleaningTask extends Task {
-  type: 'cleaning';
+  domain: 'home';
   
   /** 더러움 점수 (0~10), 경과일 기반 자동 계산 */
   dirtyScore: number;

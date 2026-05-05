@@ -15,7 +15,7 @@ import {
   where
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { Task, Recurrence } from '@/types/task.types';
+import { Task, TaskDomain, Recurrence } from '@/types/task.types';
 import { TaskTemplateItem, TaskCustomization } from '@/types/furnitureTaskTemplate.types';
 import { linkTaskToFurniture, calculateFurnitureDirtyScore, updateFurniture, getHouseLayout } from '@/services/houseService';
 
@@ -41,7 +41,8 @@ export class FurnitureTaskService {
         furnitureId,
         title: customization.customTitle?.trim() || templateTask.title,
         description: templateTask.description,
-        type: templateTask.type,
+        domain: templateTask.domain,
+        actionType: templateTask.actionType,
         recurrence,
         priority: customization.priority || templateTask.priority,
         estimatedMinutes: customization.estimatedMinutes ?? templateTask.estimatedMinutes ?? 30,
@@ -87,7 +88,7 @@ export class FurnitureTaskService {
     taskData: {
       title: string;
       description?: string;
-      type: 'cleaning' | 'food' | 'medicine' | 'self_care' | 'self_development';
+      domain: TaskDomain;
       customization: TaskCustomization;
     }
   ): Promise<{ taskId: string }> {
@@ -99,7 +100,7 @@ export class FurnitureTaskService {
         furnitureId,
         title: taskData.title,
         description: taskData.description,
-        type: taskData.type,
+        domain: taskData.domain,
         recurrence,
         priority: taskData.customization.priority || 'medium',
         estimatedMinutes: taskData.customization.estimatedMinutes || 30,

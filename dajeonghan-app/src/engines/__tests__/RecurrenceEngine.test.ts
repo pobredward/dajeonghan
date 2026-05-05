@@ -12,7 +12,8 @@ describe('RecurrenceEngine', () => {
     userId: 'test-user',
     furnitureId: 'test-furniture',
     title: '테스트 작업',
-    type: 'cleaning',
+    domain: 'home',
+    actionType: 'cleaning',
     recurrence: {
       type: 'fixed',
       interval: 7,

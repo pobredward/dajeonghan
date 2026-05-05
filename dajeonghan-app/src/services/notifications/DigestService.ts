@@ -59,7 +59,7 @@ export class DigestService {
     today.setHours(0, 0, 0, 0);
 
     const cleaningTasks = tasks
-      .filter(t => t.type === 'cleaning' && t.status === 'pending')
+      .filter(t => (t.domain ?? t.type) === 'home' && t.status === 'pending')
       .filter(t => {
         const nextDue = new Date(t.recurrence.nextDue);
         return nextDue <= today || differenceInDays(nextDue, today) <= 1;

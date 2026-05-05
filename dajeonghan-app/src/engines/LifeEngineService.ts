@@ -368,11 +368,14 @@ export class LifeEngineService {
       postponed: tasks.filter(t => t.status === 'postponed').length,
       overdue: tasks.filter(t => t.status === 'pending' && t.recurrence.nextDue < now).length,
       byModule: {
-        cleaning: tasks.filter(t => t.type === 'cleaning').length,
-        food: tasks.filter(t => t.type === 'food').length,
-        medicine: tasks.filter(t => t.type === 'medicine').length,
-        self_care: tasks.filter(t => t.type === 'self_care').length,
-        self_development: tasks.filter(t => t.type === 'self_development').length
+        home: tasks.filter(t => (t.domain ?? t.type) === 'home').length,
+        food: tasks.filter(t => (t.domain ?? t.type) === 'food').length,
+        medicine: tasks.filter(t => (t.domain ?? t.type) === 'medicine').length,
+        self_care: tasks.filter(t => (t.domain ?? t.type) === 'self_care').length,
+        growth: tasks.filter(t => (t.domain ?? t.type) === 'growth').length,
+        pet: tasks.filter(t => (t.domain ?? t.type) === 'pet').length,
+        car: tasks.filter(t => (t.domain ?? t.type) === 'car').length,
+        family: tasks.filter(t => (t.domain ?? t.type) === 'family').length,
       }
     };
   }

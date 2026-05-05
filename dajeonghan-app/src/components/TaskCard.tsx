@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Task } from '@/types/task.types';
+import { getModuleIcon } from '@/utils/taskUtils';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { Colors, Typography, Spacing } from '@/constants';
@@ -12,14 +13,7 @@ interface Props {
 }
 
 export const TaskCard: React.FC<Props> = ({ task, onComplete, onPostpone }) => {
-  const getModuleIcon = () => {
-    switch (task.type) {
-      case 'cleaning': return '🧹';
-      case 'food': return '🥗';
-      case 'medicine': return '💊';
-      default: return '📋';
-    }
-  };
+  const domainIcon = getModuleIcon(task.domain ?? task.type as any);
 
   const getPriorityVariant = (): 'primary' | 'success' | 'warning' | 'error' => {
     switch (task.priority) {
@@ -35,7 +29,7 @@ export const TaskCard: React.FC<Props> = ({ task, onComplete, onPostpone }) => {
     <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.icon}>{getModuleIcon()}</Text>
+          <Text style={styles.icon}>{domainIcon}</Text>
           <Text style={styles.title} numberOfLines={2}>{task.title}</Text>
         </View>
         <Badge text={`${task.estimatedMinutes}분`} variant={getPriorityVariant()} />

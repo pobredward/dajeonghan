@@ -28,8 +28,9 @@ export class CleaningService {
     userEnvironment: UserProfile['environment']
   ): CleaningTask[] {
     const templates = cleaningTemplatesData as Record<string, CleaningTemplateItem[]>;
-    const template = templates[persona] || templates['student_20s'];
-    
+    const template = templates[persona] ?? templates['solo_young'] ?? templates['student_20s'] ?? [];
+    if (!template.length) return [];
+
     return template.map((item, index) => {
       // 환경에 따른 필터링
       if (item.requiresTools?.includes('세탁기') && !userEnvironment.hasWasher) {
@@ -95,7 +96,8 @@ export class CleaningService {
       furnitureId: '',
       title: template.name,
       description: `${template.room} 청소 작업`,
-      type: 'cleaning',
+      domain: 'home',
+      actionType: 'cleaning',
       recurrence: {
         type: 'fixed',
         interval: template.interval,

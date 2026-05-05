@@ -10,19 +10,14 @@
 import { UserProfile, PersonaType, UserEnvironment, NotificationMode, OnboardingResponse, SelfCareItem, PetType } from '@/types/user.types';
 import { Task } from '@/types/task.types';
 import { HouseLayout, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
+import { TaskTemplateItem } from '@/types/furnitureTaskTemplate.types';
 import { CleaningService } from '@/modules/cleaning/CleaningService';
 import { getLayoutTemplate, saveHouseLayout } from '@/services/houseService';
+import { getOnboardingTemplates } from '@/data/furnitureTaskTemplates';
 import * as Crypto from 'expo-crypto';
 import personas from '@/templates/personas.json';
 import cleaningTemplatesData from '@/modules/cleaning/templates/cleaningTemplates.json';
 import { CleaningTemplateItem } from '@/modules/cleaning/types';
-
-import medicineOnboardingTasks from '@/modules/medicine/templates/onboardingTasks.json';
-import selfCareOnboardingTasks from '@/modules/self-care/templates/onboardingTasks.json';
-import petOnboardingTasks from '@/modules/pet/templates/onboardingTasks.json';
-import plantOnboardingTasks from '@/modules/plant/templates/onboardingTasks.json';
-import carOnboardingTasks from '@/modules/car/templates/onboardingTasks.json';
-import infantOnboardingTasks from '@/modules/infant/templates/onboardingTasks.json';
 
 const ONBOARDING_VERSION = 'v2';
 const PROFILE_VERSION = '2.0';
@@ -42,22 +37,6 @@ export interface OnboardingAnswers {
   plant?: boolean;
   car?: boolean;
   notification?: NotificationMode;
-}
-
-/**
- * 온보딩 Task 템플릿 항목 (모듈 공통)
- */
-interface OnboardingTaskTemplate {
-  name: string;
-  description: string;
-  type: string;
-  interval: number;
-  unit: 'day' | 'week' | 'month';
-  estimatedMinutes: number;
-  priority: 'urgent' | 'high' | 'medium' | 'low';
-  category: string;
-  linkedFurnitureType?: FurnitureType;
-  templateItemId?: string;
 }
 
 /**
@@ -295,11 +274,12 @@ export class OnboardingService {
     let cleaningIndex = 0;
 
     for (const task of tasks) {
+      const taskDomain = task.domain ?? task.type;
       const linkedType: FurnitureType | undefined =
         (task as any).metadata?.linkedFurnitureType ??
-        (task.type === 'cleaning' ? cleaningTemplates[cleaningIndex]?.linkedFurnitureType : undefined);
+        (taskDomain === 'home' ? cleaningTemplates[cleaningIndex]?.linkedFurnitureType : undefined);
 
-      if (task.type === 'cleaning') cleaningIndex++;
+      if (taskDomain === 'home') cleaningIndex++;
 
       if (!linkedType) continue;
 
@@ -344,7 +324,7 @@ export class OnboardingService {
     if (environment && (profile.onboardingResponse?.rawAnswers as OnboardingAnswers)?.medicine === true) {
       const medicineTasks = this.createTasksFromTemplateArray(
         userId,
-        medicineOnboardingTasks as OnboardingTaskTemplate[],
+        getOnboardingTemplates('medicine_cabinet'),
         extraIndex
       );
       allTasks.push(...medicineTasks);
@@ -354,7 +334,7 @@ export class OnboardingService {
     // 3. 반려동물 Task
     if (environment.hasPet) {
       const petType: PetType = environment.petType ?? 'other';
-      const petTemplates = (petOnboardingTasks as Record<string, OnboardingTaskTemplate[]>)[petType] ?? [];
+      const petTemplates = getOnboardingTemplates('pet', petType);
       const petTasks = this.createTasksFromTemplateArray(userId, petTemplates, extraIndex);
       allTasks.push(...petTasks);
       extraIndex += petTasks.length;
@@ -364,7 +344,7 @@ export class OnboardingService {
     if (environment.hasInfant) {
       const infantTasks = this.createTasksFromTemplateArray(
         userId,
-        infantOnboardingTasks as OnboardingTaskTemplate[],
+        getOnboardingTemplates('baby_station'),
         extraIndex
       );
       allTasks.push(...infantTasks);
@@ -373,9 +353,8 @@ export class OnboardingService {
 
     // 5. 자기관리 Task
     if (environment.selfCareItems && environment.selfCareItems.length > 0) {
-      const selfCareTemplatesMap = selfCareOnboardingTasks as Record<string, OnboardingTaskTemplate[]>;
       for (const item of environment.selfCareItems) {
-        const templates = selfCareTemplatesMap[item] ?? [];
+        const templates = getOnboardingTemplates('personal_care', undefined, item);
         const selfCareTasks = this.createTasksFromTemplateArray(userId, templates, extraIndex);
         allTasks.push(...selfCareTasks);
         extraIndex += selfCareTasks.length;
@@ -386,7 +365,7 @@ export class OnboardingService {
     if (environment.hasPlant) {
       const plantTasks = this.createTasksFromTemplateArray(
         userId,
-        plantOnboardingTasks as OnboardingTaskTemplate[],
+        getOnboardingTemplates('plant'),
         extraIndex
       );
       allTasks.push(...plantTasks);
@@ -397,7 +376,7 @@ export class OnboardingService {
     if (environment.hasCar) {
       const carTasks = this.createTasksFromTemplateArray(
         userId,
-        carOnboardingTasks as OnboardingTaskTemplate[],
+        getOnboardingTemplates('car'),
         extraIndex
       );
       allTasks.push(...carTasks);
@@ -409,43 +388,46 @@ export class OnboardingService {
   }
 
   /**
-   * 모듈 공통 템플릿 배열에서 Task 생성
+   * 온보딩 템플릿 배열에서 Task 생성.
+   * onboarding 필드가 있는 TaskTemplateItem 만 수신한다 (getOnboardingTemplates 반환값).
    */
   private static createTasksFromTemplateArray(
     userId: string,
-    templates: OnboardingTaskTemplate[],
+    templates: TaskTemplateItem[],
     startIndex: number
   ): Task[] {
     const now = new Date();
 
-    return templates.map((template, i) => {
+    return templates.map((template) => {
+      const ob = template.onboarding!;
       const taskId = Crypto.randomUUID();
       const nextDueDate = new Date(now);
 
-      if (template.unit === 'day') {
-        nextDueDate.setDate(nextDueDate.getDate() + template.interval);
-      } else if (template.unit === 'week') {
-        nextDueDate.setDate(nextDueDate.getDate() + template.interval * 7);
-      } else if (template.unit === 'month') {
-        nextDueDate.setMonth(nextDueDate.getMonth() + template.interval);
+      if (ob.unit === 'day') {
+        nextDueDate.setDate(nextDueDate.getDate() + ob.interval);
+      } else if (ob.unit === 'week') {
+        nextDueDate.setDate(nextDueDate.getDate() + ob.interval * 7);
+      } else if (ob.unit === 'month') {
+        nextDueDate.setMonth(nextDueDate.getMonth() + ob.interval);
       }
 
       const metadata: Record<string, any> = {};
-      if (template.linkedFurnitureType) {
-        metadata.linkedFurnitureType = template.linkedFurnitureType;
+      if (ob.linkedFurnitureType) {
+        metadata.linkedFurnitureType = ob.linkedFurnitureType;
       }
 
       return {
         id: taskId,
         userId,
         furnitureId: '',
-        title: template.name,
+        title: template.title,
         description: template.description,
-        type: template.type as any,
+        domain: template.domain,
+        actionType: template.actionType,
         recurrence: {
           type: 'fixed' as const,
-          interval: template.interval,
-          unit: template.unit,
+          interval: ob.interval,
+          unit: ob.unit,
           nextDue: nextDueDate,
         },
         priority: template.priority,
@@ -458,7 +440,7 @@ export class OnboardingService {
         },
         completionHistory: [],
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        ...(template.templateItemId ? { templateItemId: template.templateItemId } : {}),
+        templateItemId: template.id,
         createdAt: now,
         updatedAt: now,
       } as Task;

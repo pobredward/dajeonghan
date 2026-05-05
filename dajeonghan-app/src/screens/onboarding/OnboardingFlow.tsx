@@ -80,20 +80,29 @@ export const OnboardingFlow: React.FC<Props> = ({
 
     if (!selectedPersona) return;
 
-    const profile = OnboardingService.createProfileFromPersona(
-      userId,
-      selectedPersona,
-      questionAnswers
-    );
+    try {
+      const profile = OnboardingService.createProfileFromPersona(
+        userId,
+        selectedPersona,
+        questionAnswers
+      );
 
-    const tasks = await OnboardingService.createInitialTasks(userId, profile);
+      const tasks = await OnboardingService.createInitialTasks(userId, profile);
 
-    const firstDay = OnboardingService.generateFirstDayTasks(tasks);
+      const firstDay = OnboardingService.generateFirstDayTasks(tasks);
 
-    setUserProfile(profile);
-    setAllTasks(tasks);
-    setFirstTasks(firstDay);
-    setStep('tasks');
+      setUserProfile(profile);
+      setAllTasks(tasks);
+      setFirstTasks(firstDay);
+      setStep('tasks');
+    } catch (error) {
+      console.error('❌ 초기 Task 생성 실패:', error);
+      Alert.alert(
+        '오류',
+        '할 일 목록을 준비하는 중 문제가 발생했습니다. 다시 시도해주세요.',
+        [{ text: '확인' }]
+      );
+    }
   };
 
   const handleQuestionsBack = () => {

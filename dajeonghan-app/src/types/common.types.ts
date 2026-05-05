@@ -9,7 +9,34 @@
  * - 알림 타입
  */
 
-export type ModuleType = 'cleaning' | 'food' | 'medicine' | 'self_care' | 'self_development';
+/**
+ * Task 도메인 — "이 task는 어떤 삶의 영역인가?" (Layer 1)
+ * UI 필터, 알림 그룹, 통계 대시보드, 온보딩 카테고리에 사용
+ */
+export type TaskDomain =
+  | 'home'       // 집·가구 유지관리 (침대·화장실·세탁기 등)
+  | 'food'       // 식품·냉장 관리 (냉장고)
+  | 'medicine'   // 약·영양제 복용 (약장)
+  | 'pet'        // 반려동물 케어
+  | 'self_care'  // 개인 신체 케어 (스킨케어·운동·미용)
+  | 'car'        // 차량 관리
+  | 'family'     // 가족 케어 (영아 등)
+  | 'growth';    // 자기계발·성장
+
+/**
+ * Task 행위 유형 — "이 task는 어떤 종류의 행위인가?" (Layer 2)
+ * 가구 탭 소분류, 알림 타이밍 전략, AI 추천 피처에 사용
+ */
+export type TaskActionType =
+  | 'cleaning'      // 물리적 청소·세척·소독
+  | 'inspection'    // 상태 점검·확인
+  | 'maintenance'   // 수리·유지보수·관리
+  | 'organization'  // 정리·정돈
+  | 'health'        // 복용·투여·접종
+  | 'routine';      // 일상 루틴·돌봄·습관
+
+/** 하위 호환 alias — Firestore 기존 데이터 마이그레이션 기간 중 유지 */
+export type ModuleType = TaskDomain;
 
 export type RecurrenceType = 'fixed' | 'flexible';
 

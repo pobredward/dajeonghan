@@ -12,14 +12,18 @@ describe('CleaningService', () => {
         usesCoinLaundry: false,
         cookingFrequency: 'sometimes' as const,
         hasPet: false,
-        householdSize: 1
+        householdSize: 1,
+        hasInfant: false,
+        hasCar: false,
+        hasPlant: false,
+        selfCareItems: []
       };
 
       const tasks = CleaningService.createTasksFromTemplate(userId, persona, environment);
 
       expect(tasks.length).toBeGreaterThan(0);
       expect(tasks[0].userId).toBe(userId);
-      expect(tasks[0].type).toBe('cleaning');
+      expect(tasks[0].domain).toBe('home');
       expect(tasks[0].dirtyScore).toBe(0);
     });
 
@@ -32,7 +36,11 @@ describe('CleaningService', () => {
         usesCoinLaundry: true,
         cookingFrequency: 'sometimes' as const,
         hasPet: false,
-        householdSize: 1
+        householdSize: 1,
+        hasInfant: false,
+        hasCar: false,
+        hasPlant: false,
+        selfCareItems: []
       };
 
       const tasks = CleaningService.createTasksFromTemplate(userId, persona, environment);
@@ -56,7 +64,8 @@ describe('CleaningService', () => {
         furnitureId: 'test_furniture',
         title: '화장실 청소',
         description: '화장실 청소 작업',
-        type: 'cleaning',
+        domain: 'home',
+        actionType: 'cleaning',
         recurrence: {
           type: 'fixed',
           interval: 7,
@@ -100,7 +109,8 @@ describe('CleaningService', () => {
         furnitureId: 'test_furniture',
         title: '화장실 청소',
         description: '화장실 청소 작업',
-        type: 'cleaning',
+        domain: 'home',
+        actionType: 'cleaning',
         recurrence: {
           type: 'fixed',
           interval: 7,
@@ -158,7 +168,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_1',
           title: '환기',
           description: '환기 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 1,
@@ -189,7 +200,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_2',
           title: '거울 닦기',
           description: '거울 닦기 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 7,
@@ -236,7 +248,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_1',
           title: '화장실 청소',
           description: '화장실 청소 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 7,
@@ -267,7 +280,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_2',
           title: '거실 청소',
           description: '거실 청소 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 7,
@@ -313,7 +327,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_1',
           title: '화장실 청소',
           description: '화장실 청소 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 7,
@@ -344,7 +359,8 @@ describe('CleaningService', () => {
           furnitureId: 'furniture_2',
           title: '거실 청소',
           description: '거실 청소 작업',
-          type: 'cleaning',
+          domain: 'home',
+        actionType: 'cleaning',
           recurrence: {
             type: 'fixed',
             interval: 7,

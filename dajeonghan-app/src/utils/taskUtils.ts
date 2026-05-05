@@ -5,7 +5,7 @@
  * CalendarScreen과 FurnitureTasksTab 양쪽에서 재사용합니다.
  */
 
-import { Task, ModuleType } from '@/types/task.types';
+import { Task, TaskDomain } from '@/types/task.types';
 import { Colors } from '@/constants';
 
 // ─────────────────────────────────────────────
@@ -323,44 +323,60 @@ export function getMonthRange(year: number, month: number): { start: Date; end: 
 }
 
 // ─────────────────────────────────────────────
-// 모듈 타입 헬퍼
+// 도메인 타입 헬퍼
 // ─────────────────────────────────────────────
 
-const MODULE_LABELS: Record<ModuleType, string> = {
-  cleaning: '청소',
+const DOMAIN_LABELS: Record<TaskDomain, string> = {
+  home: '집 관리',
   food: '음식',
   medicine: '약',
+  pet: '반려동물',
   self_care: '자기관리',
-  self_development: '자기계발',
+  car: '차량',
+  family: '가족',
+  growth: '자기계발',
 };
 
-const MODULE_ICONS: Record<ModuleType, string> = {
-  cleaning: '🧹',
+const DOMAIN_ICONS: Record<TaskDomain, string> = {
+  home: '🏠',
   food: '🥗',
   medicine: '💊',
+  pet: '🐾',
   self_care: '🌿',
-  self_development: '📚',
+  car: '🚗',
+  family: '👶',
+  growth: '📚',
 };
 
-const MODULE_COLORS: Record<ModuleType, string> = {
-  cleaning: Colors.cleaning,
+const DOMAIN_COLORS: Record<TaskDomain, string> = {
+  home: Colors.cleaning,
   food: Colors.fridge,
   medicine: Colors.medicine,
+  pet: Colors.selfCare,
   self_care: Colors.selfCare,
-  self_development: Colors.selfDevelopment,
+  car: Colors.selfDevelopment,
+  family: Colors.accent,
+  growth: Colors.selfDevelopment,
 };
 
-export function getModuleLabel(type: ModuleType): string {
-  return MODULE_LABELS[type] ?? type;
+export function getModuleLabel(domain: TaskDomain): string {
+  return DOMAIN_LABELS[domain] ?? domain;
 }
 
-export function getModuleIcon(type: ModuleType): string {
-  return MODULE_ICONS[type] ?? '📋';
+export function getModuleIcon(domain: TaskDomain): string {
+  return DOMAIN_ICONS[domain] ?? '📋';
 }
 
-export function getModuleColor(type: ModuleType): string {
-  return MODULE_COLORS[type] ?? Colors.primary;
+export function getModuleColor(domain: TaskDomain): string {
+  return DOMAIN_COLORS[domain] ?? Colors.primary;
 }
+
+/** @deprecated getModuleLabel 사용 */
+export const getDomainLabel = getModuleLabel;
+/** @deprecated getModuleIcon 사용 */
+export const getDomainIcon = getModuleIcon;
+/** @deprecated getModuleColor 사용 */
+export const getDomainColor = getModuleColor;
 
 /**
  * 날짜 표시 포맷 (한국어 상대 표현)

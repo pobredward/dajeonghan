@@ -82,7 +82,7 @@ export class HabitService {
     completedTasks: number;
     totalTasks: number;
     streak: number;
-    topModule: 'cleaning' | 'fridge' | 'medicine';
+    topModule: string;
   } {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -93,19 +93,25 @@ export class HabitService {
     });
 
     const moduleCounts = {
-      cleaning: 0,
-      fridge: 0,
-      medicine: 0
+      home: 0,
+      food: 0,
+      medicine: 0,
+      pet: 0,
+      self_care: 0,
+      car: 0,
+      family: 0,
+      growth: 0,
     };
 
     weeklyTasks.forEach(task => {
-      if (task.type in moduleCounts) {
-        moduleCounts[task.type as keyof typeof moduleCounts]++;
+      const domain = (task.domain ?? task.type ?? 'home') as keyof typeof moduleCounts;
+      if (domain in moduleCounts) {
+        moduleCounts[domain]++;
       }
     });
 
-    const topModule = Object.entries(moduleCounts)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] as 'cleaning' | 'fridge' | 'medicine' || 'cleaning';
+    const topModule = (Object.entries(moduleCounts)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'home') as keyof typeof moduleCounts;
 
     const totalTasks = tasks.filter(task => {
       const createdAt = task.createdAt instanceof Date ? task.createdAt : new Date(task.createdAt);

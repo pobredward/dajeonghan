@@ -187,13 +187,19 @@ export class PriorityCalculator {
     medicine: PrioritizedTask[];
     selfCare: PrioritizedTask[];
     selfDevelopment: PrioritizedTask[];
+    pet: PrioritizedTask[];
+    car: PrioritizedTask[];
+    family: PrioritizedTask[];
   } {
     return {
-      cleaning: tasks.filter(t => t.type === 'cleaning'),
-      food: tasks.filter(t => t.type === 'food'),
-      medicine: tasks.filter(t => t.type === 'medicine'),
-      selfCare: tasks.filter(t => t.type === 'self_care'),
-      selfDevelopment: tasks.filter(t => t.type === 'self_development')
+      cleaning: tasks.filter(t => (t.domain ?? t.type) === 'home'),
+      food: tasks.filter(t => (t.domain ?? t.type) === 'food'),
+      medicine: tasks.filter(t => (t.domain ?? t.type) === 'medicine'),
+      selfCare: tasks.filter(t => (t.domain ?? t.type) === 'self_care'),
+      selfDevelopment: tasks.filter(t => (t.domain ?? t.type) === 'growth'),
+      pet: tasks.filter(t => (t.domain ?? t.type) === 'pet'),
+      car: tasks.filter(t => (t.domain ?? t.type) === 'car'),
+      family: tasks.filter(t => (t.domain ?? t.type) === 'family'),
     };
   }
 

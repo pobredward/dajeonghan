@@ -86,7 +86,7 @@ export class NotificationOrchestrator {
         content: {
           title: task.title,
           body: `${task.estimatedMinutes}분 소요 예상`,
-          data: { taskId: task.id, type: task.type }
+          data: { taskId: task.id, domain: task.domain ?? task.type }
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -124,18 +124,25 @@ export class NotificationOrchestrator {
       .sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0))
       .slice(0, 5);
 
-    const cleaningCount = sortedTasks.filter(t => t.type === 'cleaning').length;
-    const foodCount = sortedTasks.filter(t => t.type === 'food').length;
-    const medicineCount = sortedTasks.filter(t => t.type === 'medicine').length;
-    const selfCareCount = sortedTasks.filter(t => t.type === 'self_care').length;
-    const selfDevCount = sortedTasks.filter(t => t.type === 'self_development').length;
+    const d = (t: Task) => t.domain ?? t.type;
+    const homeCount = sortedTasks.filter(t => d(t) === 'home').length;
+    const foodCount = sortedTasks.filter(t => d(t) === 'food').length;
+    const medicineCount = sortedTasks.filter(t => d(t) === 'medicine').length;
+    const selfCareCount = sortedTasks.filter(t => d(t) === 'self_care').length;
+    const petCount = sortedTasks.filter(t => d(t) === 'pet').length;
+    const carCount = sortedTasks.filter(t => d(t) === 'car').length;
+    const familyCount = sortedTasks.filter(t => d(t) === 'family').length;
+    const growthCount = sortedTasks.filter(t => d(t) === 'growth').length;
 
     const summary: string[] = [];
-    if (cleaningCount > 0) summary.push(`청소 ${cleaningCount}개`);
+    if (homeCount > 0) summary.push(`집 관리 ${homeCount}개`);
     if (foodCount > 0) summary.push(`식재료 ${foodCount}개`);
     if (medicineCount > 0) summary.push(`약 ${medicineCount}회`);
     if (selfCareCount > 0) summary.push(`자기관리 ${selfCareCount}개`);
-    if (selfDevCount > 0) summary.push(`자기계발 ${selfDevCount}개`);
+    if (petCount > 0) summary.push(`반려동물 ${petCount}개`);
+    if (carCount > 0) summary.push(`차량 ${carCount}개`);
+    if (familyCount > 0) summary.push(`가족 ${familyCount}개`);
+    if (growthCount > 0) summary.push(`자기계발 ${growthCount}개`);
 
     const title = digestTime === '09:00' ? '☀️ 오늘의 할 일' : '🌙 오늘 남은 일';
     const body = summary.length > 0 
@@ -244,7 +251,7 @@ export class NotificationOrchestrator {
             content: {
               title: `${task.title} (${hours}시간 전)`,
               body: `${task.estimatedMinutes}분 소요 예상`,
-              data: { taskId: task.id, type: task.type, advance: true }
+              data: { taskId: task.id, domain: task.domain ?? task.type, advance: true }
             },
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DATE,

@@ -22,7 +22,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
 import { getTasks, getOverdueTasks, updateTask } from '@/services/firestoreService';
 import { getHouseLayout } from '@/services/houseService';
-import { Task, ModuleType } from '@/types/task.types';
+import { Task, TaskDomain } from '@/types/task.types';
 import { Colors, Typography, Spacing } from '@/constants';
 import { Shadows } from '@/constants/Spacing';
 import {
@@ -48,15 +48,18 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 // ─── 타입 ─────────────────────────────────────────────────────
-type FilterType = 'all' | ModuleType;
+type FilterType = 'all' | TaskDomain;
 
 const MODULE_FILTERS: { key: FilterType; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'cleaning', label: '청소' },
+  { key: 'home', label: '집 관리' },
   { key: 'food', label: '음식' },
   { key: 'medicine', label: '약' },
+  { key: 'pet', label: '반려동물' },
   { key: 'self_care', label: '자기관리' },
-  { key: 'self_development', label: '자기계발' },
+  { key: 'car', label: '차량' },
+  { key: 'family', label: '가족' },
+  { key: 'growth', label: '자기계발' },
 ];
 
 // 날짜 상태 분류
@@ -474,7 +477,7 @@ export const CalendarScreen: React.FC = () => {
 
   const selectedDayOccurrences = useMemo(() => {
     const occ = monthOccurrences.filter(o => toDateKey(o.occurrenceDate) === selectedDate);
-    const filtered = filter === 'all' ? occ : occ.filter(o => o.task.type === filter);
+    const filtered = filter === 'all' ? occ : occ.filter(o => (o.task.domain ?? o.task.type) === filter);
     return filtered.sort((a, b) => {
       const scoreA = a.isCompleted ? 1 : 0;
       const scoreB = b.isCompleted ? 1 : 0;
@@ -483,14 +486,14 @@ export const CalendarScreen: React.FC = () => {
   }, [monthOccurrences, selectedDate, filter]);
 
   const filteredOverdue = useMemo(
-    () => (filter === 'all' ? overdueTasks : overdueTasks.filter(t => t.type === filter)),
+    () => (filter === 'all' ? overdueTasks : overdueTasks.filter(t => (t.domain ?? t.type) === filter)),
     [overdueTasks, filter]
   );
 
   // 날짜별 task 개수 집계 (모듈 필터 연동, occurrence 기반)
   const dayCountMap = useMemo(() => {
     const map: Record<string, { pending: number; overdue: number; completed: number }> = {};
-    const source = filter === 'all' ? monthOccurrences : monthOccurrences.filter(o => o.task.type === filter);
+    const source = filter === 'all' ? monthOccurrences : monthOccurrences.filter(o => (o.task.domain ?? o.task.type) === filter);
     for (const occ of source) {
       const key = toDateKey(occ.occurrenceDate);
       if (!map[key]) map[key] = { pending: 0, overdue: 0, completed: 0 };
@@ -559,7 +562,7 @@ export const CalendarScreen: React.FC = () => {
     setEditMinutes(task.estimatedMinutes > 0 ? task.estimatedMinutes : 15);
     // 탭 초기화 및 템플릿 상세 정보 조회
     setDetailActiveTab('info');
-    setDetailTemplateDetail(fetchTaskTemplateDetail(task.templateItemId ?? String(task.id)));
+    setDetailTemplateDetail(task.templateItemId ? fetchTaskTemplateDetail(task.templateItemId) : null);
     detailModalAnim.setValue(0);
     setTaskDetailModal({ visible: true, task });
     Animated.timing(detailModalAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start();
@@ -668,7 +671,7 @@ export const CalendarScreen: React.FC = () => {
               <View style={styles.overdueList}>
                 {filteredOverdue.map(task => (
                   <TouchableOpacity key={task.id} style={styles.overdueRow} onPress={() => openDetailModal(task)} activeOpacity={0.75}>
-                    <Text style={styles.overdueRowIcon}>{furnitureEmojiMap[task.furnitureId] || getModuleIcon(task.type)}</Text>
+                    <Text style={styles.overdueRowIcon}>{furnitureEmojiMap[task.furnitureId] || getModuleIcon((task.domain ?? task.type) as TaskDomain)}</Text>
                     <View style={styles.overdueRowContent}>
                       <Text style={styles.overdueRowTitle} numberOfLines={1}>{task.title}</Text>
                       {task.recurrence?.nextDue && (
@@ -854,7 +857,7 @@ export const CalendarScreen: React.FC = () => {
                         <Text style={styles.closeButtonText}>×</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.detailModuleLabel}>{getModuleLabel(task.type)}</Text>
+                    <Text style={styles.detailModuleLabel}>{getModuleLabel((task.domain ?? task.type) as TaskDomain)}</Text>
                   </View>
 
                   {/* 탭 바 */}
@@ -1317,7 +1320,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
     ? styles.taskCheckboxNewOverdue
     : undefined;
 
-  const displayEmoji = furnitureEmoji || getModuleIcon(task.type);
+  const displayEmoji = furnitureEmoji || getModuleIcon((task.domain ?? task.type) as TaskDomain);
 
   return (
     <TouchableOpacity

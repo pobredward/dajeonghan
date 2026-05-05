@@ -25,7 +25,7 @@ import {
   CollectionReference,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Task, TaskQueryOptions, TaskLog, DoseLog } from '../types/task.types';
+import { Task, TaskDomain, TaskQueryOptions, TaskLog, DoseLog } from '../types/task.types';
 import { UserProfile } from '../types/user.types';
 
 // ============================================================================
@@ -97,6 +97,28 @@ export const convertTimestampsToDates = <T>(obj: any): T => {
 };
 
 // ============================================================================
+// Firestore Task 마이그레이션 헬퍼
+// ============================================================================
+
+/** 구버전 type → 새 domain 매핑 (Firestore 기존 데이터 하위 호환) */
+const LEGACY_TYPE_TO_DOMAIN: Record<string, TaskDomain> = {
+  cleaning: 'home',
+  self_development: 'growth',
+};
+
+/**
+ * Firestore에서 읽어온 raw Task 데이터에 domain 필드를 보장합니다.
+ * - domain이 없으면 legacyType을 LEGACY_TYPE_TO_DOMAIN으로 변환해 채워넣습니다.
+ * - domain이 이미 있으면 그대로 사용합니다.
+ */
+function normalizeDomain(data: any): any {
+  if (!data.domain && data.type) {
+    data.domain = (LEGACY_TYPE_TO_DOMAIN[data.type] as TaskDomain) ?? (data.type as TaskDomain);
+  }
+  return data;
+}
+
+// ============================================================================
 // Task CRUD
 // ============================================================================
 
@@ -118,7 +140,7 @@ export const getTask = async (userId: string, taskId: string): Promise<Task | nu
 
   if (!taskSnap.exists()) return null;
 
-  const data = taskSnap.data();
+  const data = normalizeDomain(taskSnap.data());
   return convertTimestampsToDates<Task>({ id: taskSnap.id, ...data });
 };
 
@@ -204,7 +226,7 @@ export const getTasks = async (userId: string, options?: TaskQueryOptions): Prom
     .map(doc => {
       const data = doc.data();
       console.log('Task 문서 데이터:', { id: doc.id, deletedAt: data.deletedAt, title: data.title });
-      return convertTimestampsToDates<Task>({ id: doc.id, ...data });
+      return convertTimestampsToDates<Task>({ id: doc.id, ...normalizeDomain(data) });
     })
     .filter(task => !task.deletedAt); // deletedAt이 없거나 falsy인 경우만 포함
 
@@ -249,7 +271,7 @@ export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
 
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs
-    .map(doc => convertTimestampsToDates<Task>({ id: doc.id, ...doc.data() }))
+    .map(doc => convertTimestampsToDates<Task>({ id: doc.id, ...normalizeDomain(doc.data()) }))
     .filter(task => !task.deletedAt); // 클라이언트에서 deletedAt 필터링
 };
 

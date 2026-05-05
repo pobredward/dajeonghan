@@ -110,7 +110,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   // Task 추가 모달 탭 상태
   const [taskAddActiveTab, setTaskAddActiveTab] = useState<TaskAddTab>('why');
   const [taskTemplateDetail, setTaskTemplateDetail] = useState<TaskTemplateDetail | null>(null);
-  const [taskTemplateDetailLoading, setTaskTemplateDetailLoading] = useState(false);
 
   const [postponeDays, setPostponeDays] = useState<number>(1);
   const [upcomingCollapsed, setUpcomingCollapsed] = useState<boolean>(false);
@@ -344,7 +343,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     // 탭 초기화 및 로컬 상세 정보 조회
     setTaskAddActiveTab('why');
     setTaskTemplateDetail(fetchTaskTemplateDetail(template.id));
-    setTaskTemplateDetailLoading(false);
     
     setTaskAddModal({
       visible: true,
@@ -2262,8 +2260,8 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
 
                 {/* 탭 헤더 */}
                 {(() => {
-                  const hasWhy = taskTemplateDetailLoading || !!(taskTemplateDetail?.whyNeeded);
-                  const hasHow = taskTemplateDetailLoading || !!(taskTemplateDetail?.howTo || taskTemplateDetail?.imageUrls?.length);
+                  const hasWhy = !!(taskTemplateDetail?.whyNeeded);
+                  const hasHow = !!(taskTemplateDetail?.howTo || taskTemplateDetail?.imageUrls?.length);
                   const tabs: { key: TaskAddTab; label: string; available: boolean }[] = [
                     { key: 'why', label: '이유', available: hasWhy },
                     { key: 'how', label: '진행방법', available: hasHow },
@@ -2311,7 +2309,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
                   {taskAddActiveTab === 'why' && (
                     <TaskDetailTabContent
-                      loading={taskTemplateDetailLoading}
                       content={taskTemplateDetail?.whyNeeded}
                       icon="📌"
                       title="왜 해야 하나요?"
@@ -2319,7 +2316,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   )}
                   {taskAddActiveTab === 'how' && (
                     <TaskDetailTabContent
-                      loading={taskTemplateDetailLoading}
                       content={taskTemplateDetail?.howTo}
                       icon="📋"
                       title="어떻게 하나요?"
@@ -2387,23 +2383,12 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
 
 // Task 상세 탭(이유/진행방법) 콘텐츠 컴포넌트
 const TaskDetailTabContent: React.FC<{
-  loading: boolean;
   content?: string;
   icon: string;
   title: string;
   imageUrls?: string[];
   referenceLinks?: { label: string; url: string }[];
-}> = ({ loading, content, icon, title, imageUrls, referenceLinks }) => {
-  if (loading) {
-    return (
-      <View style={styles.detailTabContainer}>
-        <View style={styles.detailTabSkeletonTitle} />
-        <View style={styles.detailTabSkeletonLine} />
-        <View style={[styles.detailTabSkeletonLine, { width: '80%' }]} />
-        <View style={[styles.detailTabSkeletonLine, { width: '90%' }]} />
-      </View>
-    );
-  }
+}> = ({ content, icon, title, imageUrls, referenceLinks }) => {
   return (
     <View style={styles.detailTabContainer}>
       <View style={styles.detailTabTitleRow}>

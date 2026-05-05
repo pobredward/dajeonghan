@@ -1,11 +1,12 @@
 /**
  * 가구별 Task 템플릿 타입 정의
- * 
- * 관리자가 정의한 가구별 추천 Task 템플릿
+ *
+ * furnitureTaskTemplates.ts 가 단일 소스. 온보딩 JSON은 사용하지 않는다.
  */
 
 import { FurnitureType } from './house.types';
-import { ModuleType, PriorityLevel } from './common.types';
+import { TaskDomain, TaskActionType, PriorityLevel } from './common.types';
+import { PetType, SelfCareItem } from './user.types';
 
 /**
  * Task 템플릿 항목
@@ -14,23 +15,36 @@ export interface TaskTemplateItem {
   id: string;
   title: string;
   description: string;
-  type: ModuleType;
+  domain: TaskDomain;
+  actionType: TaskActionType;
   defaultRecurrence: {
     type: 'daily' | 'weekly' | 'monthly' | 'custom';
     interval?: number; // custom일 때 사용 (일 단위)
   };
   estimatedMinutes: number;
   priority: PriorityLevel;
-  category?: string; // 세부 카테고리 (예: "청소", "관리", "점검")
-  whyNeeded?: string;    // 이 Task가 필요한 이유 (로컬 fallback)
-  howTo?: string;        // 수행 방법 (로컬 fallback)
-  imageUrls?: string[];  // 관리자 업로드 사진 URL 목록 (로컬 fallback)
-  referenceLinks?: { label: string; url: string }[]; // 참고 링크 (유튜브 등)
+  whyNeeded?: string;
+  howTo?: string;
+  imageUrls?: string[];
+  referenceLinks?: { label: string; url: string }[];
+  /**
+   * 온보딩 자동 생성 설정.
+   * 이 필드가 있는 항목만 온보딩 시 Task로 생성된다.
+   */
+  onboarding?: {
+    interval: number;
+    unit: 'day' | 'week' | 'month';
+    linkedFurnitureType?: FurnitureType;
+    /** 반려동물 모듈 전용 — 해당 petType에만 포함 */
+    petType?: PetType;
+    /** 자기관리 모듈 전용 — 해당 카테고리 선택 시에만 포함 */
+    selfCareCategory?: SelfCareItem;
+  };
 }
 
 /**
- * Firestore에서 관리자가 작성하는 Task 템플릿 상세 정보
- * 컬렉션 경로: /taskTemplateDetails/{templateItemId}
+ * UI에서 "이유" / "진행방법" 탭에 표시하는 상세 정보.
+ * furnitureTaskTemplates.ts 의 whyNeeded / howTo 필드에서 로컬로 조회한다.
  */
 export interface TaskTemplateDetail {
   templateItemId: string;

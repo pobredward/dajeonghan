@@ -5,6 +5,8 @@
  */
 
 import {
+  TaskDomain,
+  TaskActionType,
   ModuleType,
   PriorityLevel,
   TaskStatus,
@@ -15,7 +17,7 @@ import {
 } from './common.types';
 
 // Re-export common types for convenience
-export type { CompletionHistory, Recurrence, NotificationSettings, ModuleType, PriorityLevel, TaskStatus };
+export type { CompletionHistory, Recurrence, NotificationSettings, TaskDomain, TaskActionType, ModuleType, PriorityLevel, TaskStatus };
 
 /**
  * Task 메인 인터페이스
@@ -27,7 +29,10 @@ export interface Task extends UserOwnedEntity {
   furnitureId: string; // 연결된 가구 ID
   title: string;
   description?: string;
-  type: ModuleType;
+  domain: TaskDomain;
+  actionType?: TaskActionType;
+  /** @deprecated domain을 사용하세요. Firestore 기존 데이터 하위 호환용 */
+  type?: ModuleType;
   recurrence: Recurrence;
   priority: PriorityLevel;
   estimatedMinutes: number;
@@ -91,6 +96,9 @@ export interface DoseLog extends UserOwnedEntity {
  * Task 필터 옵션
  */
 export interface TaskFilterOptions {
+  domain?: TaskDomain;
+  actionType?: TaskActionType;
+  /** @deprecated domain을 사용하세요 */
   type?: ModuleType;
   status?: TaskStatus;
   priority?: PriorityLevel;

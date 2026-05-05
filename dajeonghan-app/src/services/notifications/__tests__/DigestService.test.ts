@@ -29,7 +29,8 @@ describe('DigestService', () => {
       const tasks = [
         {
           id: '1',
-          type: 'cleaning',
+          domain: 'home',
+          actionType: 'cleaning',
           title: '설거지',
           estimatedMinutes: 10,
           status: 'pending',
@@ -39,7 +40,7 @@ describe('DigestService', () => {
             unit: 'day',
             nextDue: new Date()
           }
-        } as Task
+        } as unknown as Task
       ];
 
       const digest = DigestService.generateDigest('morning', tasks, [], []);
