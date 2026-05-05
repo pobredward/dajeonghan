@@ -124,10 +124,14 @@ function normalizeDomain(data: any): any {
 
 /**
  * Task 저장 (생성 또는 업데이트)
+ * deletedAt이 없으면 null로 명시 저장하여 서버 사이드 인덱스 필터링 가능하게 함
  */
 export const saveTask = async (task: Task): Promise<void> => {
   const taskRef = doc(db, `users/${task.userId}/tasks/${task.id}`);
-  const firestoreTask = convertDatesToTimestamps(task);
+  const firestoreTask = convertDatesToTimestamps({
+    ...task,
+    deletedAt: task.deletedAt ?? null,
+  });
   await setDoc(taskRef, firestoreTask);
 };
 
@@ -232,6 +236,26 @@ export const getTasks = async (userId: string, options?: TaskQueryOptions): Prom
 
   console.log('필터링된 Task 개수:', tasks.length);
   return tasks;
+};
+
+/**
+ * 사용자의 모든 Task를 조회 (달력 전체 캐시용)
+ * - deletedAt == null 조건을 서버에서 필터링 (Firebase 복합 인덱스 활용)
+ * - 달력 월 전환 시 클라이언트 필터링으로 0ms 렌더링을 위해 사용
+ * - 사전 조건: Firestore 문서에 deletedAt 필드가 null 또는 Timestamp로 저장되어야 함
+ *   (마이그레이션 스크립트: scripts/migrateDeletedAt.ts)
+ */
+export const getAllTasks = async (userId: string): Promise<Task[]> => {
+  const tasksRef = collection(db, `users/${userId}/tasks`);
+  const q = query(
+    tasksRef,
+    where('deletedAt', '==', null),
+    orderBy('recurrence.nextDue', 'asc'),
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc =>
+    convertTimestampsToDates<Task>({ id: doc.id, ...normalizeDomain(doc.data()) }),
+  );
 };
 
 /**

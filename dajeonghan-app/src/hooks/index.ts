@@ -3,3 +3,4 @@
  */
 
 export { useNotificationListener } from './useNotificationListener';
+export { useCalendarData } from './useCalendarData';

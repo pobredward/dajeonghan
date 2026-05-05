@@ -62,6 +62,7 @@ export class FurnitureTaskService {
         collection(db, 'users', userId, 'tasks'),
         {
           ...taskData,
+          deletedAt: null,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         }
@@ -119,6 +120,7 @@ export class FurnitureTaskService {
         collection(db, 'users', userId, 'tasks'),
         {
           ...newTaskData,
+          deletedAt: null,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         }

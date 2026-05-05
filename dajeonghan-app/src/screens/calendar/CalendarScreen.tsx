@@ -13,6 +13,7 @@ import {
   TextInput,
   Image,
   Linking,
+  unstable_batchedUpdates,
 } from 'react-native';
 import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
 import { TaskTemplateDetail } from '@/types/furnitureTaskTemplate.types';
@@ -20,7 +21,8 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTasks, getOverdueTasks, updateTask } from '@/services/firestoreService';
+import { updateTask } from '@/services/firestoreService';
+import { useCalendarData, CALENDAR_REFETCH_INTERVAL_MS } from '@/hooks/useCalendarData';
 import { getHouseLayout } from '@/services/houseService';
 import { Task, TaskDomain } from '@/types/task.types';
 import { Colors, Typography, Spacing } from '@/constants';
@@ -46,6 +48,19 @@ LocaleConfig.locales['kr'] = {
   today: '오늘',
 };
 LocaleConfig.defaultLocale = 'kr';
+
+// ─── 공휴일 캐시 ──────────────────────────────────────────────
+// KoreanHolidays.isHoliday()는 호출마다 해당 연도 전체 공휴일을 음력 변환까지 포함해 재계산합니다.
+// 연도별로 1회만 계산하고 Set<string>으로 캐시하여 DayCell 렌더링 시 O(1) 조회만 수행합니다.
+const holidaySetCache = new Map<number, Set<string>>();
+
+function getHolidaySet(year: number): Set<string> {
+  if (holidaySetCache.has(year)) return holidaySetCache.get(year)!;
+  const holidays = KoreanHolidays.getHolidays(year);
+  const set = new Set(holidays.map((h: { date: Date }) => toDateKey(h.date)));
+  holidaySetCache.set(year, set);
+  return set;
+}
 
 // ─── 타입 ─────────────────────────────────────────────────────
 type FilterType = 'all' | TaskDomain;
@@ -110,6 +125,67 @@ function computeNextPendingDue(task: Task, completionDates: string[]): Date | nu
   return candidate;
 }
 
+// ─── 달력 셀 컴포넌트 ────────────────────────────────────────
+interface DayCellProps {
+  date: { dateString: string; year: number; month: number; day: number } | undefined;
+  state: string | undefined;
+  onPress: (date: any) => void;
+  counts: { pending: number; overdue: number; completed: number } | undefined;
+  isSelected: boolean;
+  isHolidayDate: boolean;
+}
+
+const DayCell = React.memo(({ date, state, onPress, counts, isSelected, isHolidayDate }: DayCellProps) => {
+  if (!date) return null;
+  const dow = new Date(date.year, date.month - 1, date.day).getDay();
+  const isDisabled = state === 'disabled';
+  const isToday = date.dateString === toDateKey(new Date());
+
+  let textColor: string = Colors.textPrimary;
+  if (isDisabled) textColor = Colors.textDisabled;
+  else if (isHolidayDate || dow === 0) textColor = Colors.error;
+  else if (dow === 6) textColor = Colors.primary;
+
+  const total = counts ? counts.pending + counts.overdue + counts.completed : 0;
+  const allDone = total > 0 && counts!.pending === 0 && counts!.overdue === 0;
+
+  return (
+    <TouchableOpacity onPress={() => !isDisabled && onPress(date)} activeOpacity={0.65} disabled={isDisabled}>
+      <View style={styles.dayCell}>
+        {total > 0 ? (
+          <View style={[
+            styles.dayCellRect,
+            allDone ? styles.dayCellRectDone : styles.dayCellRectPending,
+          ]}>
+            {allDone ? (
+              <Text style={styles.dayCellCheckText}>✓</Text>
+            ) : (
+              <Text style={styles.dayCellCountText}>{total}</Text>
+            )}
+          </View>
+        ) : (
+          <View style={[styles.dayCellRect, styles.dayCellRectEmpty]} />
+        )}
+        {isSelected ? (
+          <View style={styles.dayCellSelectedCircle}>
+            <Text style={styles.dayCellDaySelected}>{date.day}</Text>
+          </View>
+        ) : isToday ? (
+          <View style={styles.dayCellTodayCircle}>
+            <Text style={[styles.dayCellDaySmall, styles.dayCellDayTodayInCircle]}>
+              {date.day}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.dayCellDaySmall, { color: textColor }]}>
+            {date.day}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 // ─── 메인 컴포넌트 ────────────────────────────────────────────
 export const CalendarScreen: React.FC = () => {
   const { userId } = useAuth();
@@ -119,10 +195,19 @@ export const CalendarScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState(toDateKey(now));
 
-  const [monthTasks, setMonthTasks] = useState<Task[]>([]);
-  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const {
+    allTasks,
+    overdueTasks,
+    loading,
+    refreshing,
+    lastFetchedAt,
+    loadAll,
+    startRefreshing,
+    updateTaskInCache,
+    removeTaskFromCache,
+    removeFromOverdue,
+  } = useCalendarData(userId);
+
   const [filter, setFilter] = useState<FilterType>('all');
   const [overdueExpanded, setOverdueExpanded] = useState(false);
 
@@ -163,6 +248,7 @@ export const CalendarScreen: React.FC = () => {
   const yearRef = useRef(currentYear);
   const monthRef = useRef(currentMonth);
   const initialDateRef = useRef(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
+  const emojiMapLoaded = useRef(false);
 
   useEffect(() => { yearRef.current = currentYear; }, [currentYear]);
   useEffect(() => { monthRef.current = currentMonth; }, [currentMonth]);
@@ -180,51 +266,27 @@ export const CalendarScreen: React.FC = () => {
         });
       });
       setFurnitureEmojiMap(map);
+      emojiMapLoaded.current = true;
     } catch (e) {
       console.error('[CalendarScreen] 가구 이모지 맵 로드 실패:', e);
     }
   }, [userId]);
 
   // ─── 데이터 로드 ──────────────────────────────────────────
-  const fetchData = useCallback(async (year: number, month: number) => {
-    if (!userId) return;
-    try {
-      const { start } = getMonthRange(year, month);
-      // nextDue가 이미 이후 달로 이동한 반복 Task도 포함하기 위해 종료일을 3개월 뒤로 확장
-      const extendedEnd = new Date(year, month + 2, 0, 23, 59, 59, 999);
-      const [monthData, overdueData] = await Promise.all([
-        getTasks(userId, {
-          filter: { dueDateRange: { start, end: extendedEnd } },
-          sort: 'dueDate',
-          sortDirection: 'asc',
-        }),
-        getOverdueTasks(userId),
-      ]);
-      setMonthTasks(monthData);
-      setOverdueTasks(overdueData);
-    } catch (e) {
-      console.error('[CalendarScreen] 데이터 로드 실패:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      isFirstLoad.current = false;
-    }
-  }, [userId]);
-
+  // 포커스 복귀 시: 최초 1회 또는 30초 이상 경과 시에만 전체 재조회
+  // 월 전환은 Firestore 호출 없이 allTasks 클라이언트 필터링으로 즉시 처리
   useFocusEffect(
     useCallback(() => {
-      if (isFirstLoad.current) setLoading(true);
-      loadFurnitureEmojiMap();
-      fetchData(yearRef.current, monthRef.current);
-    }, [fetchData, loadFurnitureEmojiMap])
+      if (!emojiMapLoaded.current) loadFurnitureEmojiMap();
+      const elapsed = Date.now() - lastFetchedAt.current;
+      if (isFirstLoad.current) {
+        isFirstLoad.current = false;
+        loadAll();
+      } else if (elapsed > CALENDAR_REFETCH_INTERVAL_MS) {
+        loadAll({ silent: true });
+      }
+    }, [loadAll, loadFurnitureEmojiMap, lastFetchedAt])
   );
-
-  const isMonthChangeTrigger = useRef(false);
-  useEffect(() => {
-    if (!isMonthChangeTrigger.current) return;
-    isMonthChangeTrigger.current = false;
-    fetchData(currentYear, currentMonth);
-  }, [currentYear, currentMonth, fetchData]);
 
   useEffect(() => {
     if (overdueTasks.length > 0) {
@@ -296,11 +358,10 @@ export const CalendarScreen: React.FC = () => {
       await updateTask(userId, taskId, updatedFields);
 
       // 낙관적 UI 업데이트
-      setMonthTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
-      if (currentlyCompleted) {
-        setOverdueTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
-      } else {
-        setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
+      updateTaskInCache(taskId, updatedFields);
+      if (!currentlyCompleted) {
+        // 완료 처리 시 연체 목록에서 제거
+        removeFromOverdue(taskId);
       }
       if (taskDetailModal.task?.id === taskId) {
         setTaskDetailModal(prev => prev.task ? { ...prev, task: { ...prev.task, ...updatedFields } } : prev);
@@ -328,9 +389,9 @@ export const CalendarScreen: React.FC = () => {
       };
 
       await updateTask(userId, taskId, updatedFields);
-      setMonthTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updatedFields } : t));
+      updateTaskInCache(taskId, updatedFields);
       // 미뤄진 task는 연체 목록에서 제거 (nextDue가 미래로 이동)
-      setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
+      removeFromOverdue(taskId);
       setTaskActionModal({ visible: false, task: null, action: null });
       setPostponeDays(1);
       Alert.alert('완료', `할 일이 ${postponeDays}일 미뤄졌습니다.`);
@@ -355,8 +416,7 @@ export const CalendarScreen: React.FC = () => {
             if (!userId) return;
             try {
               await updateTask(userId, taskId, { deletedAt: new Date(), updatedAt: new Date() } as Partial<Task>);
-              setMonthTasks(prev => prev.filter(t => t.id !== taskId));
-              setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
+              removeTaskFromCache(taskId);
               setTaskDetailModal({ visible: false, task: null });
             } catch (e) {
               console.error('[CalendarScreen] 삭제 실패:', e);
@@ -389,8 +449,7 @@ export const CalendarScreen: React.FC = () => {
     };
     try {
       await updateTask(userId, String(task.id), { recurrence: updatedRecurrence } as Partial<Task>);
-      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurrence: updatedRecurrence } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurrence: updatedRecurrence } : t));
+      updateTaskInCache(String(task.id), { recurrence: updatedRecurrence });
       setTaskDetailModal(prev => ({
         ...prev,
         task: prev.task ? { ...prev.task, recurrence: updatedRecurrence } : null,
@@ -406,8 +465,7 @@ export const CalendarScreen: React.FC = () => {
     if (!userId) return;
     try {
       await updateTask(userId, String(task.id), { estimatedMinutes: minutes } as Partial<Task>);
-      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, estimatedMinutes: minutes } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, estimatedMinutes: minutes } : t));
+      updateTaskInCache(String(task.id), { estimatedMinutes: minutes });
       setTaskDetailModal(prev => ({
         ...prev,
         task: prev.task ? { ...prev.task, estimatedMinutes: minutes } : null,
@@ -425,8 +483,7 @@ export const CalendarScreen: React.FC = () => {
     if (!trimmed) return;
     try {
       await updateTask(userId, String(task.id), { title: trimmed } as Partial<Task>);
-      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, title: trimmed } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, title: trimmed } : t));
+      updateTaskInCache(String(task.id), { title: trimmed });
       setTaskDetailModal(prev => ({
         ...prev,
         task: prev.task ? { ...prev.task, title: trimmed } : null,
@@ -443,8 +500,7 @@ export const CalendarScreen: React.FC = () => {
     const trimmed = newDescription.trim();
     try {
       await updateTask(userId, String(task.id), { description: trimmed || undefined } as Partial<Task>);
-      setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, description: trimmed || undefined } : t));
-      setOverdueTasks(prev => prev.map(t => t.id === task.id ? { ...t, description: trimmed || undefined } : t));
+      updateTaskInCache(String(task.id), { description: trimmed || undefined });
       setTaskDetailModal(prev => ({
         ...prev,
         task: prev.task ? { ...prev.task, description: trimmed || undefined } : null,
@@ -463,6 +519,19 @@ export const CalendarScreen: React.FC = () => {
     () => getMonthRange(currentYear, currentMonth),
     [currentYear, currentMonth]
   );
+
+  // 현재 월에 해당하는 태스크를 allTasks에서 즉시 필터링 (Firestore 호출 없음)
+  // nextDue가 이미 이후 달로 이동한 반복 Task도 포함하기 위해 종료일을 3개월 뒤로 확장
+  const monthTasks = useMemo(() => {
+    const { start } = getMonthRange(currentYear, currentMonth);
+    const extendedEnd = new Date(currentYear, currentMonth + 2, 0, 23, 59, 59, 999);
+    return allTasks.filter(task => {
+      const nextDue = task.recurrence?.nextDue;
+      if (!nextDue) return false;
+      const nextDueMs = new Date(nextDue).getTime();
+      return nextDueMs >= start.getTime() && nextDueMs <= extendedEnd.getTime();
+    });
+  }, [allTasks, currentYear, currentMonth]);
 
   // 반복 Task를 날짜별 가상 인스턴스로 전개
   const monthOccurrences = useMemo(
@@ -494,13 +563,13 @@ export const CalendarScreen: React.FC = () => {
   const dayCountMap = useMemo(() => {
     const map: Record<string, { pending: number; overdue: number; completed: number }> = {};
     const source = filter === 'all' ? monthOccurrences : monthOccurrences.filter(o => (o.task.domain ?? o.task.type) === filter);
+    const todayMs = new Date().setHours(0, 0, 0, 0);
     for (const occ of source) {
       const key = toDateKey(occ.occurrenceDate);
       if (!map[key]) map[key] = { pending: 0, overdue: 0, completed: 0 };
       if (occ.isCompleted) map[key].completed++;
       else {
         const occMs = occ.occurrenceDate.getTime();
-        const todayMs = new Date().setHours(0, 0, 0, 0);
         if (occMs < todayMs) map[key].overdue++;
         else map[key].pending++;
       }
@@ -509,18 +578,15 @@ export const CalendarScreen: React.FC = () => {
   }, [monthOccurrences, filter]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+    startRefreshing();
+    emojiMapLoaded.current = false;
     await Promise.all([
-      fetchData(yearRef.current, monthRef.current),
+      loadAll(),
       loadFurnitureEmojiMap(),
     ]);
-  }, [fetchData, loadFurnitureEmojiMap]);
+  }, [loadAll, startRefreshing, loadFurnitureEmojiMap]);
 
   const handleMonthChange = useCallback((month: { year: number; month: number }) => {
-    isMonthChangeTrigger.current = true;
-    setCurrentYear(month.year);
-    setCurrentMonth(month.month);
-
     const today = new Date();
     const todayYear = today.getFullYear();
     const todayMonth = today.getMonth() + 1;
@@ -532,13 +598,17 @@ export const CalendarScreen: React.FC = () => {
     if (isCurrent) {
       defaultDate = today;
     } else if (isPast) {
-      // 해당 월의 마지막 날
       defaultDate = new Date(month.year, month.month, 0);
     } else {
-      // 미래 월: 1일
       defaultDate = new Date(month.year, month.month - 1, 1);
     }
-    setSelectedDate(toDateKey(defaultDate));
+
+    // 세 setState를 단일 렌더링으로 묶어 중간 상태 없이 즉시 반영
+    unstable_batchedUpdates(() => {
+      setCurrentYear(month.year);
+      setCurrentMonth(month.month);
+      setSelectedDate(toDateKey(defaultDate));
+    });
   }, []);
 
   const handleDayPress = useCallback((day: { dateString: string }) => {
@@ -577,64 +647,17 @@ export const CalendarScreen: React.FC = () => {
   }, [selectedDate]);
 
   const renderDayComponent = useCallback(
-    ({ date, state, onPress }: any) => {
-      if (!date) return null;
-      const dateObj = new Date(date.year, date.month - 1, date.day);
-      const dow = dateObj.getDay();
-      const isHoliday = KoreanHolidays.isHoliday(dateObj);
-      const isSelected = date.dateString === selectedDate;
-      const isDisabled = state === 'disabled';
-      const isToday = date.dateString === toDateKey(new Date());
-
-      let textColor: string = Colors.textPrimary;
-      if (isDisabled) textColor = Colors.textDisabled;
-      else if (isHoliday || dow === 0) textColor = Colors.error;
-      else if (dow === 6) textColor = Colors.primary;
-
-      const counts = dayCountMap[date.dateString];
-      const total = counts ? counts.pending + counts.overdue + counts.completed : 0;
-      const allDone = total > 0 && counts.pending === 0 && counts.overdue === 0;
-
-      return (
-        <TouchableOpacity onPress={() => !isDisabled && onPress(date)} activeOpacity={0.65} disabled={isDisabled}>
-          <View style={styles.dayCell}>
-            {total > 0 ? (
-              /* task 있는 날: 라운드 사각형 뱃지 (위) */
-              <View style={[
-                styles.dayCellRect,
-                allDone ? styles.dayCellRectDone : styles.dayCellRectPending,
-              ]}>
-                {allDone ? (
-                  <Text style={styles.dayCellCheckText}>✓</Text>
-                ) : (
-                  <Text style={styles.dayCellCountText}>{total}</Text>
-                )}
-              </View>
-            ) : (
-              /* task 없는 날: 연한 박스 (내용 없음) */
-              <View style={[styles.dayCellRect, styles.dayCellRectEmpty]} />
-            )}
-            {/* 날짜 숫자: 항상 아래 표시 */}
-            {isSelected ? (
-              <View style={styles.dayCellSelectedCircle}>
-                <Text style={styles.dayCellDaySelected}>{date.day}</Text>
-              </View>
-            ) : isToday ? (
-              <View style={styles.dayCellTodayCircle}>
-                <Text style={[styles.dayCellDaySmall, styles.dayCellDayTodayInCircle]}>
-                  {date.day}
-                </Text>
-              </View>
-            ) : (
-              <Text style={[styles.dayCellDaySmall, { color: textColor }]}>
-                {date.day}
-              </Text>
-            )}
-          </View>
-        </TouchableOpacity>
-      );
-    },
-    [selectedDate, dayCountMap]
+    ({ date, state, onPress }: any) => (
+      <DayCell
+        date={date}
+        state={state}
+        onPress={onPress}
+        counts={dayCountMap[date?.dateString]}
+        isSelected={date?.dateString === selectedDate}
+        isHolidayDate={date ? getHolidaySet(date.year).has(date.dateString) : false}
+      />
+    ),
+    [dayCountMap, selectedDate]
   );
 
   if (loading) {
@@ -1251,7 +1274,7 @@ export const CalendarScreen: React.FC = () => {
                             updatedAt: new Date(),
                           };
                           await updateTask(userId, String(task.id), revertFields);
-                          setMonthTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...revertFields } : t));
+                          updateTaskInCache(String(task.id), revertFields);
                           setTaskDetailModal({ visible: false, task: null });
                         }}
                       >
@@ -1518,6 +1541,7 @@ const styles = StyleSheet.create({
 
   // 달력
   calendarCard: { marginTop: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
+  calendarLoadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.55)', justifyContent: 'center', alignItems: 'center', borderRadius: 16 },
   calendar: { borderRadius: 16, paddingBottom: 4 },
   calendarHeaderText: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
   dayCell: { width: 32, height: 52, justifyContent: 'flex-start', alignItems: 'center', paddingTop: 2 },
