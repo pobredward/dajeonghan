@@ -18,6 +18,7 @@ import {
 import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
 import { TaskTemplateDetail } from '@/types/furnitureTaskTemplate.types';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import * as KoreanHolidays from 'korean-holidays';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -611,6 +612,30 @@ export const CalendarScreen: React.FC = () => {
     });
   }, []);
 
+  const handleSwipeLeft = useCallback(() => {
+    const next = new Date(currentYear, currentMonth, 1);
+    handleMonthChange({ year: next.getFullYear(), month: next.getMonth() + 1 });
+  }, [currentYear, currentMonth, handleMonthChange]);
+
+  const handleSwipeRight = useCallback(() => {
+    const prev = new Date(currentYear, currentMonth - 2, 1);
+    handleMonthChange({ year: prev.getFullYear(), month: prev.getMonth() + 1 });
+  }, [currentYear, currentMonth, handleMonthChange]);
+
+  const swipeGesture = useMemo(() =>
+    Gesture.Pan()
+      .activeOffsetX([-15, 15])
+      .failOffsetY([-10, 10])
+      .runOnJS(true)
+      .onEnd(({ translationX, translationY }) => {
+        if (Math.abs(translationX) > 10 && Math.abs(translationX) > Math.abs(translationY)) {
+          if (translationX < 0) handleSwipeLeft();
+          else handleSwipeRight();
+        }
+      }),
+    [handleSwipeLeft, handleSwipeRight]
+  );
+
   const handleDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
     setOverdueExpanded(false);
@@ -711,15 +736,16 @@ export const CalendarScreen: React.FC = () => {
         )}
 
         {/* ─── 월간 달력 ──────────────────────────────────── */}
-        <View style={styles.calendarCard}>
+        <GestureDetector gesture={swipeGesture}>
+          <View style={styles.calendarCard}>
           <Calendar
-            current={initialDateRef.current}
+            key={`${currentYear}-${currentMonth}`}
+            current={`${currentYear}-${String(currentMonth).padStart(2, '0')}-01`}
             markedDates={markedDates}
             onDayPress={handleDayPress}
             onMonthChange={handleMonthChange}
             dayComponent={renderDayComponent}
             hideExtraDays={true}
-            enableSwipeMonths
             renderHeader={(date) => {
               if (!date) return null;
               const year = date.getFullYear();
@@ -731,7 +757,8 @@ export const CalendarScreen: React.FC = () => {
             theme={calendarTheme}
             style={styles.calendar}
           />
-        </View>
+          </View>
+        </GestureDetector>
 
         {/* ─── 모듈 필터 ──────────────────────────────────── */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
