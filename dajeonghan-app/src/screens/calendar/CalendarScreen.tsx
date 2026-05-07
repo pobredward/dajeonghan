@@ -563,9 +563,19 @@ export const CalendarScreen: React.FC = () => {
     const occ = monthOccurrences.filter(o => toDateKey(o.occurrenceDate) === selectedDate);
     const filtered = filter === 'all' ? occ : occ.filter(o => (o.task.domain ?? o.task.type) === filter);
     return filtered.sort((a, b) => {
+      // 완료된 항목은 뒤로
       const scoreA = a.isCompleted ? 1 : 0;
       const scoreB = b.isCompleted ? 1 : 0;
-      return scoreA - scoreB;
+      if (scoreA !== scoreB) return scoreA - scoreB;
+      // hasTime이 있는 경우 시간순 정렬, 없는 경우 뒤로
+      const aHasTime = a.task.recurrence?.hasTime && a.occurrenceDate;
+      const bHasTime = b.task.recurrence?.hasTime && b.occurrenceDate;
+      if (aHasTime && bHasTime) {
+        return new Date(a.occurrenceDate).getTime() - new Date(b.occurrenceDate).getTime();
+      }
+      if (aHasTime) return -1;
+      if (bHasTime) return 1;
+      return 0;
     });
   }, [monthOccurrences, selectedDate, filter]);
 
@@ -1358,6 +1368,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
     ? Math.ceil((new Date().getTime() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // occurrenceDate는 날짜 비교용으로 자정 정규화되어 있으므로, 시각은 항상 nextDue 원본에서 읽음
+  const originalNextDue = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
+  const timeStr = (task.recurrence?.hasTime && originalNextDue)
+    ? originalNextDue.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : null;
+  const showTimeBlock = !!timeStr || (task.estimatedMinutes ?? 0) > 0;
+
   const accentStyle = category === 'overdue'
     ? styles.taskCardAccentOverdue
     : category === 'today'
@@ -1409,14 +1426,18 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
           <Text style={[styles.taskCardTitle, completed && styles.taskCardTitleCompleted]} numberOfLines={1}>
             {task.title}
           </Text>
+        </View>
+        <View style={styles.taskCardChipRow}>
           <View style={[
             styles.priorityPill,
+            task.priority === 'urgent' && styles.priorityPillUrgent,
             task.priority === 'high' && styles.priorityPillHigh,
             task.priority === 'medium' && styles.priorityPillMedium,
             task.priority === 'low' && styles.priorityPillLow,
           ]}>
             <Text style={[
               styles.priorityPillText,
+              task.priority === 'urgent' && styles.priorityPillTextUrgent,
               task.priority === 'high' && styles.priorityPillTextHigh,
               task.priority === 'medium' && styles.priorityPillTextMedium,
               task.priority === 'low' && styles.priorityPillTextLow,
@@ -1424,8 +1445,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
               {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
             </Text>
           </View>
-        </View>
-        <View style={styles.taskCardChipRow}>
           {category === 'overdue' && (
             <View style={styles.taskChipOverdue}>
               <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
@@ -1452,13 +1471,27 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
               </Text>
             </View>
           )}
-          {dueDate && task.estimatedMinutes > 0 && (
-            <View style={styles.taskChipTime}>
-              <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
-            </View>
-          )}
         </View>
       </View>
+
+      {/* 시간 블록 */}
+      {showTimeBlock && (
+        <View style={styles.taskTimeBlock}>
+          {timeStr && (
+            <Text style={[
+              styles.taskTimeText,
+              category === 'overdue' && styles.taskTimeTextOverdue,
+              category === 'today' && styles.taskTimeTextToday,
+              category === 'upcoming' && styles.taskTimeTextUpcoming,
+            ]}>
+              {timeStr}
+            </Text>
+          )}
+          {(task.estimatedMinutes ?? 0) > 0 && (
+            <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -1633,10 +1666,12 @@ const styles = StyleSheet.create({
 
   // 우선순위 pill
   priorityPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: Colors.veryLightGray, flexShrink: 0 },
+  priorityPillUrgent: { backgroundColor: Colors.error + '30' },
   priorityPillHigh: { backgroundColor: Colors.error + '20' },
   priorityPillMedium: { backgroundColor: Colors.warning + '20' },
   priorityPillLow: { backgroundColor: Colors.success + '20' },
   priorityPillText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  priorityPillTextUrgent: { color: Colors.error, fontWeight: '700' as const },
   priorityPillTextHigh: { color: Colors.error },
   priorityPillTextMedium: { color: Colors.warning },
   priorityPillTextLow: { color: Colors.success },
@@ -1654,6 +1689,14 @@ const styles = StyleSheet.create({
   taskChipTextRecurrence: { fontSize: 11, color: Colors.textSecondary },
   taskChipTime: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: Colors.veryLightGray },
   taskChipTextTime: { fontSize: 11, color: Colors.textSecondary },
+
+  // 시간 블록
+  taskTimeBlock: { width: 64, paddingRight: 12, paddingVertical: 10, alignItems: 'flex-end', justifyContent: 'center', flexShrink: 0 },
+  taskTimeText: { fontSize: 15, fontWeight: '700' as const, lineHeight: 19 },
+  taskTimeTextOverdue: { color: Colors.error },
+  taskTimeTextToday: { color: Colors.primary },
+  taskTimeTextUpcoming: { color: Colors.textSecondary },
+  taskTimeDuration: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
 
   // 빈 상태
   emptyDay: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.xs },

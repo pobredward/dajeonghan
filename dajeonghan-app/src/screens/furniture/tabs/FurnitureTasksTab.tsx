@@ -211,21 +211,23 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       }
     });
     
-    // 각 카테고리 내에서 날짜순 정렬
-    overdue.sort((a, b) => {
+    // 각 카테고리 내에서 시간순 정렬
+    // hasTime이 있는 항목은 시각 포함하여 정렬, hasTime 없는 항목은 날짜만 비교 후 뒤로
+    const sortByTime = (a: Task, b: Task) => {
+      const aHasTime = a.recurrence?.hasTime && a.recurrence?.nextDue;
+      const bHasTime = b.recurrence?.hasTime && b.recurrence?.nextDue;
+      if (aHasTime && bHasTime) {
+        return new Date(a.recurrence!.nextDue).getTime() - new Date(b.recurrence!.nextDue).getTime();
+      }
+      if (aHasTime) return -1;
+      if (bHasTime) return 1;
       if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
       return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
-    });
-    
-    todayTasks.sort((a, b) => {
-      if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
-      return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
-    });
-    
-    upcomingTasks.sort((a, b) => {
-      if (!a.recurrence?.nextDue || !b.recurrence?.nextDue) return 0;
-      return new Date(a.recurrence.nextDue).getTime() - new Date(b.recurrence.nextDue).getTime();
-    });
+    };
+
+    overdue.sort(sortByTime);
+    todayTasks.sort(sortByTime);
+    upcomingTasks.sort(sortByTime);
     
     return {
       overdue,
@@ -1265,6 +1267,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 const overdueDays = dueDate
                   ? Math.ceil((new Date().getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
                   : 0;
+                const hasTime = task.recurrence?.hasTime && dueDate;
+                const timeStr = hasTime
+                  ? new Date(dueDate!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+                  : null;
+                const showTimeBlock = !!timeStr || (task.estimatedMinutes ?? 0) > 0;
 
                 return (
                   <TouchableOpacity
@@ -1307,23 +1314,25 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         >
                           {task.title}
                         </Text>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
                         <View style={[
                           styles.priorityPill,
+                          task.priority === 'urgent' && styles.priorityPillUrgent,
                           task.priority === 'high' && styles.priorityPillHigh,
                           task.priority === 'medium' && styles.priorityPillMedium,
                           task.priority === 'low' && styles.priorityPillLow,
                         ]}>
                           <Text style={[
                             styles.priorityPillText,
+                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
                             task.priority === 'high' && styles.priorityPillTextHigh,
                             task.priority === 'medium' && styles.priorityPillTextMedium,
                             task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
                         </View>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
                         <View style={styles.taskChipOverdue}>
                           <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
                         </View>
@@ -1336,6 +1345,18 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         )}
                       </View>
                     </View>
+
+                    {/* 시간 블록 */}
+                    {showTimeBlock && (
+                      <View style={styles.taskTimeBlock}>
+                        {timeStr && (
+                          <Text style={[styles.taskTimeText, styles.taskTimeTextOverdue]}>{timeStr}</Text>
+                        )}
+                        {(task.estimatedMinutes ?? 0) > 0 && (
+                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                        )}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -1360,6 +1381,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
                 const isCompleted = isTaskCompleted(task);
                 const isTaskLoading = taskLoadingStates[task.id] || false;
+                const hasTime = task.recurrence?.hasTime && dueDate;
+                const timeStr = hasTime
+                  ? new Date(dueDate!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+                  : null;
+                const showTimeBlock = !!timeStr || (task.estimatedMinutes ?? 0) > 0;
 
                 return (
                   <TouchableOpacity
@@ -1402,23 +1428,25 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         >
                           {task.title}
                         </Text>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
                         <View style={[
                           styles.priorityPill,
+                          task.priority === 'urgent' && styles.priorityPillUrgent,
                           task.priority === 'high' && styles.priorityPillHigh,
                           task.priority === 'medium' && styles.priorityPillMedium,
                           task.priority === 'low' && styles.priorityPillLow,
                         ]}>
                           <Text style={[
                             styles.priorityPillText,
+                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
                             task.priority === 'high' && styles.priorityPillTextHigh,
                             task.priority === 'medium' && styles.priorityPillTextMedium,
                             task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
                         </View>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
                         <View style={isCompleted ? styles.taskChipCompleted : styles.taskChipToday}>
                           <Text style={isCompleted ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
                             {isCompleted ? '완료됨' : '오늘 마감'}
@@ -1431,13 +1459,20 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                             </Text>
                           </View>
                         )}
-                        {dueDate && (task.estimatedMinutes ?? 0) > 0 && (
-                          <View style={styles.taskChipTime}>
-                            <Text style={styles.taskChipTextTime}>⏱ {task.estimatedMinutes}분</Text>
-                          </View>
-                        )}
                       </View>
                     </View>
+
+                    {/* 시간 블록 */}
+                    {showTimeBlock && (
+                      <View style={styles.taskTimeBlock}>
+                        {timeStr && (
+                          <Text style={[styles.taskTimeText, styles.taskTimeTextToday]}>{timeStr}</Text>
+                        )}
+                        {(task.estimatedMinutes ?? 0) > 0 && (
+                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                        )}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -1467,6 +1502,11 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 const dueDate = task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : null;
                 const isCompleted = isTaskCompleted(task);
                 const isTaskLoading = taskLoadingStates[task.id] || false;
+                const hasTime = task.recurrence?.hasTime && dueDate;
+                const timeStr = hasTime
+                  ? new Date(dueDate!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+                  : null;
+                const showTimeBlock = !!timeStr || (task.estimatedMinutes ?? 0) > 0;
 
                 return (
                   <TouchableOpacity
@@ -1509,29 +1549,29 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         >
                           {task.title}
                         </Text>
+                      </View>
+                      <View style={styles.taskCardChipRow}>
                         <View style={[
                           styles.priorityPill,
+                          task.priority === 'urgent' && styles.priorityPillUrgent,
                           task.priority === 'high' && styles.priorityPillHigh,
                           task.priority === 'medium' && styles.priorityPillMedium,
                           task.priority === 'low' && styles.priorityPillLow,
                         ]}>
                           <Text style={[
                             styles.priorityPillText,
+                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
                             task.priority === 'high' && styles.priorityPillTextHigh,
                             task.priority === 'medium' && styles.priorityPillTextMedium,
                             task.priority === 'low' && styles.priorityPillTextLow,
                           ]}>
-                            {task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                           </Text>
                         </View>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
                         {dueDate && (
                           <View style={styles.taskChipUpcoming}>
                             <Text style={styles.taskChipTextUpcoming}>
-                              {task.recurrence?.hasTime
-                                ? dueDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
-                                : dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              {dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
                             </Text>
                           </View>
                         )}
@@ -1544,6 +1584,18 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         )}
                       </View>
                     </View>
+
+                    {/* 시간 블록 */}
+                    {showTimeBlock && (
+                      <View style={styles.taskTimeBlock}>
+                        {timeStr && (
+                          <Text style={[styles.taskTimeText, styles.taskTimeTextUpcoming]}>{timeStr}</Text>
+                        )}
+                        {(task.estimatedMinutes ?? 0) > 0 && (
+                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                        )}
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -5023,6 +5075,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.veryLightGray,
     flexShrink: 0,
   },
+  priorityPillUrgent: {
+    backgroundColor: Colors.error + '30',
+  },
   priorityPillHigh: {
     backgroundColor: Colors.error + '20',
   },
@@ -5036,6 +5091,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: Colors.textSecondary,
+  },
+  priorityPillTextUrgent: {
+    color: Colors.error,
+    fontWeight: '700' as const,
   },
   priorityPillTextHigh: {
     color: Colors.error,
@@ -5113,6 +5172,35 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '500',
+  },
+
+  // 시간 블록
+  taskTimeBlock: {
+    width: 64,
+    paddingRight: 12,
+    paddingVertical: 10,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  taskTimeText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    lineHeight: 19,
+  },
+  taskTimeTextOverdue: {
+    color: Colors.error,
+  },
+  taskTimeTextToday: {
+    color: Colors.primary,
+  },
+  taskTimeTextUpcoming: {
+    color: Colors.textSecondary,
+  },
+  taskTimeDuration: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 
   // ── Detail Modal V2 ──
