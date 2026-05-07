@@ -1329,7 +1329,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         {task.recurrence?.type === 'fixed' && (
                           <View style={styles.taskChipRecurrence}>
                             <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
                             </Text>
                           </View>
                         )}
@@ -1426,7 +1426,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         {task.recurrence?.type === 'fixed' && (
                           <View style={styles.taskChipRecurrence}>
                             <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
                             </Text>
                           </View>
                         )}
@@ -1537,7 +1537,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         {task.recurrence?.type === 'fixed' && (
                           <View style={styles.taskChipRecurrence}>
                             <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
                             </Text>
                           </View>
                         )}
@@ -1987,8 +1987,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                               styles.detailSummaryValue,
                               editingField === 'recurrence' && { color: Colors.primary },
                             ]}>
-                              {task.recurrence.interval && task.recurrence.interval > 1 ? `${task.recurrence.interval} ` : ''}
-                              {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                              {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
                             </Text>
                           </View>
                           <Text style={[
@@ -2461,6 +2460,19 @@ const getRecurrenceLabel = (recurrence: { type: string; interval?: number }): st
     return `${n}일`;
   }
   return '';
+};
+
+const getRecurrenceChipLabel = (interval: number, unit: 'day' | 'week' | 'month'): string => {
+  if (unit === 'day') {
+    return interval === 1 ? '매일' : `${interval}일마다`;
+  }
+  if (unit === 'week') {
+    if (interval === 1) return '매주';
+    if (interval === 2) return '격주';
+    return `${interval}주마다`;
+  }
+  if (interval === 1) return '매월';
+  return `${interval}개월마다`;
 };
 
 // 템플릿 선택 컴포넌트

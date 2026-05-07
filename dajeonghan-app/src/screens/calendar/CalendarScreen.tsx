@@ -78,6 +78,19 @@ const MODULE_FILTERS: { key: FilterType; label: string }[] = [
   { key: 'growth', label: '자기계발' },
 ];
 
+const getRecurrenceChipLabel = (interval: number, unit: 'day' | 'week' | 'month'): string => {
+  if (unit === 'day') {
+    return interval === 1 ? '매일' : `${interval}일마다`;
+  }
+  if (unit === 'week') {
+    if (interval === 1) return '매주';
+    if (interval === 2) return '격주';
+    return `${interval}주마다`;
+  }
+  if (interval === 1) return '매월';
+  return `${interval}개월마다`;
+};
+
 // 날짜 상태 분류
 function getDateCategory(task: Task): 'overdue' | 'today' | 'upcoming' {
   if (!task.recurrence?.nextDue) return 'upcoming';
@@ -1442,7 +1455,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
           {task.recurrence?.type === 'fixed' && (
             <View style={styles.taskChipRecurrence}>
               <Text style={styles.taskChipTextRecurrence}>
-                🔁 {task.recurrence.unit === 'day' ? '매일' : task.recurrence.unit === 'week' ? '매주' : '매월'}
+                🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
               </Text>
             </View>
           )}
