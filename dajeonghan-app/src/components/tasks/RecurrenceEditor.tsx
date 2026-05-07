@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import { Calendar } from 'react-native-calendars';
 import * as KoreanHolidays from 'korean-holidays';
 import { Colors, Typography, Spacing } from '@/constants';
 import { TaskCustomization } from '@/types/furnitureTaskTemplate.types';
+import SwipeNumberPicker from '@/components/tasks/SwipeNumberPicker';
 
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -103,6 +104,19 @@ export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
   const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
+
+  const hourItems = useMemo(
+    () => Array.from({ length: 24 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') })),
+    [],
+  );
+  const minuteItems = useMemo(
+    () => Array.from({ length: 60 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') })),
+    [],
+  );
+  const estimatedItems = useMemo(
+    () => Array.from({ length: 180 }, (_, i) => ({ value: i + 1, label: String(i + 1) })),
+    [],
+  );
 
   const pseudoCustomization: TaskCustomization = {
     recurrenceType: unit === 'day' ? 'daily' : unit === 'week' ? 'weekly' : 'monthly',
@@ -284,27 +298,23 @@ export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
 
         {hasTime && (
           <View style={styles.formTimePickerRow}>
-            <TouchableOpacity style={styles.formDateBtn} onPress={() => { const d = new Date(startDate); d.setHours((d.getHours() - 1 + 24) % 24); onStartDateChange(d); }}>
-              <Text style={styles.formDateBtnText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.formTimeValueBox}>
-              <Text style={styles.formTimeValueText}>{String(startDate.getHours()).padStart(2, '0')}</Text>
-              <Text style={styles.formTimeUnitLabel}>시</Text>
-            </View>
-            <TouchableOpacity style={styles.formDateBtn} onPress={() => { const d = new Date(startDate); d.setHours((d.getHours() + 1) % 24); onStartDateChange(d); }}>
-              <Text style={styles.formDateBtnText}>›</Text>
-            </TouchableOpacity>
+            <SwipeNumberPicker
+              value={startDate.getHours()}
+              items={hourItems}
+              onValueChanged={h => { const d = new Date(startDate); d.setHours(h); onStartDateChange(d); }}
+              unit="시"
+              width={68}
+              accentColor={Colors.primary}
+            />
             <Text style={styles.formTimeColon}>:</Text>
-            <TouchableOpacity style={styles.formDateBtn} onPress={() => { const d = new Date(startDate); const m = Math.floor(d.getMinutes() / 10) * 10; d.setMinutes((m - 10 + 60) % 60); onStartDateChange(d); }}>
-              <Text style={styles.formDateBtnText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.formTimeValueBox}>
-              <Text style={styles.formTimeValueText}>{String(Math.floor(startDate.getMinutes() / 10) * 10).padStart(2, '0')}</Text>
-              <Text style={styles.formTimeUnitLabel}>분</Text>
-            </View>
-            <TouchableOpacity style={styles.formDateBtn} onPress={() => { const d = new Date(startDate); const m = Math.floor(d.getMinutes() / 10) * 10; d.setMinutes((m + 10) % 60); onStartDateChange(d); }}>
-              <Text style={styles.formDateBtnText}>›</Text>
-            </TouchableOpacity>
+            <SwipeNumberPicker
+              value={startDate.getMinutes()}
+              items={minuteItems}
+              onValueChanged={m => { const d = new Date(startDate); d.setMinutes(m); onStartDateChange(d); }}
+              unit="분"
+              width={68}
+              accentColor={Colors.primary}
+            />
           </View>
         )}
 
@@ -323,19 +333,15 @@ export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
         )}
 
         {onHasEstimatedTimeChange !== undefined && hasEstimatedTime && (
-          <View style={styles.formIntervalRow}>
-            <View style={styles.formIntervalControls}>
-              <TouchableOpacity style={styles.formIntervalBtn} onPress={() => onEstimatedMinutesChange?.(Math.max(5, estimatedMinutes - 5))}>
-                <Text style={styles.formIntervalBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={styles.formIntervalValueBox}>
-                <Text style={styles.formIntervalNumber}>{estimatedMinutes}</Text>
-                <Text style={styles.formIntervalUnit}>분</Text>
-              </View>
-              <TouchableOpacity style={styles.formIntervalBtn} onPress={() => onEstimatedMinutesChange?.(Math.min(180, estimatedMinutes + 5))}>
-                <Text style={styles.formIntervalBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.formEstimatedPickerRow}>
+            <SwipeNumberPicker
+              value={Math.min(180, Math.max(1, estimatedMinutes))}
+              items={estimatedItems}
+              onValueChanged={v => onEstimatedMinutesChange?.(v)}
+              unit="분"
+              width={72}
+              accentColor={Colors.warning}
+            />
           </View>
         )}
       </View>
@@ -443,10 +449,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm,
   },
   formTimePickerRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: Spacing.sm, gap: Spacing.xs,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: Spacing.sm, gap: Spacing.sm,
   },
-  formTimeValueBox: { alignItems: 'center', minWidth: 48 },
-  formTimeValueText: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, letterSpacing: 1 },
-  formTimeUnitLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
-  formTimeColon: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, marginHorizontal: Spacing.xs, lineHeight: 36 },
+  formTimeColon: { fontSize: 28, fontWeight: '700', color: Colors.textPrimary, marginHorizontal: 4, lineHeight: 36 },
+  formEstimatedPickerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.veryLightGray,
+  },
 });

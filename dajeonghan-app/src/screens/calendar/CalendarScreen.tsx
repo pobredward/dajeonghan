@@ -39,6 +39,7 @@ import {
   getModuleLabel,
 } from '@/utils/taskUtils';
 import { RecurrenceEditor, getNextOccurrences, DayOfWeek } from '@/components/tasks/RecurrenceEditor';
+import SwipeNumberPicker from '@/components/tasks/SwipeNumberPicker';
 
 // ─── 한국어 locale 설정 ───────────────────────────────────────
 LocaleConfig.locales['kr'] = {
@@ -1230,22 +1231,14 @@ export const CalendarScreen: React.FC = () => {
                       {editingField === 'minutes' && (
                         <View style={[styles.detailEditPanel, styles.detailEditPanelHeaderMinutes]}>
                           <View style={styles.detailInlineIntervalRow}>
-                            <TouchableOpacity
-                              style={styles.detailInlineStepBtn}
-                              onPress={() => setEditMinutes(m => Math.max(5, m - 5))}
-                            >
-                              <Text style={styles.detailInlineStepText}>−</Text>
-                            </TouchableOpacity>
-                            <View style={styles.detailInlineValueBox}>
-                              <Text style={styles.detailInlineNumber}>{editMinutes}</Text>
-                              <Text style={styles.detailInlineUnit}>분</Text>
-                            </View>
-                            <TouchableOpacity
-                              style={styles.detailInlineStepBtn}
-                              onPress={() => setEditMinutes(m => Math.min(180, m + 5))}
-                            >
-                              <Text style={styles.detailInlineStepText}>+</Text>
-                            </TouchableOpacity>
+                            <SwipeNumberPicker
+                              value={editMinutes}
+                              items={Array.from({ length: 180 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))}
+                              onValueChanged={v => setEditMinutes(v)}
+                              unit="분"
+                              width={88}
+                              accentColor={Colors.warning}
+                            />
                           </View>
                           <View style={styles.detailRecurrenceEditorActions}>
                             <TouchableOpacity

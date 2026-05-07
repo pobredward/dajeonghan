@@ -42,6 +42,7 @@ import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
 import { FurnitureTaskService } from '@/services/furnitureTaskService';
 import { useAuth } from '@/contexts/AuthContext';
 import { RecurrenceEditor, getNextOccurrences, DayOfWeek as RecurrenceDayOfWeek } from '@/components/tasks/RecurrenceEditor';
+import SwipeNumberPicker from '@/components/tasks/SwipeNumberPicker';
 
 interface FurnitureTasksTabProps {
   furniture: Furniture;
@@ -2089,22 +2090,14 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                         </View>
                         <View style={styles.detailEditPanelBody}>
                           <View style={styles.detailInlineIntervalRow}>
-                            <TouchableOpacity
-                              style={styles.detailInlineStepBtn}
-                              onPress={() => setEditMinutes(v => Math.max(5, v - 5))}
-                            >
-                              <Text style={styles.detailInlineStepText}>−</Text>
-                            </TouchableOpacity>
-                            <View style={styles.detailInlineValueBox}>
-                              <Text style={styles.detailInlineNumber}>{editMinutes}</Text>
-                              <Text style={styles.detailInlineUnit}>분</Text>
-                            </View>
-                            <TouchableOpacity
-                              style={styles.detailInlineStepBtn}
-                              onPress={() => setEditMinutes(v => Math.min(120, v + 5))}
-                            >
-                              <Text style={styles.detailInlineStepText}>+</Text>
-                            </TouchableOpacity>
+                            <SwipeNumberPicker
+                              value={editMinutes}
+                              items={Array.from({ length: 120 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))}
+                              onValueChanged={v => setEditMinutes(v)}
+                              unit="분"
+                              width={88}
+                              accentColor={Colors.warning}
+                            />
                           </View>
                           <View style={styles.detailRecurrenceEditorActions}>
                             <TouchableOpacity
