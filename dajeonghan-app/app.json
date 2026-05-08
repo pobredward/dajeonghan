@@ -21,6 +21,7 @@
       "buildNumber": "1",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
+        "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -29,7 +30,9 @@
           }
         ]
       },
-      "associatedDomains": ["applinks:dajeonghan.app"]
+      "associatedDomains": [
+        "applinks:dajeonghan.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -50,7 +53,10 @@
               "pathPrefix": "/template"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -61,10 +67,20 @@
     "extra": {
       "firebaseProjectId": "dajeonghan",
       "appleTeamId": "3V8G7Y74HY",
-      "kakaoNativeAppKey": "d4ae3ad0839632cbaa36546e1b88bcc5"
+      "kakaoNativeAppKey": "d4ae3ad0839632cbaa36546e1b88bcc5",
+      "eas": {
+        "projectId": "c946a479-a38d-4b16-a1fa-1595136d0d3a"
+      }
     },
     "plugins": [
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#ffffff"
+        }
+      ]
+    ],
+    "owner": "pobredward02"
   }
 }
