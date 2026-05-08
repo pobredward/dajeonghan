@@ -59,6 +59,26 @@ function rectsOverlap(
   );
 }
 
+function findEmptyFurniturePosition(
+  room: Room,
+  newSize: { width: number; height: number },
+): { x: number; y: number } {
+  const STEP = 10;
+  const PADDING = 5;
+  for (let y = PADDING; y + newSize.height <= room.size.height - PADDING; y += STEP) {
+    for (let x = PADDING; x + newSize.width <= room.size.width - PADDING; x += STEP) {
+      const overlaps = room.furnitures.some(f =>
+        rectsOverlap(x, y, newSize.width, newSize.height, f.position.x, f.position.y, f.size.width, f.size.height, 4),
+      );
+      if (!overlaps) return { x, y };
+    }
+  }
+  return {
+    x: room.size.width / 2 - newSize.width / 2,
+    y: room.size.height / 2 - newSize.height / 2,
+  };
+}
+
 function findEmptyPosition(
   rooms: Room[],
   canvasWidth: number,
@@ -715,10 +735,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
       type: furnitureType,
       name: getFurnitureName(furnitureType),
       emoji: defaults.emoji,
-      position: {
-        x: room.size.width / 2 - defaults.defaultSize.width / 2,
-        y: room.size.height / 2 - defaults.defaultSize.height / 2,
-      },
+      position: findEmptyFurniturePosition(room, defaults.defaultSize),
       size: defaults.defaultSize,
       rotation: 0,
       linkedTaskIds: [],
