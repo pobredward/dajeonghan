@@ -224,7 +224,6 @@ export const CalendarScreen: React.FC = () => {
   } = useCalendarData(userId);
 
   const [filter, setFilter] = useState<FilterType>('all');
-  const [overdueExpanded, setOverdueExpanded] = useState(false);
 
   // 가구 이모지 맵 (furnitureId → 가구 emoji)
   const [furnitureEmojiMap, setFurnitureEmojiMap] = useState<Record<string, string>>({});
@@ -257,7 +256,6 @@ export const CalendarScreen: React.FC = () => {
   const [detailActiveTab, setDetailActiveTab] = useState<'info' | 'why' | 'how'>('info');
   const [detailTemplateDetail, setDetailTemplateDetail] = useState<TaskTemplateDetail | null>(null);
 
-  const bannerAnim = useRef(new Animated.Value(0)).current;
   const detailModalAnim = useRef(new Animated.Value(0)).current;
   const isFirstLoad = useRef(true);
   const yearRef = useRef(currentYear);
@@ -303,11 +301,6 @@ export const CalendarScreen: React.FC = () => {
     }, [loadAll, loadFurnitureEmojiMap, lastFetchedAt])
   );
 
-  useEffect(() => {
-    if (overdueTasks.length > 0) {
-      Animated.spring(bannerAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 }).start();
-    }
-  }, [overdueTasks.length]);
 
   // ─── 완료 핸들러 ─────────────────────────────────────────
   /**
@@ -579,11 +572,6 @@ export const CalendarScreen: React.FC = () => {
     });
   }, [monthOccurrences, selectedDate, filter]);
 
-  const filteredOverdue = useMemo(
-    () => (filter === 'all' ? overdueTasks : overdueTasks.filter(t => (t.domain ?? t.type) === filter)),
-    [overdueTasks, filter]
-  );
-
   // 날짜별 task 개수 집계 (모듈 필터 연동, occurrence 기반)
   const dayCountMap = useMemo(() => {
     const map: Record<string, { pending: number; overdue: number; completed: number }> = {};
@@ -662,7 +650,6 @@ export const CalendarScreen: React.FC = () => {
 
   const handleDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
-    setOverdueExpanded(false);
   }, []);
 
   const openDetailModal = useCallback((task: Task) => {
@@ -726,39 +713,6 @@ export const CalendarScreen: React.FC = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── 연체 요약 배너 ─────────────────────────────── */}
-        {filteredOverdue.length > 0 && (
-          <Animated.View style={[styles.overdueBanner, { opacity: bannerAnim, transform: [{ scaleY: bannerAnim }] }]}>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => setOverdueExpanded(prev => !prev)} style={styles.overdueBannerInner}>
-              <View style={styles.overdueLeft}>
-                <Text style={styles.overdueIcon}>⚠️</Text>
-                <View>
-                  <Text style={styles.overdueBannerTitle}>연체된 할 일 {filteredOverdue.length}개</Text>
-                  <Text style={styles.overdueBannerSub}>탭하여 {overdueExpanded ? '접기' : '펼치기'}</Text>
-                </View>
-              </View>
-              <Text style={styles.overdueChevron}>{overdueExpanded ? '▲' : '▼'}</Text>
-            </TouchableOpacity>
-            {overdueExpanded && (
-              <View style={styles.overdueList}>
-                {filteredOverdue.map(task => (
-                  <TouchableOpacity key={task.id} style={styles.overdueRow} onPress={() => openDetailModal(task)} activeOpacity={0.75}>
-                    <Text style={styles.overdueRowIcon}>{furnitureEmojiMap[task.furnitureId] || getModuleIcon((task.domain ?? task.type) as TaskDomain)}</Text>
-                    <View style={styles.overdueRowContent}>
-                      <Text style={styles.overdueRowTitle} numberOfLines={1}>{task.title}</Text>
-                      {task.recurrence?.nextDue && (
-                        <Text style={styles.overdueRowDue}>
-                          {Math.ceil((new Date().getTime() - new Date(task.recurrence.nextDue).getTime()) / (1000 * 60 * 60 * 24))}일 연체
-                        </Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </Animated.View>
-        )}
-
         {/* ─── 월간 달력 ──────────────────────────────────── */}
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.calendarCard}>
@@ -1589,21 +1543,6 @@ const styles = StyleSheet.create({
   contentContainer: { paddingBottom: 120 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background, gap: Spacing.md },
   loadingText: { ...Typography.bodySmall, color: Colors.textSecondary },
-
-  // 연체 배너
-  overdueBanner: { margin: Spacing.md, marginBottom: 0, backgroundColor: Colors.error + '10', borderRadius: 12, borderWidth: 1, borderColor: Colors.error + '30', overflow: 'hidden' },
-  overdueBannerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 4 },
-  overdueLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  overdueIcon: { fontSize: 22 },
-  overdueBannerTitle: { ...Typography.label, color: Colors.error },
-  overdueBannerSub: { ...Typography.caption, color: Colors.error + 'AA', marginTop: 2 },
-  overdueChevron: { fontSize: 12, color: Colors.error },
-  overdueList: { borderTopWidth: 1, borderTopColor: Colors.error + '20', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-  overdueRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.sm, gap: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.error + '20' },
-  overdueRowIcon: { fontSize: 18 },
-  overdueRowContent: { flex: 1 },
-  overdueRowTitle: { ...Typography.bodySmall, color: Colors.textPrimary, fontWeight: '500' },
-  overdueRowDue: { ...Typography.caption, color: Colors.error, marginTop: 1 },
 
   // 달력
   calendarCard: { marginTop: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: 0, backgroundColor: Colors.surface, borderRadius: 16, overflow: 'hidden', ...Shadows.small },
