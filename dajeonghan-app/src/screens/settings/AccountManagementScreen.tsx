@@ -62,7 +62,7 @@ const PROVIDER_DEFS: ProviderDef[] = [
   {
     id: 'apple.com',
     label: 'Apple',
-    description: 'Apple ID로 로그인 (Dev Build 지원)',
+    description: 'Apple ID로 로그인',
     iosOnly: true,
   },
   // 추후 추가 (Cloud Functions 서버 구축 후):
@@ -270,7 +270,7 @@ export const AccountManagementScreen: React.FC = () => {
   const [signingOut, setSigningOut] = useState(false);
 
   // Google OAuth
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+  const [, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     redirectUri: makeRedirectUri({ scheme: 'dajeonghan' }),
@@ -324,19 +324,20 @@ export const AccountManagementScreen: React.FC = () => {
     }
     if (providerId === 'apple.com') {
       try {
-        const nonce = await Crypto.digestStringAsync(
+        const rawNonce = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+        const hashedNonce = await Crypto.digestStringAsync(
           Crypto.CryptoDigestAlgorithm.SHA256,
-          Math.random().toString(36).substring(2),
+          rawNonce,
         );
         const credential = await AppleAuthentication.signInAsync({
           requestedScopes: [
             AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
             AppleAuthentication.AppleAuthenticationScope.EMAIL,
           ],
-          nonce,
+          nonce: hashedNonce,
         });
         if (credential.identityToken) {
-          await linkWithApple(credential.identityToken, nonce);
+          await linkWithApple(credential.identityToken, rawNonce);
           refreshProviders();
           Alert.alert('완료', 'Apple 계정이 연결되었습니다.');
         } else {

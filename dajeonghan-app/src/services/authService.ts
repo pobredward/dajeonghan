@@ -70,10 +70,6 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     throw new Error('로그인된 사용자가 없습니다.');
   }
 
-  if (!currentUser.isAnonymous) {
-    throw new Error('이미 계정이 연결되어 있습니다.');
-  }
-
   try {
     const credential = EmailAuthProvider.credential(email, password);
     const userCredential = await linkWithCredential(currentUser, credential);
@@ -88,11 +84,14 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     return userCredential.user;
   } catch (error: any) {
     console.error('❌ 이메일 계정 연결 실패:', error);
-    
+
     if (error.code === 'auth/email-already-in-use') {
       throw new Error('이미 사용 중인 이메일입니다.');
     }
-    
+    if (error.code === 'auth/provider-already-linked') {
+      throw new Error('이미 이메일 계정이 연결되어 있습니다.');
+    }
+
     throw new Error(`계정 연결 실패: ${error.message}`);
   }
 };

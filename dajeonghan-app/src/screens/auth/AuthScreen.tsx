@@ -125,19 +125,22 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const handleAppleLogin = async () => {
     setAppleLoading(true);
     try {
-      const nonce = await Crypto.digestStringAsync(
+      // rawNonce: Apple에 전달할 원문, hashedNonce: Apple 요청 시 SHA-256 해시
+      const rawNonce = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+      const hashedNonce = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
-        Math.random().toString(36).substring(2),
+        rawNonce,
       );
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
-        nonce,
+        nonce: hashedNonce,
       });
       if (credential.identityToken) {
-        await signInWithApple(credential.identityToken, nonce);
+        // Firebase에는 rawNonce(원문)를 전달해야 Firebase가 자체적으로 해시해 검증
+        await signInWithApple(credential.identityToken, rawNonce);
       } else {
         Alert.alert('Apple 로그인 오류', 'Apple 인증 정보를 받지 못했습니다.');
       }
