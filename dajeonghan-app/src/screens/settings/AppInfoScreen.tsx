@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import type { MyInfoStackParamList } from '@/navigation/MyInfoNavigator';
@@ -42,7 +43,7 @@ export const AppInfoScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.card}>
           <InfoRow
             title="버전"
-            rightElement={<Text style={styles.valueText}>1.0.0</Text>}
+            rightElement={<Text style={styles.valueText}>{Constants.expoConfig?.version ?? '-'}</Text>}
           />
           <View style={styles.divider} />
           <InfoRow

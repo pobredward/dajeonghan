@@ -1,6 +1,6 @@
 {
   "name": "dajeonghan-functions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "다정한 앱을 위한 Cloud Functions",
   "main": "lib/index.js",
   "engines": {
