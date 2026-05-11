@@ -1673,29 +1673,15 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                 {taskActionModal.action === 'postpone' ? (
                   <View style={styles.postponeSectionCompact}>
                     <Text style={styles.postponeTitleCompact}>미루기</Text>
-                    <View style={styles.postponeOptionsCompact}>
-                      {[
-                        { days: 1, label: '1일' },
-                        { days: 2, label: '2일' },
-                        { days: 3, label: '3일' },
-                        { days: 7, label: '1주' },
-                      ].map(option => (
-                        <TouchableOpacity
-                          key={option.days}
-                          style={[
-                            styles.postponeOptionButton,
-                            postponeDays === option.days && styles.postponeOptionButtonActive
-                          ]}
-                          onPress={() => setPostponeDays(option.days)}
-                        >
-                          <Text style={[
-                            styles.postponeOptionText,
-                            postponeDays === option.days && styles.postponeOptionTextActive
-                          ]}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                    <View style={styles.postponePickerRow}>
+                      <SwipeNumberPicker
+                        value={postponeDays}
+                        items={Array.from({ length: 30 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))}
+                        onValueChanged={v => setPostponeDays(v)}
+                        unit="일"
+                        width={88}
+                        accentColor={Colors.primary}
+                      />
                     </View>
                     <View style={styles.postponeActions}>
                       <TouchableOpacity
@@ -4175,32 +4161,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
-  postponeOptionsCompact: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  postponeOptionButton: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    backgroundColor: Colors.background,
+  postponePickerRow: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.veryLightGray,
-  },
-  postponeOptionButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  postponeOptionText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  postponeOptionTextActive: {
-    color: Colors.white,
+    marginBottom: Spacing.lg,
   },
   postponeActions: {
     flexDirection: 'row',

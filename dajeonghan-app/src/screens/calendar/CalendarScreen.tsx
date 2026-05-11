@@ -795,16 +795,15 @@ export const CalendarScreen: React.FC = () => {
                 </View>
                 <View style={styles.postponeSectionCompact}>
                   <Text style={styles.postponeTitleCompact}>미루기</Text>
-                  <View style={styles.postponeOptionsCompact}>
-                    {[{ days: 1, label: '1일' }, { days: 2, label: '2일' }, { days: 3, label: '3일' }, { days: 7, label: '1주' }].map(option => (
-                      <TouchableOpacity
-                        key={option.days}
-                        style={[styles.postponeOptionButton, postponeDays === option.days && styles.postponeOptionButtonActive]}
-                        onPress={() => setPostponeDays(option.days)}
-                      >
-                        <Text style={[styles.postponeOptionText, postponeDays === option.days && styles.postponeOptionTextActive]}>{option.label}</Text>
-                      </TouchableOpacity>
-                    ))}
+                  <View style={styles.postponePickerRow}>
+                    <SwipeNumberPicker
+                      value={postponeDays}
+                      items={Array.from({ length: 30 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))}
+                      onValueChanged={v => setPostponeDays(v)}
+                      unit="일"
+                      width={88}
+                      accentColor={Colors.primary}
+                    />
                   </View>
                   <View style={styles.postponeActions}>
                     <TouchableOpacity style={styles.postponeCancelButton} onPress={() => setTaskActionModal({ visible: false, task: null, action: null })}>
@@ -1653,11 +1652,7 @@ const styles = StyleSheet.create({
   closeButtonText: { fontSize: 18, color: Colors.textSecondary, lineHeight: 22 },
   postponeSectionCompact: { paddingBottom: Spacing.md },
   postponeTitleCompact: { ...Typography.label, color: Colors.textPrimary, marginBottom: Spacing.sm },
-  postponeOptionsCompact: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  postponeOptionButton: { flex: 1, paddingVertical: Spacing.sm, borderRadius: 10, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.veryLightGray, alignItems: 'center' },
-  postponeOptionButtonActive: { backgroundColor: Colors.primary + '18', borderColor: Colors.primary },
-  postponeOptionText: { ...Typography.label, color: Colors.textSecondary },
-  postponeOptionTextActive: { color: Colors.primary },
+  postponePickerRow: { alignItems: 'center', marginBottom: Spacing.md },
   postponeActions: { flexDirection: 'row', gap: Spacing.sm },
   postponeCancelButton: { flex: 1, paddingVertical: Spacing.sm + 2, borderRadius: 10, backgroundColor: Colors.background, alignItems: 'center' },
   postponeCancelText: { ...Typography.label, color: Colors.textSecondary },
