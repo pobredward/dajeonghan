@@ -116,7 +116,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   const [upcomingCollapsed, setUpcomingCollapsed] = useState<boolean>(false);
 
   // Task 세부 모달 인라인 편집
-  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | 'title' | 'description' | null>(null);
+  const [editingField, setEditingField] = useState<'recurrence' | 'minutes' | 'title' | 'description' | 'time' | null>(null);
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
   const [editRecurrenceUnit, setEditRecurrenceUnit] = useState<'day' | 'week' | 'month'>('week');
@@ -1824,40 +1824,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                   >
                     {/* 요약 정보 카드 — 항상 compact */}
                     <View style={styles.detailSummaryCardV2}>
-                      {dueDate && (
-                        <View style={styles.detailSummaryRowItem}>
-                          <Text style={styles.detailSummaryIcon}>📅</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.detailSummaryLabel}>다음 예정일</Text>
-                            <Text style={[
-                              styles.detailSummaryValue,
-                              isOverdue && { color: Colors.error },
-                              isDueToday && { color: Colors.warning },
-                            ]}>
-                              {task.recurrence?.hasTime
-                                ? dueDate.toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' })
-                                : dueDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-                            </Text>
-                          </View>
-                          {diffDays !== null && (
-                            <View style={[
-                              styles.detailDdayBadge,
-                              isOverdue && { backgroundColor: Colors.error + '18' },
-                              isDueToday && { backgroundColor: Colors.warning + '18' },
-                              !isOverdue && !isDueToday && { backgroundColor: Colors.primary + '12' },
-                            ]}>
-                              <Text style={[
-                                styles.detailDdayText,
-                                isOverdue && { color: Colors.error },
-                                isDueToday && { color: Colors.warning },
-                                !isOverdue && !isDueToday && { color: Colors.primary },
-                              ]}>
-                                {isCompleted ? '완료' : isOverdue ? `+${Math.abs(diffDays)}` : isDueToday ? 'D-Day' : `D-${diffDays}`}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      )}
                       {/* 제목 행 */}
                       <TouchableOpacity
                         style={[
@@ -1992,50 +1958,90 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                       )}
 
                       {task.recurrence?.type === 'fixed' && (
-                        <TouchableOpacity
-                          style={[
-                            styles.detailSummaryRowItem,
-                            styles.detailSummaryRowItemBorder,
-                            editingField === 'recurrence' && styles.detailSummaryRowItemActive,
-                          ]}
-                          onPress={() => {
-                            if (editingField === 'recurrence') {
-                              setEditingField(null);
-                            } else {
-                              setEditRecurrenceUnit(task.recurrence.unit as 'day' | 'week' | 'month');
-                              setEditRecurrenceInterval(task.recurrence.interval || 1);
-                              const initialStart = task.recurrence.nextDue
-                                ? new Date(task.recurrence.nextDue)
-                                : new Date();
-                              const existingHasTime = task.recurrence.hasTime ?? false;
-                              if (!existingHasTime) {
-                                initialStart.setHours(9, 0, 0, 0);
+                        <>
+                          <TouchableOpacity
+                            style={[
+                              styles.detailSummaryRowItem,
+                              styles.detailSummaryRowItemBorder,
+                              editingField === 'recurrence' && styles.detailSummaryRowItemActive,
+                            ]}
+                            onPress={() => {
+                              if (editingField === 'recurrence') {
+                                setEditingField(null);
+                              } else {
+                                setEditRecurrenceUnit(task.recurrence.unit as 'day' | 'week' | 'month');
+                                setEditRecurrenceInterval(task.recurrence.interval || 1);
+                                const initialStart = task.recurrence.nextDue
+                                  ? new Date(task.recurrence.nextDue)
+                                  : new Date();
+                                const existingHasTime = task.recurrence.hasTime ?? false;
+                                if (!existingHasTime) {
+                                  initialStart.setHours(9, 0, 0, 0);
+                                }
+                                setEditHasTime(existingHasTime);
+                                setEditStartDate(initialStart);
+                                setEditSelectedDays([]);
+                                setEditingField('recurrence');
                               }
-                              setEditHasTime(existingHasTime);
-                              setEditStartDate(initialStart);
-                              setEditSelectedDays([]);
-                              setEditingField('recurrence');
-                            }
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.detailSummaryIcon}>🔁</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.detailSummaryLabel}>반복 주기</Text>
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.detailSummaryIcon}>🔁</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.detailSummaryLabel}>반복 주기</Text>
+                              <Text style={[
+                                styles.detailSummaryValue,
+                                editingField === 'recurrence' && { color: Colors.primary },
+                              ]}>
+                                {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                              </Text>
+                            </View>
                             <Text style={[
-                              styles.detailSummaryValue,
-                              editingField === 'recurrence' && { color: Colors.primary },
+                              styles.detailEditIcon,
+                              editingField === 'recurrence' && { color: Colors.primary, opacity: 1 },
                             ]}>
-                              {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                              {editingField === 'recurrence' ? '▲' : '✏️'}
                             </Text>
-                          </View>
-                          <Text style={[
-                            styles.detailEditIcon,
-                            editingField === 'recurrence' && { color: Colors.primary, opacity: 1 },
-                          ]}>
-                            {editingField === 'recurrence' ? '▲' : '✏️'}
-                          </Text>
-                        </TouchableOpacity>
+                          </TouchableOpacity>
+
+                          {/* 시간 설정 행 */}
+                          <TouchableOpacity
+                            style={[
+                              styles.detailSummaryRowItem,
+                              styles.detailSummaryRowItemBorder,
+                              editingField === 'time' && styles.detailSummaryRowItemActive,
+                            ]}
+                            onPress={() => {
+                              if (editingField === 'time') {
+                                setEditingField(null);
+                              } else {
+                                setEditHasTime(task.recurrence?.hasTime ?? false);
+                                setEditStartDate(task.recurrence?.nextDue ? new Date(task.recurrence.nextDue) : new Date());
+                                setEditingField('time');
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.detailSummaryIcon}>🕐</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.detailSummaryLabel}>시간 설정</Text>
+                              <Text style={[
+                                styles.detailSummaryValue,
+                                editingField === 'time' && { color: Colors.primary },
+                              ]}>
+                                {task.recurrence?.hasTime && task.recurrence?.nextDue
+                                  ? new Date(task.recurrence.nextDue).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+                                  : '시간 미설정'}
+                              </Text>
+                            </View>
+                            <Text style={[
+                              styles.detailEditIcon,
+                              editingField === 'time' && { color: Colors.primary, opacity: 1 },
+                            ]}>
+                              {editingField === 'time' ? '▲' : '✏️'}
+                            </Text>
+                          </TouchableOpacity>
+                        </>
                       )}
                       {task.estimatedMinutes !== undefined && (
                         <TouchableOpacity
@@ -2098,11 +2104,77 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                             getNextOccurrences={getNextOccurrences}
                             hasTime={editHasTime}
                             onHasTimeChange={setEditHasTime}
+                            hideTimeSection
                           />
                           <View style={styles.detailRecurrenceEditorActions}>
                             <TouchableOpacity
                               style={styles.detailInlineSaveBtn}
                               onPress={() => handleUpdateRecurrence(task, editRecurrenceUnit, editRecurrenceInterval, editStartDate, editHasTime)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={styles.detailInlineSaveBtnText}>저장</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.detailInlineCancelBtn}
+                              onPress={() => setEditingField(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.detailInlineCancelBtnText}>취소</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 시간 설정 편집 패널 — 카드 바깥 */}
+                    {editingField === 'time' && (
+                      <View style={styles.detailEditPanel}>
+                        <View style={styles.detailEditPanelHeaderRecurrence}>
+                          <View style={styles.detailEditPanelBar} />
+                          <Text style={[styles.detailEditPanelTitle, { color: Colors.primary }]}>시간 설정</Text>
+                        </View>
+                        <View style={[styles.detailEditPanelBody, { paddingVertical: 12 }]}>
+                          <View style={styles.detailInlineTimeToggleRow}>
+                            <Text style={styles.detailInlineTimeLabel}>시간 지정</Text>
+                            <Switch
+                              value={editHasTime}
+                              onValueChange={v => {
+                                setEditHasTime(v);
+                                if (v) {
+                                  const d = new Date(editStartDate);
+                                  d.setHours(9, 0, 0, 0);
+                                  setEditStartDate(d);
+                                }
+                              }}
+                              trackColor={{ false: Colors.lightGray, true: Colors.primary }}
+                              thumbColor={Colors.white}
+                            />
+                          </View>
+                          {editHasTime && (
+                            <View style={styles.detailInlineTimePickerRow}>
+                              <SwipeNumberPicker
+                                value={editStartDate.getHours()}
+                                items={Array.from({ length: 24 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') }))}
+                                onValueChanged={h => { const d = new Date(editStartDate); d.setHours(h); setEditStartDate(d); }}
+                                unit="시"
+                                width={68}
+                                accentColor={Colors.primary}
+                              />
+                              <Text style={styles.detailInlineTimeColon}>:</Text>
+                              <SwipeNumberPicker
+                                value={editStartDate.getMinutes()}
+                                items={Array.from({ length: 60 }, (_, i) => ({ value: i, label: String(i).padStart(2, '0') }))}
+                                onValueChanged={m => { const d = new Date(editStartDate); d.setMinutes(m); setEditStartDate(d); }}
+                                unit="분"
+                                width={68}
+                                accentColor={Colors.primary}
+                              />
+                            </View>
+                          )}
+                          <View style={styles.detailRecurrenceEditorActions}>
+                            <TouchableOpacity
+                              style={styles.detailInlineSaveBtn}
+                              onPress={() => handleUpdateRecurrence(task, task.recurrence!.unit as 'day' | 'week' | 'month', task.recurrence!.interval, editStartDate, editHasTime)}
                               activeOpacity={0.85}
                             >
                               <Text style={styles.detailInlineSaveBtnText}>저장</Text>
@@ -5351,6 +5423,29 @@ const styles = StyleSheet.create({
   },
   detailInlineUnitTextActive: {
     color: Colors.white,
+  },
+  detailInlineTimeToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
+  },
+  detailInlineTimeLabel: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+  },
+  detailInlineTimePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingTop: Spacing.sm,
+  },
+  detailInlineTimeColon: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
   detailInlineIntervalRow: {
     flexDirection: 'row',

@@ -83,6 +83,7 @@ export interface RecurrenceEditorProps {
   onHasEstimatedTimeChange?: (v: boolean) => void;
   estimatedMinutes?: number;
   onEstimatedMinutesChange?: (minutes: number) => void;
+  hideTimeSection?: boolean;
 }
 
 export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
@@ -101,6 +102,7 @@ export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
   onHasEstimatedTimeChange,
   estimatedMinutes = 30,
   onEstimatedMinutesChange,
+  hideTimeSection = false,
 }) => {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
   const [currentCalendarMonth, setCurrentCalendarMonth] = React.useState(startDate);
@@ -277,74 +279,78 @@ export const RecurrenceEditor: React.FC<RecurrenceEditorProps> = ({
       </View>
 
       {/* 시간 설정 섹션 */}
-      <View style={styles.formSectionHeaderUpcoming}>
-        <View style={styles.formSectionHeaderBar} />
-        <Text style={styles.formSectionHeaderTitle}>시간 설정</Text>
-      </View>
-
-      <View style={styles.formSettingCard}>
-        <View style={styles.formTimeToggleRow}>
-          <Text style={styles.formIntervalLabel}>시간 지정</Text>
-          <Switch
-            value={hasTime}
-            onValueChange={v => {
-              onHasTimeChange?.(v);
-              if (v) { const d = new Date(startDate); d.setHours(9, 0, 0, 0); onStartDateChange(d); }
-            }}
-            trackColor={{ false: Colors.lightGray, true: Colors.primary }}
-            thumbColor={Colors.white}
-          />
-        </View>
-
-        {hasTime && (
-          <View style={styles.formTimePickerRow}>
-            <SwipeNumberPicker
-              value={startDate.getHours()}
-              items={hourItems}
-              onValueChanged={h => { const d = new Date(startDate); d.setHours(h); onStartDateChange(d); }}
-              unit="시"
-              width={68}
-              accentColor={Colors.primary}
-            />
-            <Text style={styles.formTimeColon}>:</Text>
-            <SwipeNumberPicker
-              value={startDate.getMinutes()}
-              items={minuteItems}
-              onValueChanged={m => { const d = new Date(startDate); d.setMinutes(m); onStartDateChange(d); }}
-              unit="분"
-              width={68}
-              accentColor={Colors.primary}
-            />
+      {!hideTimeSection && (
+        <>
+          <View style={styles.formSectionHeaderUpcoming}>
+            <View style={styles.formSectionHeaderBar} />
+            <Text style={styles.formSectionHeaderTitle}>시간 설정</Text>
           </View>
-        )}
 
-        {onHasEstimatedTimeChange !== undefined && <View style={styles.formTimeDivider} />}
+          <View style={styles.formSettingCard}>
+            <View style={styles.formTimeToggleRow}>
+              <Text style={styles.formIntervalLabel}>시간 지정</Text>
+              <Switch
+                value={hasTime}
+                onValueChange={v => {
+                  onHasTimeChange?.(v);
+                  if (v) { const d = new Date(startDate); d.setHours(9, 0, 0, 0); onStartDateChange(d); }
+                }}
+                trackColor={{ false: Colors.lightGray, true: Colors.primary }}
+                thumbColor={Colors.white}
+              />
+            </View>
 
-        {onHasEstimatedTimeChange !== undefined && (
-          <View style={styles.formTimeToggleRow}>
-            <Text style={styles.formIntervalLabel}>소요시간 지정</Text>
-            <Switch
-              value={hasEstimatedTime}
-              onValueChange={onHasEstimatedTimeChange}
-              trackColor={{ false: Colors.lightGray, true: Colors.warning }}
-              thumbColor={Colors.white}
-            />
+            {hasTime && (
+              <View style={styles.formTimePickerRow}>
+                <SwipeNumberPicker
+                  value={startDate.getHours()}
+                  items={hourItems}
+                  onValueChanged={h => { const d = new Date(startDate); d.setHours(h); onStartDateChange(d); }}
+                  unit="시"
+                  width={68}
+                  accentColor={Colors.primary}
+                />
+                <Text style={styles.formTimeColon}>:</Text>
+                <SwipeNumberPicker
+                  value={startDate.getMinutes()}
+                  items={minuteItems}
+                  onValueChanged={m => { const d = new Date(startDate); d.setMinutes(m); onStartDateChange(d); }}
+                  unit="분"
+                  width={68}
+                  accentColor={Colors.primary}
+                />
+              </View>
+            )}
+
+            {onHasEstimatedTimeChange !== undefined && <View style={styles.formTimeDivider} />}
+
+            {onHasEstimatedTimeChange !== undefined && (
+              <View style={styles.formTimeToggleRow}>
+                <Text style={styles.formIntervalLabel}>소요시간 지정</Text>
+                <Switch
+                  value={hasEstimatedTime}
+                  onValueChange={onHasEstimatedTimeChange}
+                  trackColor={{ false: Colors.lightGray, true: Colors.warning }}
+                  thumbColor={Colors.white}
+                />
+              </View>
+            )}
+
+            {onHasEstimatedTimeChange !== undefined && hasEstimatedTime && (
+              <View style={styles.formEstimatedPickerRow}>
+                <SwipeNumberPicker
+                  value={Math.min(180, Math.max(1, estimatedMinutes))}
+                  items={estimatedItems}
+                  onValueChanged={v => onEstimatedMinutesChange?.(v)}
+                  unit="분"
+                  width={72}
+                  accentColor={Colors.warning}
+                />
+              </View>
+            )}
           </View>
-        )}
-
-        {onHasEstimatedTimeChange !== undefined && hasEstimatedTime && (
-          <View style={styles.formEstimatedPickerRow}>
-            <SwipeNumberPicker
-              value={Math.min(180, Math.max(1, estimatedMinutes))}
-              items={estimatedItems}
-              onValueChanged={v => onEstimatedMinutesChange?.(v)}
-              unit="분"
-              width={72}
-              accentColor={Colors.warning}
-            />
-          </View>
-        )}
-      </View>
+        </>
+      )}
     </>
   );
 };
