@@ -98,6 +98,25 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
 };
 
 /**
+ * Apple로 직접 로그인 (expo-apple-authentication 기반, 프로덕션 빌드 전용)
+ *
+ * AuthScreen에서 AppleAuthentication.signInAsync()로 credential을 받아 호출합니다.
+ * 신규 사용자는 Firebase Auth 계정이 자동 생성됩니다.
+ */
+export const signInWithApple = async (idToken: string, nonce: string): Promise<User> => {
+  try {
+    const provider = new OAuthProvider('apple.com');
+    const credential = provider.credential({ idToken, rawNonce: nonce });
+    const result = await signInWithCredential(auth, credential);
+    console.log('✅ Apple 로그인 성공');
+    return result.user;
+  } catch (error: any) {
+    console.error('❌ Apple 로그인 실패:', error);
+    throw new Error(`Apple 로그인 실패: ${error.message}`);
+  }
+};
+
+/**
  * Google로 직접 로그인 (expo-auth-session 기반, Expo Go 호환)
  *
  * AuthScreen에서 expo-auth-session으로 idToken을 받아 호출합니다.
@@ -465,6 +484,7 @@ export const AuthService = {
   resendEmailVerification,
   sendPasswordReset,
   signInWithGoogle,
+  signInWithApple,
 
   // 로그아웃 및 관리
   signOut,

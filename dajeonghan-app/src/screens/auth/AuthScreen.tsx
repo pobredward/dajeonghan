@@ -16,9 +16,12 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   signInWithEmail,
   signInWithGoogle,
+  signInWithApple,
   sendPasswordReset,
 } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +42,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -118,11 +122,32 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleAppleLogin = () => {
-    Alert.alert(
-      'Apple 로그인',
-      'Apple 로그인은 Dev Build 환경에서 지원됩니다. Expo Go에서는 사용이 제한됩니다.',
-    );
+  const handleAppleLogin = async () => {
+    setAppleLoading(true);
+    try {
+      const nonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        Math.random().toString(36).substring(2),
+      );
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce,
+      });
+      if (credential.identityToken) {
+        await signInWithApple(credential.identityToken, nonce);
+      } else {
+        Alert.alert('Apple 로그인 오류', 'Apple 인증 정보를 받지 못했습니다.');
+      }
+    } catch (e: any) {
+      if (e.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert('Apple 로그인 실패', e.message);
+      }
+    } finally {
+      setAppleLoading(false);
+    }
   };
 
   const handleGuestLogin = () => {
@@ -233,11 +258,16 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
 
             {Platform.OS === 'ios' && (
               <TouchableOpacity
-                style={styles.appleButton}
+                style={[styles.appleButton, appleLoading && styles.buttonDisabled]}
                 onPress={handleAppleLogin}
+                disabled={appleLoading}
                 activeOpacity={0.85}
               >
-                <Text style={styles.appleButtonText}>Apple로 계속하기</Text>
+                {appleLoading ? (
+                  <ActivityIndicator color={Colors.white} />
+                ) : (
+                  <Text style={styles.appleButtonText}>Apple로 계속하기</Text>
+                )}
               </TouchableOpacity>
             )}
 

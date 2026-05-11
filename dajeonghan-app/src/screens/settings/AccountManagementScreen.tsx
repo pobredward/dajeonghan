@@ -16,11 +16,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri } from 'expo-auth-session';
-import { useFocusEffect } from '@react-navigation/native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { MyInfoStackParamList } from '@/navigation/MyInfoNavigator';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   linkWithEmail,
   linkWithGoogleExpo,
+  linkWithApple,
   unlinkProvider,
   getLinkedProviders,
   signOut,
@@ -258,6 +263,7 @@ const ProviderRow: React.FC<ProviderRowProps> = ({
 // ============================================================================
 export const AccountManagementScreen: React.FC = () => {
   const { user } = useAuth();
+  const navigation = useNavigation<StackNavigationProp<MyInfoStackParamList>>();
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [emailModalVisible, setEmailModalVisible] = useState(false);
@@ -317,11 +323,32 @@ export const AccountManagementScreen: React.FC = () => {
       return;
     }
     if (providerId === 'apple.com') {
-      setLoadingProvider(null);
-      Alert.alert(
-        'Apple 로그인',
-        'Apple 계정 연결은 Dev Build에서 지원됩니다.\n(Expo Go 환경에서는 사용할 수 없습니다.)'
-      );
+      try {
+        const nonce = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          Math.random().toString(36).substring(2),
+        );
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+          nonce,
+        });
+        if (credential.identityToken) {
+          await linkWithApple(credential.identityToken, nonce);
+          refreshProviders();
+          Alert.alert('완료', 'Apple 계정이 연결되었습니다.');
+        } else {
+          Alert.alert('오류', 'Apple 인증 정보를 받지 못했습니다.');
+        }
+      } catch (e: any) {
+        if (e.code !== 'ERR_REQUEST_CANCELED') {
+          Alert.alert('연결 실패', e.message);
+        }
+      } finally {
+        setLoadingProvider(null);
+      }
       return;
     }
     setLoadingProvider(null);
@@ -458,7 +485,7 @@ export const AccountManagementScreen: React.FC = () => {
           </Text>
         )}
 
-        {/* 로그아웃 */}
+        {/* 로그아웃 / 계정 삭제 */}
         <Text style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>계정</Text>
         <View style={styles.card}>
           <TouchableOpacity
@@ -472,6 +499,14 @@ export const AccountManagementScreen: React.FC = () => {
             ) : (
               <Text style={styles.dangerText}>로그아웃</Text>
             )}
+          </TouchableOpacity>
+          <View style={styles.rowDivider} />
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('DeleteAccount')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.deleteAccountText}>계정 삭제</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -616,6 +651,11 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.error,
     fontWeight: '600',
+  },
+  deleteAccountText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    fontWeight: '400',
   },
 
   /* 이메일 모달 */
