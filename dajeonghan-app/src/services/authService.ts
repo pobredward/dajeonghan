@@ -70,6 +70,8 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     throw new Error('로그인된 사용자가 없습니다.');
   }
 
+  const wasAnonymous = currentUser.isAnonymous;
+
   try {
     const credential = EmailAuthProvider.credential(email, password);
     const userCredential = await linkWithCredential(currentUser, credential);
@@ -78,7 +80,7 @@ export const linkWithEmail = async (email: string, password: string): Promise<Us
     await sendEmailVerification(userCredential.user);
 
     // 계정 연결 로그
-    await logAccountLink(userCredential.user.uid, 'email');
+    await logAccountLink(userCredential.user.uid, 'email', wasAnonymous);
 
     console.log('✅ 이메일 계정 연결 성공, 인증 이메일 발송 완료');
     return userCredential.user;
@@ -142,10 +144,14 @@ export const linkWithGoogleExpo = async (idToken: string): Promise<User> => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
 
+  const wasAnonymous = currentUser.isAnonymous;
+
   try {
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await linkWithCredential(currentUser, credential);
-    await logAccountLink(result.user.uid, 'google');
+
+    await logAccountLink(result.user.uid, 'google', wasAnonymous);
+
     console.log('✅ Google 계정 연결 성공');
     return result.user;
   } catch (error: any) {
@@ -167,11 +173,15 @@ export const linkWithApple = async (idToken: string, nonce: string): Promise<Use
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
 
+  const wasAnonymous = currentUser.isAnonymous;
+
   try {
     const provider = new OAuthProvider('apple.com');
     const credential = provider.credential({ idToken, rawNonce: nonce });
     const result = await linkWithCredential(currentUser, credential);
-    await logAccountLink(result.user.uid, 'apple');
+
+    await logAccountLink(result.user.uid, 'apple', wasAnonymous);
+
     console.log('✅ Apple 계정 연결 성공');
     return result.user;
   } catch (error: any) {
@@ -442,7 +452,11 @@ const deleteUserData = async (userId: string): Promise<void> => {
 /**
  * 계정 연결 로그 기록
  */
-const logAccountLink = async (userId: string, method: 'email' | 'google' | 'apple'): Promise<void> => {
+const logAccountLink = async (
+  userId: string,
+  method: 'email' | 'google' | 'apple',
+  previouslyAnonymous: boolean,
+): Promise<void> => {
   try {
     const logRef = doc(db, `users/${userId}/logs/${Date.now()}_account_link`);
     await setDoc(logRef, {
@@ -450,14 +464,15 @@ const logAccountLink = async (userId: string, method: 'email' | 'google' | 'appl
       type: 'account_link',
       method,
       timestamp: dateToTimestamp(new Date()),
-      previouslyAnonymous: true,
+      previouslyAnonymous,
     });
-    
+
     console.log('✅ 계정 연결 로그 기록 완료');
   } catch (error: any) {
     console.error('⚠️ 계정 연결 로그 기록 실패:', error);
   }
 };
+
 
 // ============================================================================
 // Export

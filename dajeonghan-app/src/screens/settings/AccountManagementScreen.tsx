@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -273,7 +272,6 @@ export const AccountManagementScreen: React.FC = () => {
   const [, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
-    redirectUri: makeRedirectUri({ scheme: 'dajeonghan' }),
   });
 
   const refreshProviders = useCallback(() => {
