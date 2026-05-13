@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "build:prod:ios": "eas build --platform ios --profile production",
+    "build:prod:android": "eas build --platform android --profile production",
     "submit:prod:ios": "eas submit --platform ios --profile production --latest"
   },
   "dependencies": {
