@@ -1,6 +1,6 @@
 /**
  * 다정한 - 환경 변수 타입 정의
- * 
+ *
  * React Native 환경 변수에 대한 TypeScript 타입을 제공합니다.
  */
 
@@ -25,6 +25,7 @@ declare module '@env' {
 
   export const GOOGLE_WEB_CLIENT_ID: string;
   export const GOOGLE_IOS_CLIENT_ID: string;
+  export const GOOGLE_ANDROID_CLIENT_ID: string;
 }
 
 declare const __DEV__: boolean;
