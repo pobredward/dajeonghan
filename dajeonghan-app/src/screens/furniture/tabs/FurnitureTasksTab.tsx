@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Platform,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -1213,74 +1214,76 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     }}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.taskCardAccentOverdue} />
-                    {/* 체크박스 */}
-                    <TouchableOpacity
-                      style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
-                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
-                      activeOpacity={isTaskLoading ? 1 : 0.4}
-                      disabled={isTaskLoading}
-                    >
-                      {isTaskLoading
-                        ? <ActivityIndicator size="small" color={Colors.white} />
-                        : isCompleted
-                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
-                          : null
-                      }
-                    </TouchableOpacity>
+                    <View style={[styles.taskCardAccentBase, styles.taskCardAccentOverdue]} />
+                    <View style={[styles.taskCardContent, isCompleted && styles.taskCardContentCompleted]}>
+                      {/* 체크박스 */}
+                      <TouchableOpacity
+                        style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                        onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
+                        activeOpacity={isTaskLoading ? 1 : 0.4}
+                        disabled={isTaskLoading}
+                      >
+                        {isTaskLoading
+                          ? <ActivityIndicator size="small" color={Colors.white} />
+                          : isCompleted
+                            ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                            : null
+                        }
+                      </TouchableOpacity>
 
-                    {/* 본문 */}
-                    <View style={styles.taskCardBody}>
-                      <View style={styles.taskCardTitleRow}>
-                        <Text
-                          style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
-                          numberOfLines={1}
-                        >
-                          {task.title}
-                        </Text>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
-                        <View style={[
-                          styles.priorityPill,
-                          task.priority === 'urgent' && styles.priorityPillUrgent,
-                          task.priority === 'high' && styles.priorityPillHigh,
-                          task.priority === 'medium' && styles.priorityPillMedium,
-                          task.priority === 'low' && styles.priorityPillLow,
-                        ]}>
-                          <Text style={[
-                            styles.priorityPillText,
-                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
-                            task.priority === 'high' && styles.priorityPillTextHigh,
-                            task.priority === 'medium' && styles.priorityPillTextMedium,
-                            task.priority === 'low' && styles.priorityPillTextLow,
-                          ]}>
-                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                      {/* 본문 */}
+                      <View style={styles.taskCardBody}>
+                        <View style={styles.taskCardTitleRow}>
+                          <Text
+                            style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
+                            numberOfLines={1}
+                          >
+                            {task.title}
                           </Text>
                         </View>
-                        <View style={styles.taskChipOverdue}>
-                          <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
-                        </View>
-                        {task.recurrence?.type === 'fixed' && (
-                          <View style={styles.taskChipRecurrence}>
-                            <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                        <View style={styles.taskCardChipRow}>
+                          <View style={[
+                            styles.priorityPill,
+                            task.priority === 'urgent' && styles.priorityPillUrgent,
+                            task.priority === 'high' && styles.priorityPillHigh,
+                            task.priority === 'medium' && styles.priorityPillMedium,
+                            task.priority === 'low' && styles.priorityPillLow,
+                          ]}>
+                            <Text style={[
+                              styles.priorityPillText,
+                              task.priority === 'urgent' && styles.priorityPillTextUrgent,
+                              task.priority === 'high' && styles.priorityPillTextHigh,
+                              task.priority === 'medium' && styles.priorityPillTextMedium,
+                              task.priority === 'low' && styles.priorityPillTextLow,
+                            ]}>
+                              {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                             </Text>
                           </View>
-                        )}
+                          <View style={styles.taskChipOverdue}>
+                            <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
+                          </View>
+                          {task.recurrence?.type === 'fixed' && (
+                            <View style={styles.taskChipRecurrence}>
+                              <Text style={styles.taskChipTextRecurrence}>
+                                🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
-                    </View>
 
-                    {/* 시간 블록 */}
-                    {showTimeBlock && (
-                      <View style={styles.taskTimeBlock}>
-                        {timeStr && (
-                          <Text style={[styles.taskTimeText, styles.taskTimeTextOverdue]}>{timeStr}</Text>
-                        )}
-                        {(task.estimatedMinutes ?? 0) > 0 && (
-                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
-                        )}
-                      </View>
-                    )}
+                      {/* 시간 블록 */}
+                      {showTimeBlock && (
+                        <View style={styles.taskTimeBlock}>
+                          {timeStr && (
+                            <Text style={[styles.taskTimeText, styles.taskTimeTextOverdue]}>{timeStr}</Text>
+                          )}
+                          {(task.estimatedMinutes ?? 0) > 0 && (
+                            <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -1327,76 +1330,78 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     }}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.taskCardAccentToday} />
-                    {/* 체크박스 */}
-                    <TouchableOpacity
-                      style={[styles.taskCheckboxNew, styles.taskCheckboxNewToday, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
-                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
-                      activeOpacity={isTaskLoading ? 1 : 0.4}
-                      disabled={isTaskLoading}
-                    >
-                      {isTaskLoading
-                        ? <ActivityIndicator size="small" color={Colors.white} />
-                        : isCompleted
-                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
-                          : null
-                      }
-                    </TouchableOpacity>
+                    <View style={[styles.taskCardAccentBase, styles.taskCardAccentToday]} />
+                    <View style={[styles.taskCardContent, isCompleted && styles.taskCardContentCompleted]}>
+                      {/* 체크박스 */}
+                      <TouchableOpacity
+                        style={[styles.taskCheckboxNew, styles.taskCheckboxNewToday, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                        onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
+                        activeOpacity={isTaskLoading ? 1 : 0.4}
+                        disabled={isTaskLoading}
+                      >
+                        {isTaskLoading
+                          ? <ActivityIndicator size="small" color={Colors.white} />
+                          : isCompleted
+                            ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                            : null
+                        }
+                      </TouchableOpacity>
 
-                    {/* 본문 */}
-                    <View style={styles.taskCardBody}>
-                      <View style={styles.taskCardTitleRow}>
-                        <Text
-                          style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
-                          numberOfLines={1}
-                        >
-                          {task.title}
-                        </Text>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
-                        <View style={[
-                          styles.priorityPill,
-                          task.priority === 'urgent' && styles.priorityPillUrgent,
-                          task.priority === 'high' && styles.priorityPillHigh,
-                          task.priority === 'medium' && styles.priorityPillMedium,
-                          task.priority === 'low' && styles.priorityPillLow,
-                        ]}>
-                          <Text style={[
-                            styles.priorityPillText,
-                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
-                            task.priority === 'high' && styles.priorityPillTextHigh,
-                            task.priority === 'medium' && styles.priorityPillTextMedium,
-                            task.priority === 'low' && styles.priorityPillTextLow,
+                      {/* 본문 */}
+                      <View style={styles.taskCardBody}>
+                        <View style={styles.taskCardTitleRow}>
+                          <Text
+                            style={[styles.taskCardTitle, isCompleted && styles.taskCardTitleCompleted]}
+                            numberOfLines={1}
+                          >
+                            {task.title}
+                          </Text>
+                        </View>
+                        <View style={styles.taskCardChipRow}>
+                          <View style={[
+                            styles.priorityPill,
+                            task.priority === 'urgent' && styles.priorityPillUrgent,
+                            task.priority === 'high' && styles.priorityPillHigh,
+                            task.priority === 'medium' && styles.priorityPillMedium,
+                            task.priority === 'low' && styles.priorityPillLow,
                           ]}>
-                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
-                          </Text>
-                        </View>
-                        <View style={isCompleted ? styles.taskChipCompleted : styles.taskChipToday}>
-                          <Text style={isCompleted ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
-                            {isCompleted ? '완료됨' : '오늘 마감'}
-                          </Text>
-                        </View>
-                        {task.recurrence?.type === 'fixed' && (
-                          <View style={styles.taskChipRecurrence}>
-                            <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                            <Text style={[
+                              styles.priorityPillText,
+                              task.priority === 'urgent' && styles.priorityPillTextUrgent,
+                              task.priority === 'high' && styles.priorityPillTextHigh,
+                              task.priority === 'medium' && styles.priorityPillTextMedium,
+                              task.priority === 'low' && styles.priorityPillTextLow,
+                            ]}>
+                              {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                             </Text>
                           </View>
-                        )}
+                          <View style={isCompleted ? styles.taskChipCompleted : styles.taskChipToday}>
+                            <Text style={isCompleted ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
+                              {isCompleted ? '완료됨' : '오늘 마감'}
+                            </Text>
+                          </View>
+                          {task.recurrence?.type === 'fixed' && (
+                            <View style={styles.taskChipRecurrence}>
+                              <Text style={styles.taskChipTextRecurrence}>
+                                🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
-                    </View>
 
-                    {/* 시간 블록 */}
-                    {showTimeBlock && (
-                      <View style={styles.taskTimeBlock}>
-                        {timeStr && (
-                          <Text style={[styles.taskTimeText, styles.taskTimeTextToday]}>{timeStr}</Text>
-                        )}
-                        {(task.estimatedMinutes ?? 0) > 0 && (
-                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
-                        )}
-                      </View>
-                    )}
+                      {/* 시간 블록 */}
+                      {showTimeBlock && (
+                        <View style={styles.taskTimeBlock}>
+                          {timeStr && (
+                            <Text style={[styles.taskTimeText, styles.taskTimeTextToday]}>{timeStr}</Text>
+                          )}
+                          {(task.estimatedMinutes ?? 0) > 0 && (
+                            <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -1448,78 +1453,80 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
                     }}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.taskCardAccentUpcoming} />
-                    {/* 체크박스 */}
-                    <TouchableOpacity
-                      style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
-                      onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
-                      activeOpacity={isTaskLoading ? 1 : 0.4}
-                      disabled={isTaskLoading}
-                    >
-                      {isTaskLoading
-                        ? <ActivityIndicator size="small" color={Colors.white} />
-                        : isCompleted
-                          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
-                          : null
-                      }
-                    </TouchableOpacity>
+                    <View style={[styles.taskCardAccentBase, styles.taskCardAccentUpcoming]} />
+                    <View style={[styles.taskCardContent, isCompleted && styles.taskCardContentCompleted]}>
+                      {/* 체크박스 */}
+                      <TouchableOpacity
+                        style={[styles.taskCheckboxNew, isCompleted && styles.taskCheckboxNewCompleted, isTaskLoading && styles.taskCheckboxNewLoading]}
+                        onPress={(e) => { e.stopPropagation(); if (!isTaskLoading) handleCompleteTask(task); }}
+                        activeOpacity={isTaskLoading ? 1 : 0.4}
+                        disabled={isTaskLoading}
+                      >
+                        {isTaskLoading
+                          ? <ActivityIndicator size="small" color={Colors.white} />
+                          : isCompleted
+                            ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+                            : null
+                        }
+                      </TouchableOpacity>
 
-                    {/* 본문 */}
-                    <View style={styles.taskCardBody}>
-                      <View style={styles.taskCardTitleRow}>
-                        <Text
-                          style={[styles.taskCardTitle, styles.taskCardTitleUpcoming, isCompleted && styles.taskCardTitleCompleted]}
-                          numberOfLines={1}
-                        >
-                          {task.title}
-                        </Text>
-                      </View>
-                      <View style={styles.taskCardChipRow}>
-                        <View style={[
-                          styles.priorityPill,
-                          task.priority === 'urgent' && styles.priorityPillUrgent,
-                          task.priority === 'high' && styles.priorityPillHigh,
-                          task.priority === 'medium' && styles.priorityPillMedium,
-                          task.priority === 'low' && styles.priorityPillLow,
-                        ]}>
-                          <Text style={[
-                            styles.priorityPillText,
-                            task.priority === 'urgent' && styles.priorityPillTextUrgent,
-                            task.priority === 'high' && styles.priorityPillTextHigh,
-                            task.priority === 'medium' && styles.priorityPillTextMedium,
-                            task.priority === 'low' && styles.priorityPillTextLow,
-                          ]}>
-                            {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+                      {/* 본문 */}
+                      <View style={styles.taskCardBody}>
+                        <View style={styles.taskCardTitleRow}>
+                          <Text
+                            style={[styles.taskCardTitle, styles.taskCardTitleUpcoming, isCompleted && styles.taskCardTitleCompleted]}
+                            numberOfLines={1}
+                          >
+                            {task.title}
                           </Text>
                         </View>
-                        {dueDate && (
-                          <View style={styles.taskChipUpcoming}>
-                            <Text style={styles.taskChipTextUpcoming}>
-                              {dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                        <View style={styles.taskCardChipRow}>
+                          <View style={[
+                            styles.priorityPill,
+                            task.priority === 'urgent' && styles.priorityPillUrgent,
+                            task.priority === 'high' && styles.priorityPillHigh,
+                            task.priority === 'medium' && styles.priorityPillMedium,
+                            task.priority === 'low' && styles.priorityPillLow,
+                          ]}>
+                            <Text style={[
+                              styles.priorityPillText,
+                              task.priority === 'urgent' && styles.priorityPillTextUrgent,
+                              task.priority === 'high' && styles.priorityPillTextHigh,
+                              task.priority === 'medium' && styles.priorityPillTextMedium,
+                              task.priority === 'low' && styles.priorityPillTextLow,
+                            ]}>
+                              {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
                             </Text>
                           </View>
-                        )}
-                        {task.recurrence?.type === 'fixed' && (
-                          <View style={styles.taskChipRecurrence}>
-                            <Text style={styles.taskChipTextRecurrence}>
-                              🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
-                            </Text>
-                          </View>
-                        )}
+                          {dueDate && (
+                            <View style={styles.taskChipUpcoming}>
+                              <Text style={styles.taskChipTextUpcoming}>
+                                {dueDate.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              </Text>
+                            </View>
+                          )}
+                          {task.recurrence?.type === 'fixed' && (
+                            <View style={styles.taskChipRecurrence}>
+                              <Text style={styles.taskChipTextRecurrence}>
+                                🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
-                    </View>
 
-                    {/* 시간 블록 */}
-                    {showTimeBlock && (
-                      <View style={styles.taskTimeBlock}>
-                        {timeStr && (
-                          <Text style={[styles.taskTimeText, styles.taskTimeTextUpcoming]}>{timeStr}</Text>
-                        )}
-                        {(task.estimatedMinutes ?? 0) > 0 && (
-                          <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
-                        )}
-                      </View>
-                    )}
+                      {/* 시간 블록 */}
+                      {showTimeBlock && (
+                        <View style={styles.taskTimeBlock}>
+                          {timeStr && (
+                            <Text style={[styles.taskTimeText, styles.taskTimeTextUpcoming]}>{timeStr}</Text>
+                          )}
+                          {(task.estimatedMinutes ?? 0) > 0 && (
+                            <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -4930,33 +4937,37 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
+    ...Platform.select({
+      android: { borderWidth: 1, borderColor: Colors.veryLightGray },
+      ios: { elevation: 2 },
+    }),
   },
   taskCardOverdue: {
-    backgroundColor: Colors.error + '06',
+    backgroundColor: 'rgba(244, 67, 54, 0.04)',
   },
   taskCardToday: {
-    backgroundColor: Colors.primary + '06',
+    backgroundColor: 'rgba(33, 150, 243, 0.04)',
   },
   taskCardCompleted: {
-    opacity: 0.6,
-    backgroundColor: Colors.success + '08',
+    backgroundColor: 'rgba(76, 175, 80, 0.04)',
   },
-  taskCardAccentOverdue: {
+  taskCardAccentBase: {
     width: 4,
     alignSelf: 'stretch',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  taskCardAccentOverdue: {
     backgroundColor: Colors.error,
   },
   taskCardAccentToday: {
-    width: 4,
-    alignSelf: 'stretch',
     backgroundColor: Colors.primary,
   },
   taskCardAccentUpcoming: {
-    width: 4,
-    alignSelf: 'stretch',
     backgroundColor: Colors.lightGray,
+  },
+  taskCardContentCompleted: {
+    opacity: 0.55,
   },
 
   // 새 체크박스
@@ -4988,6 +4999,16 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: '700',
     lineHeight: 16,
+  },
+
+  // 카드 콘텐츠 래퍼 (완료 시 opacity 적용)
+  taskCardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskCardContentCompleted: {
+    opacity: 0.55,
   },
 
   // 카드 본문
@@ -5035,16 +5056,16 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   priorityPillUrgent: {
-    backgroundColor: Colors.error + '30',
+    backgroundColor: 'rgba(244, 67, 54, 0.19)',
   },
   priorityPillHigh: {
-    backgroundColor: Colors.error + '20',
+    backgroundColor: 'rgba(244, 67, 54, 0.13)',
   },
   priorityPillMedium: {
-    backgroundColor: Colors.warning + '20',
+    backgroundColor: 'rgba(255, 152, 0, 0.13)',
   },
   priorityPillLow: {
-    backgroundColor: Colors.success + '20',
+    backgroundColor: 'rgba(76, 175, 80, 0.13)',
   },
   priorityPillText: {
     fontSize: 10,
@@ -5067,7 +5088,7 @@ const styles = StyleSheet.create({
 
   // 칩 스타일
   taskChipOverdue: {
-    backgroundColor: Colors.error + '18',
+    backgroundColor: 'rgba(244, 67, 54, 0.09)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
@@ -5078,7 +5099,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   taskChipToday: {
-    backgroundColor: Colors.primary + '18',
+    backgroundColor: 'rgba(33, 150, 243, 0.09)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
@@ -5089,7 +5110,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   taskChipCompleted: {
-    backgroundColor: Colors.success + '18',
+    backgroundColor: 'rgba(76, 175, 80, 0.09)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
@@ -5111,7 +5132,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   taskChipRecurrence: {
-    backgroundColor: Colors.primary + '12',
+    backgroundColor: 'rgba(33, 150, 243, 0.07)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
