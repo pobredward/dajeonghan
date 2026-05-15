@@ -132,7 +132,7 @@ export const EmailVerificationScreen: React.FC<Props> = ({ navigation, route }) 
   const isResendDisabled = resending || cooldown > 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
       <View style={styles.container}>
         <Text style={styles.icon}>✉️</Text>
         <Text style={styles.title}>이메일을 확인해주세요</Text>

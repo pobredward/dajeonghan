@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, Alert } from 'react-native';
+import { StyleSheet, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { TermsAgreementScreen } from './TermsAgreementScreen';
 import { PersonaSelectionScreen } from './PersonaSelectionScreen';

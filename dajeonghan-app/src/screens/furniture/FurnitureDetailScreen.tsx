@@ -124,7 +124,7 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>가구 정보를 불러오는 중...</Text>
@@ -135,7 +135,7 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
 
   if (!furniture || !room) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>가구 정보를 찾을 수 없습니다.</Text>
           <TouchableOpacity 
