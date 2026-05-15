@@ -129,13 +129,14 @@ const DayCell = React.memo(({ date, state, onPress, counts, isSelected, isHolida
   else if (isHolidayDate || dow === 0) textColor = Colors.error;
   else if (dow === 6) textColor = Colors.primary;
 
-  const total = counts ? counts.pending + counts.overdue + counts.completed : 0;
-  const allDone = total > 0 && counts!.pending === 0 && counts!.overdue === 0;
+  const totalAll = counts ? counts.pending + counts.overdue + counts.completed : 0;
+  const remaining = counts ? counts.pending + counts.overdue : 0;
+  const allDone = totalAll > 0 && remaining === 0;
 
   return (
     <TouchableOpacity onPress={() => !isDisabled && onPress(date)} activeOpacity={0.65} disabled={isDisabled}>
       <View style={styles.dayCell}>
-        {total > 0 ? (
+        {totalAll > 0 ? (
           <View style={[
             styles.dayCellRect,
             allDone ? styles.dayCellRectDone : styles.dayCellRectPending,
@@ -143,7 +144,7 @@ const DayCell = React.memo(({ date, state, onPress, counts, isSelected, isHolida
             {allDone ? (
               <Text style={styles.dayCellCheckText}>✓</Text>
             ) : (
-              <Text style={styles.dayCellCountText}>{total}</Text>
+              <Text style={styles.dayCellCountText}>{remaining}</Text>
             )}
           </View>
         ) : (
