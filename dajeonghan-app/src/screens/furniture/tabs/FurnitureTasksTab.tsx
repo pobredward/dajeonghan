@@ -41,6 +41,7 @@ import { TaskTemplateItem, TaskCustomization, TaskTemplateDetail } from '@/types
 import { fetchTaskTemplateDetail } from '@/services/taskTemplateDetailService';
 import { FurnitureTaskService } from '@/services/furnitureTaskService';
 import { useAuth } from '@/contexts/AuthContext';
+import { isTaskCompleted, computeNextPendingDue, computeNextPendingDueForUndo } from '@/utils/taskUtils';
 import { RecurrenceEditor, getNextOccurrences, DayOfWeek as RecurrenceDayOfWeek } from '@/components/tasks/RecurrenceEditor';
 import SwipeNumberPicker from '@/components/tasks/SwipeNumberPicker';
 
@@ -50,6 +51,7 @@ interface FurnitureTasksTabProps {
   onDataUpdate: () => void;
   initialTab?: 'info' | 'add';
   onTabChange?: (tab: 'info' | 'add') => void;
+  reloadTrigger?: number;
 }
 
 // Task 추가 모달 상태
@@ -69,6 +71,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
   onDataUpdate,
   initialTab = 'info',
   onTabChange,
+  reloadTrigger,
 }) => {
   const { userId } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -142,35 +145,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     return today;
   });
   const [hasTime, setHasTime] = useState<boolean>(false);
-
-  // 완료 상태 확인 함수
-  const isTaskCompleted = (task: Task): boolean => {
-    if (task.recurrence && task.recurrence.type === 'fixed') {
-      // 반복 Task: completionDates 배열에서 해당 nextDue 날짜가 완료되었는지 확인
-      if (task.recurrence.nextDue) {
-        const nextDueDateString = new Date(task.recurrence.nextDue).toDateString();
-        
-        if (task.completionDates) {
-          // 새로운 방식: completionDates 배열 사용
-          return task.completionDates.includes(nextDueDateString);
-        } else if (task.lastCompletedAt) {
-          // 기존 방식과의 호환성: lastCompletedAt 사용 (fallback)
-          const lastCompletedDate = new Date(task.lastCompletedAt);
-          const nextDueDate = new Date(task.recurrence.nextDue);
-          
-          lastCompletedDate.setHours(0, 0, 0, 0);
-          nextDueDate.setHours(0, 0, 0, 0);
-          
-          return lastCompletedDate.getTime() === nextDueDate.getTime();
-        }
-      }
-    } else {
-      // 일회성 Task: isCompleted 또는 status 확인
-      return task.isCompleted || task.status === 'completed';
-    }
-    
-    return false;
-  };
 
   // Task를 날짜별로 분류 (Hook은 항상 같은 순서로 호출되어야 함)
   const categorizedTasks = React.useMemo(() => {
@@ -251,6 +225,17 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     loadFurnitureData();
   }, [furniture.id, userId]);
 
+  // 부모(FurnitureDetailScreen)가 포커스를 되찾을 때 최신 데이터 반영
+  const isFirstTrigger = useRef(true);
+  useEffect(() => {
+    if (reloadTrigger === undefined) return;
+    if (isFirstTrigger.current) {
+      isFirstTrigger.current = false;
+      return;
+    }
+    loadFurnitureData();
+  }, [reloadTrigger]);
+
   // initialTab prop 변경 시 내부 상태 동기화
   useEffect(() => {
     console.log('FurnitureTasksTab: initialTab 변경됨:', initialTab);
@@ -276,8 +261,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       const allTasks = await getTasks(userId!);
 
       const linkedTasks = allTasks.filter((task) =>
-        furniture.linkedTaskIds.includes(task.id) && 
-        !isTaskCompleted(task)
+        furniture.linkedTaskIds.includes(task.id)
       );
 
       // dirtyScore 계산: 연체 Task 1개당 기본 15점 + 연체 일수당 5점(최대 30점)
@@ -285,7 +269,7 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const overdueTasks = linkedTasks.filter(
-        (task) => task.recurrence?.nextDue && new Date(task.recurrence.nextDue) < today
+        (task) => task.recurrence?.nextDue && new Date(task.recurrence.nextDue) < today && !isTaskCompleted(task)
       );
 
       let calculatedDirtyScore = 0;
@@ -618,53 +602,35 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     let updatedTask: Partial<Task>;
     
     if (task.recurrence && task.recurrence.type === 'fixed') {
-        // 반복 Task: 다음 일정 계산
         const currentDue = task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : new Date();
-        const nextDue = new Date(currentDue);
-        const interval = task.recurrence.interval || 1;
-        const unit = task.recurrence.unit || 'day';
-        
-        switch (unit) {
-          case 'day':
-            nextDue.setDate(nextDue.getDate() + interval);
-            break;
-          case 'week':
-            nextDue.setDate(nextDue.getDate() + (interval * 7));
-            break;
-          case 'month':
-            nextDue.setMonth(nextDue.getMonth() + interval);
-            break;
-        }
-        
-        // 완료 기록을 completionHistory에 추가
-            const completionRecord = {
-              date: new Date(),
-              postponed: false,
-              actualInterval: undefined
-            };
-        
-        // 완료된 날짜들을 배열로 관리
-        const completionDates = task.completionDates || [];
+        currentDue.setHours(0, 0, 0, 0);
         const currentDueDateString = currentDue.toDateString();
-        
-        // 해당 날짜가 이미 완료 목록에 없으면 추가
+
+        // bug2: 원본 배열 뮤테이션 방지 — 스프레드 복사 후 수정
+        const completionDates = [...(task.completionDates || [])];
         if (!completionDates.includes(currentDueDateString)) {
           completionDates.push(currentDueDateString);
         }
-        
+
+        // bug1: 연체 백로그가 있어도 오늘 이상 첫 미완료 발생일로 nextDue 계산 (CalendarScreen과 동일)
+        const nextPendingDue = computeNextPendingDue(task, completionDates);
+
+        const completionRecord = {
+          date: new Date(),
+          postponed: false,
+          actualInterval: undefined,
+        };
+
         updatedTask = {
-          recurrence: {
-            ...task.recurrence,
-            nextDue,
-          },
-          lastCompletedAt: new Date(), // 마지막 완료 시간 (실제 완료 시점)
-          completionDates, // 완료된 날짜들의 배열
+          recurrence: nextPendingDue
+            ? { ...task.recurrence, nextDue: nextPendingDue }
+            : task.recurrence,
+          lastCompletedAt: new Date(),
+          completionDates,
           completionHistory: [...(task.completionHistory || []), completionRecord],
-          status: 'pending', // 다음 일정을 위해 다시 pending으로 설정
+          status: 'pending',
           updatedAt: new Date(),
         };
-        
-        console.log('반복 태스크 다음 일정:', nextDue);
       } else {
         // 일회성 Task: 완료 상태로 변경
         updatedTask = {
@@ -738,58 +704,37 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     let updatedTask: Partial<Task>;
     
     if (task.recurrence && task.recurrence.type === 'fixed') {
-      // 반복 Task: 이전 일정으로 되돌리기
+      // 반복 Task: completionDates에서 현재 nextDue 날짜 제거
       const currentDue = task.recurrence.nextDue ? new Date(task.recurrence.nextDue) : new Date();
-      const previousDue = new Date(currentDue);
-      const interval = task.recurrence.interval || 1;
-      const unit = task.recurrence.unit || 'day';
-      
-      switch (unit) {
-        case 'day':
-          previousDue.setDate(previousDue.getDate() - interval);
-          break;
-        case 'week':
-          previousDue.setDate(previousDue.getDate() - (interval * 7));
-          break;
-        case 'month':
-          previousDue.setMonth(previousDue.getMonth() - interval);
-          break;
+      currentDue.setHours(0, 0, 0, 0);
+      const currentDueDateString = currentDue.toDateString();
+
+      // 완료된 날짜들에서 현재 nextDue 날짜 제거
+      const completionDates = [...(task.completionDates || [])];
+      const indexToRemove = completionDates.indexOf(currentDueDateString);
+      if (indexToRemove > -1) {
+        completionDates.splice(indexToRemove, 1);
       }
-      
+
       // 완료 기록에서 마지막 항목 제거
       const updatedCompletionHistory = [...(task.completionHistory || [])];
       if (updatedCompletionHistory.length > 0) {
         updatedCompletionHistory.pop();
       }
-      
-      // 완료된 날짜들에서 현재 날짜 제거
-      const completionDates = [...(task.completionDates || [])];
-      const currentDueDateString = currentDue.toDateString();
-      const indexToRemove = completionDates.indexOf(currentDueDateString);
-      if (indexToRemove > -1) {
-        completionDates.splice(indexToRemove, 1);
-      }
-      
+
+      // 완료 취소: 취소한 날짜(currentDue, 과거 포함)로 nextDue를 되돌려 연체 목록에 다시 표시
+      const nextPendingDue = computeNextPendingDueForUndo(task, completionDates, currentDue);
+
       updatedTask = {
-        recurrence: {
-          ...task.recurrence,
-          nextDue: previousDue,
-        },
+        recurrence: nextPendingDue
+          ? { ...task.recurrence, nextDue: nextPendingDue }
+          : task.recurrence,
         lastCompletedAt: completionDates.length > 0 ? new Date() : undefined,
-        completionDates, // 해당 날짜를 제거한 완료 날짜 배열
+        completionDates,
         completionHistory: updatedCompletionHistory,
         status: 'pending',
         updatedAt: new Date(),
       };
-      
-      console.log('반복 태스크 이전 일정으로 되돌림:', {
-        taskTitle: task.title,
-        currentDue: currentDue.toISOString(),
-        previousDue: previousDue.toISOString(),
-        interval,
-        unit,
-        completionDates
-      });
     } else {
       // 일회성 Task: 완료 취소
       updatedTask = {
@@ -798,8 +743,6 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
         status: 'pending',
         updatedAt: new Date(),
       };
-      
-      console.log('일회성 태스크 완료 취소 처리');
     }
     
     console.log('updateTask 호출 전 (완료 취소):', { userId, taskId, taskIdType: typeof taskId, updatedTask });
@@ -808,35 +751,16 @@ export const FurnitureTasksTab: React.FC<FurnitureTasksTabProps> = ({
     
     // UI 즉시 업데이트 (사용자 피드백)
     if (furnitureData) {
-      if (task.recurrence && task.recurrence.type === 'fixed') {
-        // 반복 Task: 완료 취소 상태로 업데이트
-        const updatedLinkedTasks = furnitureData.linkedTasks.map(t => 
-          t.id === taskId ? { 
-            ...t, 
-            ...updatedTask
-          } : t
-        );
-        setFurnitureData({
-          ...furnitureData,
-          linkedTasks: updatedLinkedTasks
-        });
-      } else {
-        // 일회성 Task: 완료 취소 상태로 업데이트 (목록에 다시 표시)
-        const updatedLinkedTasks = furnitureData.linkedTasks.map(t => 
-          t.id === taskId ? { 
-            ...t, 
-            ...updatedTask
-          } : t
-        );
-        setFurnitureData({
-          ...furnitureData,
-          linkedTasks: updatedLinkedTasks
-        });
-      }
+      const updatedTask_ = { ...task, ...updatedTask };
+      const exists = furnitureData.linkedTasks.some(t => t.id === taskId);
+      const updatedLinkedTasks = exists
+        ? furnitureData.linkedTasks.map(t => t.id === taskId ? updatedTask_ : t)
+        : [...furnitureData.linkedTasks, updatedTask_];
+      setFurnitureData({
+        ...furnitureData,
+        linkedTasks: updatedLinkedTasks,
+      });
     }
-    
-    // Alert 없이 조용히 취소 (즉시 UI 피드백이 충분함)
-    // 전체 데이터 새로고침은 제거 - 즉시 UI 업데이트로 충분함
   };
 
   const handleRevertToOriginalSchedule = async (task: Task) => {

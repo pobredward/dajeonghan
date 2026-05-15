@@ -25,6 +25,7 @@ export interface UseCalendarDataResult {
   updateTaskInCache: (taskId: string, partial: Partial<Task>) => void;
   removeTaskFromCache: (taskId: string) => void;
   removeFromOverdue: (taskId: string) => void;
+  addToOverdue: (task: Task) => void;
 }
 
 export function useCalendarData(userId: string | null): UseCalendarDataResult {
@@ -81,6 +82,18 @@ export function useCalendarData(userId: string | null): UseCalendarDataResult {
     setOverdueTasks(prev => prev.filter(t => t.id !== taskId));
   }, []);
 
+  /** 완료취소 시 연체 목록에 task를 다시 추가 (이미 있으면 중복 방지) */
+  const addToOverdue = useCallback((task: Task) => {
+    setOverdueTasks(prev => {
+      if (prev.some(t => t.id === task.id)) return prev;
+      return [...prev, task].sort((a, b) => {
+        const aMs = a.recurrence?.nextDue ? new Date(a.recurrence.nextDue).getTime() : 0;
+        const bMs = b.recurrence?.nextDue ? new Date(b.recurrence.nextDue).getTime() : 0;
+        return aMs - bMs;
+      });
+    });
+  }, []);
+
   return {
     allTasks,
     overdueTasks,
@@ -92,5 +105,6 @@ export function useCalendarData(userId: string | null): UseCalendarDataResult {
     updateTaskInCache,
     removeTaskFromCache,
     removeFromOverdue,
+    addToOverdue,
   };
 }

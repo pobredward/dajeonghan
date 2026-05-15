@@ -43,6 +43,83 @@ export function isTaskCompleted(task: Task): boolean {
 }
 
 // ─────────────────────────────────────────────
+// nextDue 계산
+// ─────────────────────────────────────────────
+
+/**
+ * 완료 처리 후 nextDue 계산: 오늘 이상의 가장 이른 미완료 발생일을 반환합니다.
+ * "다음 예정일" 표시용으로 사용합니다.
+ */
+export function computeNextPendingDue(task: Task, completionDates: string[]): Date | null {
+  if (!task.recurrence?.nextDue) return null;
+  const interval = task.recurrence.interval || 1;
+  const unit = task.recurrence.unit || 'day';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let candidate = new Date(task.recurrence.nextDue);
+  candidate.setHours(0, 0, 0, 0);
+
+  // 오늘보다 이전이면 앞으로 전진 (완료 처리 시에는 미래 일정을 보여주므로)
+  let safetyCount = 0;
+  while (candidate < today && safetyCount < 366) {
+    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
+    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
+    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
+    safetyCount++;
+  }
+
+  // 미완료 날짜를 찾을 때까지 최대 366회 전진
+  safetyCount = 0;
+  while (completionDates.includes(candidate.toDateString()) && safetyCount < 366) {
+    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
+    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
+    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
+    safetyCount++;
+  }
+
+  return candidate;
+}
+
+/**
+ * 완료 취소 후 nextDue 계산: 과거 포함 가장 이른 미완료 발생일을 반환합니다.
+ * 완료취소 시 연체 날짜(과거)로 nextDue를 되돌리기 위해 사용합니다.
+ *
+ * completionDates에서 제거한 날짜(uncompleteDate)를 시작점으로,
+ * 해당 날짜가 미완료이면 그대로 반환합니다.
+ */
+export function computeNextPendingDueForUndo(
+  task: Task,
+  completionDates: string[],
+  uncompleteDate: Date,
+): Date | null {
+  if (!task.recurrence?.nextDue) return null;
+  const interval = task.recurrence.interval || 1;
+  const unit = task.recurrence.unit || 'day';
+
+  // 취소된 날짜를 후보로 시작 (과거여도 그대로 사용)
+  let candidate = new Date(uncompleteDate);
+  candidate.setHours(0, 0, 0, 0);
+
+  // 해당 날짜가 이미 완료 목록에 없으면 바로 반환 (연체 날짜로 설정)
+  if (!completionDates.includes(candidate.toDateString())) {
+    return candidate;
+  }
+
+  // 혹시 여전히 완료 목록에 있으면 다음 미완료 발생일 탐색
+  let safetyCount = 0;
+  while (completionDates.includes(candidate.toDateString()) && safetyCount < 366) {
+    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
+    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
+    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
+    safetyCount++;
+  }
+
+  return candidate;
+}
+
+// ─────────────────────────────────────────────
 // 달력 가상 발생 인스턴스 (Virtual Occurrence)
 // ─────────────────────────────────────────────
 
@@ -105,13 +182,10 @@ export function expandTaskOccurrences(
     const interval = task.recurrence.interval || 1;
     const unit = task.recurrence.unit || 'day';
 
-    // Task 생성일을 발생 하한선으로 사용 (createdAt 이전 날짜는 발생 없음)
-    const taskCreatedAt = task.createdAt ? new Date(task.createdAt) : null;
-    if (taskCreatedAt) taskCreatedAt.setHours(0, 0, 0, 0);
-    const taskOriginMs = taskCreatedAt ? taskCreatedAt.getTime() : 0;
-
-    // 달 범위와 Task 생성일 중 더 늦은 날짜를 실질적인 시작 하한으로 사용
-    const effectiveStart = Math.max(msStart, taskOriginMs);
+    // nextDue를 startDate(= 사용자가 지정한 시작일)의 역할로 사용합니다.
+    // createdAt을 하한선으로 쓰면 과거 startDate로 생성된 Task가 달력에서 차단되므로,
+    // nextDue를 역산하여 도달하는 가장 이른 발생일 자체를 하한선으로 사용합니다.
+    const effectiveStart = msStart;
 
     // nextDue에서 interval씩 빼며 effectiveStart 이전으로 이동 → 달 내 첫 번째 발생 기준점을 구함
     let anchor = new Date(task.recurrence.nextDue);

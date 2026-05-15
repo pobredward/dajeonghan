@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp as RNRouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp as RNRouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing } from '@/constants';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
@@ -37,10 +37,23 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
   const [room, setRoom] = useState<Room | null>(null);
   type TabType = 'task-info' | 'task-add' | 'fridge-inventory';
   const [activeTab, setActiveTab] = useState<TabType>('task-info');
+  const [taskReloadTrigger, setTaskReloadTrigger] = useState(0);
 
   useEffect(() => {
     loadFurnitureData();
   }, [userId, furnitureId, roomId]);
+
+  // 다른 탭(달력 등)에서 돌아올 때 task 목록 새로고침
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      setTaskReloadTrigger(prev => prev + 1);
+    }, [])
+  );
 
   // 헤더 제목을 동적으로 설정
   useEffect(() => {
@@ -187,6 +200,7 @@ export const FurnitureDetailScreen: React.FC<FurnitureDetailScreenProps> = ({ ro
           furnitureType={furnitureType}
           onDataUpdate={loadFurnitureData}
           onTaskTabChange={setActiveTab}
+          taskReloadTrigger={taskReloadTrigger}
         />
       </View>
     </SafeAreaView>
@@ -201,7 +215,8 @@ const TabContentRenderer: React.FC<{
   furnitureType: FurnitureType;
   onDataUpdate: () => void;
   onTaskTabChange: (tab: TabType) => void;
-}> = ({ activeTab, furniture, room, furnitureType, onDataUpdate, onTaskTabChange }) => {
+  taskReloadTrigger: number;
+}> = ({ activeTab, furniture, room, furnitureType, onDataUpdate, onTaskTabChange, taskReloadTrigger }) => {
   switch (activeTab) {
     case 'task-info':
     case 'task-add':
@@ -212,6 +227,7 @@ const TabContentRenderer: React.FC<{
           onDataUpdate={onDataUpdate}
           initialTab={activeTab === 'task-info' ? 'info' : 'add'}
           onTabChange={(tab) => onTaskTabChange(tab === 'add' ? 'task-add' : 'task-info')}
+          reloadTrigger={taskReloadTrigger}
         />
       );
     

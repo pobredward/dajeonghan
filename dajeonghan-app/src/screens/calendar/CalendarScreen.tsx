@@ -39,6 +39,8 @@ import {
   toDateKey,
   getModuleIcon,
   getModuleLabel,
+  computeNextPendingDue,
+  computeNextPendingDueForUndo,
 } from '@/utils/taskUtils';
 import { RecurrenceEditor, getNextOccurrences, DayOfWeek } from '@/components/tasks/RecurrenceEditor';
 import SwipeNumberPicker from '@/components/tasks/SwipeNumberPicker';
@@ -104,42 +106,6 @@ function getDateCategory(task: Task): 'overdue' | 'today' | 'upcoming' {
   if (due < today) return 'overdue';
   if (due.getTime() === today.getTime()) return 'today';
   return 'upcoming';
-}
-
-/**
- * Task의 completionDates를 기준으로, 아직 완료되지 않은 가장 이른 미래(또는 오늘) 발생일을 반환합니다.
- * 홈 탭 등에서 "다음 예정일" 표시에 사용되는 nextDue를 갱신하기 위해 사용합니다.
- */
-function computeNextPendingDue(task: Task, completionDates: string[]): Date | null {
-  if (!task.recurrence?.nextDue) return null;
-  const interval = task.recurrence.interval || 1;
-  const unit = task.recurrence.unit || 'day';
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let candidate = new Date(task.recurrence.nextDue);
-  candidate.setHours(0, 0, 0, 0);
-
-  // 오늘보다 이전이면 앞으로 전진
-  let safetyCount = 0;
-  while (candidate < today && safetyCount < 366) {
-    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
-    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
-    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
-    safetyCount++;
-  }
-
-  // 미완료 날짜를 찾을 때까지 최대 366회 전진
-  safetyCount = 0;
-  while (completionDates.includes(candidate.toDateString()) && safetyCount < 366) {
-    if (unit === 'day') candidate.setDate(candidate.getDate() + interval);
-    else if (unit === 'week') candidate.setDate(candidate.getDate() + interval * 7);
-    else if (unit === 'month') candidate.setMonth(candidate.getMonth() + interval);
-    safetyCount++;
-  }
-
-  return candidate;
 }
 
 // ─── 달력 셀 컴포넌트 ────────────────────────────────────────
@@ -223,6 +189,7 @@ export const CalendarScreen: React.FC = () => {
     updateTaskInCache,
     removeTaskFromCache,
     removeFromOverdue,
+    addToOverdue,
   } = useCalendarData(userId);
 
   const [filter, setFilter] = useState<FilterType>('all');
@@ -340,16 +307,21 @@ export const CalendarScreen: React.FC = () => {
           if (!completionDates.includes(dateStr)) completionDates.push(dateStr);
         }
 
-        // nextDue는 completionDates에 없는 가장 이른 미래 발생일로 업데이트
-        // (홈 탭 등 다른 화면의 "다음 예정일" 표시를 위해 유지)
-        const nextPendingDue = computeNextPendingDue(task, completionDates);
+        // 완료 처리 → 오늘 이상의 다음 발생일
+        // 완료 취소 → 취소한 날짜(과거 포함)로 되돌림 → 연체 목록에 다시 표시되도록
+        const nextPendingDue = currentlyCompleted
+          ? computeNextPendingDueForUndo(task, completionDates, targetDate)
+          : computeNextPendingDue(task, completionDates);
+
+        // 완료취소 시 completionHistory에서 마지막 기록 제거 (FurnitureTasksTab과 통일)
+        const updatedCompletionHistory = currentlyCompleted
+          ? (() => { const h = [...(task.completionHistory || [])]; h.pop(); return h; })()
+          : [...(task.completionHistory || []), { date: new Date(), postponed: false }];
 
         updatedFields = {
           completionDates,
           lastCompletedAt: currentlyCompleted ? (completionDates.length > 0 ? new Date() : undefined) : new Date(),
-          completionHistory: currentlyCompleted
-            ? task.completionHistory
-            : [...(task.completionHistory || []), { date: new Date(), postponed: false }],
+          completionHistory: updatedCompletionHistory,
           recurrence: nextPendingDue
             ? { ...task.recurrence!, nextDue: nextPendingDue }
             : task.recurrence,
@@ -372,6 +344,17 @@ export const CalendarScreen: React.FC = () => {
       if (!currentlyCompleted) {
         // 완료 처리 시 연체 목록에서 제거
         removeFromOverdue(taskId);
+      } else {
+        // 완료취소 시: nextDue가 과거(연체)면 연체 목록에 다시 추가
+        const updatedTask = { ...task, ...updatedFields };
+        const newNextDue = updatedTask.recurrence?.nextDue;
+        if (newNextDue) {
+          const due = new Date(newNextDue);
+          due.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (due < today) addToOverdue(updatedTask as Task);
+        }
       }
       if (taskDetailModal.task?.id === taskId) {
         setTaskDetailModal(prev => prev.task ? { ...prev, task: { ...prev.task, ...updatedFields } } : prev);
