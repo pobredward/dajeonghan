@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Platform,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -1431,97 +1432,100 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, occurrenceDate, isCompleted: 
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <View style={accentStyle} />
-      {/* 체크박스 */}
-      <TouchableOpacity
-        style={[styles.taskCheckboxNew, checkboxStyle, completed && styles.taskCheckboxNewCompleted, isLoading && styles.taskCheckboxNewLoading]}
-        onPress={(e) => { e.stopPropagation(); if (!isLoading) onCheck(); }}
-        activeOpacity={isLoading ? 1 : 0.4}
-        disabled={isLoading}
-      >
-        {isLoading
-          ? <ActivityIndicator size="small" color={Colors.white} />
-          : completed
-          ? <Text style={styles.taskCheckboxCheck}>✓</Text>
-          : null
-        }
-      </TouchableOpacity>
+      <View style={[styles.taskCardAccentBase, accentStyle]} />
+      {/* 콘텐츠 영역: 완료 시 opacity로 흐릿하게 */}
+      <View style={[styles.taskCardContent, completed && styles.taskCardContentCompleted]}>
+        {/* 체크박스 */}
+        <TouchableOpacity
+          style={[styles.taskCheckboxNew, checkboxStyle, completed && styles.taskCheckboxNewCompleted, isLoading && styles.taskCheckboxNewLoading]}
+          onPress={(e) => { e.stopPropagation(); if (!isLoading) onCheck(); }}
+          activeOpacity={isLoading ? 1 : 0.4}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? <ActivityIndicator size="small" color={Colors.white} />
+            : completed
+            ? <Text style={styles.taskCheckboxCheck}>✓</Text>
+            : null
+          }
+        </TouchableOpacity>
 
-      {/* 가구/모듈 이모지 */}
-      <Text style={styles.taskCardEmoji}>{displayEmoji}</Text>
+        {/* 가구/모듈 이모지 */}
+        <Text style={styles.taskCardEmoji}>{displayEmoji}</Text>
 
-      {/* 본문 */}
-      <View style={styles.taskCardBody}>
-        <View style={styles.taskCardTitleRow}>
-          <Text style={[styles.taskCardTitle, completed && styles.taskCardTitleCompleted]} numberOfLines={1}>
-            {task.title}
-          </Text>
-        </View>
-        <View style={styles.taskCardChipRow}>
-          <View style={[
-            styles.priorityPill,
-            task.priority === 'urgent' && styles.priorityPillUrgent,
-            task.priority === 'high' && styles.priorityPillHigh,
-            task.priority === 'medium' && styles.priorityPillMedium,
-            task.priority === 'low' && styles.priorityPillLow,
-          ]}>
-            <Text style={[
-              styles.priorityPillText,
-              task.priority === 'urgent' && styles.priorityPillTextUrgent,
-              task.priority === 'high' && styles.priorityPillTextHigh,
-              task.priority === 'medium' && styles.priorityPillTextMedium,
-              task.priority === 'low' && styles.priorityPillTextLow,
-            ]}>
-              {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+        {/* 본문 */}
+        <View style={styles.taskCardBody}>
+          <View style={styles.taskCardTitleRow}>
+            <Text style={[styles.taskCardTitle, completed && styles.taskCardTitleCompleted]} numberOfLines={1}>
+              {task.title}
             </Text>
           </View>
-          {category === 'overdue' && (
-            <View style={styles.taskChipOverdue}>
-              <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
-            </View>
-          )}
-          {category === 'today' && (
-            <View style={completed ? styles.taskChipCompleted : styles.taskChipToday}>
-              <Text style={completed ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
-                {completed ? '완료됨' : '오늘 마감'}
-              </Text>
-            </View>
-          )}
-          {category === 'upcoming' && dueDate && (
-            <View style={styles.taskChipUpcoming}>
-              <Text style={styles.taskChipTextUpcoming}>
-                {dueDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
-              </Text>
-            </View>
-          )}
-          {task.recurrence?.type === 'fixed' && (
-            <View style={styles.taskChipRecurrence}>
-              <Text style={styles.taskChipTextRecurrence}>
-                🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* 시간 블록 */}
-      {showTimeBlock && (
-        <View style={styles.taskTimeBlock}>
-          {timeStr && (
-            <Text style={[
-              styles.taskTimeText,
-              category === 'overdue' && styles.taskTimeTextOverdue,
-              category === 'today' && styles.taskTimeTextToday,
-              category === 'upcoming' && styles.taskTimeTextUpcoming,
+          <View style={styles.taskCardChipRow}>
+            <View style={[
+              styles.priorityPill,
+              task.priority === 'urgent' && styles.priorityPillUrgent,
+              task.priority === 'high' && styles.priorityPillHigh,
+              task.priority === 'medium' && styles.priorityPillMedium,
+              task.priority === 'low' && styles.priorityPillLow,
             ]}>
-              {timeStr}
-            </Text>
-          )}
-          {(task.estimatedMinutes ?? 0) > 0 && (
-            <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
-          )}
+              <Text style={[
+                styles.priorityPillText,
+                task.priority === 'urgent' && styles.priorityPillTextUrgent,
+                task.priority === 'high' && styles.priorityPillTextHigh,
+                task.priority === 'medium' && styles.priorityPillTextMedium,
+                task.priority === 'low' && styles.priorityPillTextLow,
+              ]}>
+                {task.priority === 'urgent' ? '긴급' : task.priority === 'high' ? '높음' : task.priority === 'medium' ? '보통' : '낮음'}
+              </Text>
+            </View>
+            {category === 'overdue' && (
+              <View style={styles.taskChipOverdue}>
+                <Text style={styles.taskChipTextOverdue}>{overdueDays}일 연체</Text>
+              </View>
+            )}
+            {category === 'today' && (
+              <View style={completed ? styles.taskChipCompleted : styles.taskChipToday}>
+                <Text style={completed ? styles.taskChipTextCompleted : styles.taskChipTextToday}>
+                  {completed ? '완료됨' : '오늘 마감'}
+                </Text>
+              </View>
+            )}
+            {category === 'upcoming' && dueDate && (
+              <View style={styles.taskChipUpcoming}>
+                <Text style={styles.taskChipTextUpcoming}>
+                  {dueDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+                </Text>
+              </View>
+            )}
+            {task.recurrence?.type === 'fixed' && (
+              <View style={styles.taskChipRecurrence}>
+                <Text style={styles.taskChipTextRecurrence}>
+                  🔁 {getRecurrenceChipLabel(task.recurrence.interval, task.recurrence.unit)}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      )}
+
+        {/* 시간 블록 */}
+        {showTimeBlock && (
+          <View style={styles.taskTimeBlock}>
+            {timeStr && (
+              <Text style={[
+                styles.taskTimeText,
+                category === 'overdue' && styles.taskTimeTextOverdue,
+                category === 'today' && styles.taskTimeTextToday,
+                category === 'upcoming' && styles.taskTimeTextUpcoming,
+              ]}>
+                {timeStr}
+              </Text>
+            )}
+            {(task.estimatedMinutes ?? 0) > 0 && (
+              <Text style={styles.taskTimeDuration}>⏱ {task.estimatedMinutes}분</Text>
+            )}
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -1655,13 +1659,16 @@ const styles = StyleSheet.create({
   selectedCountText: { ...Typography.caption, color: Colors.white, fontWeight: '700' },
 
   // task 카드 (FurnitureTasksTab과 동일)
-  taskCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12, marginBottom: Spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2, overflow: 'hidden' },
-  taskCardOverdue: { backgroundColor: Colors.error + '06' },
-  taskCardToday: { backgroundColor: Colors.primary + '06' },
-  taskCardCompleted: { opacity: 0.6, backgroundColor: Colors.success + '08' },
-  taskCardAccentOverdue: { width: 4, alignSelf: 'stretch', backgroundColor: Colors.error },
-  taskCardAccentToday: { width: 4, alignSelf: 'stretch', backgroundColor: Colors.primary },
-  taskCardAccentUpcoming: { width: 4, alignSelf: 'stretch', backgroundColor: Colors.lightGray },
+  taskCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12, marginBottom: Spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, ...Platform.select({ android: { borderWidth: 1, borderColor: Colors.veryLightGray }, ios: { elevation: 2 } }) },
+  taskCardOverdue: { backgroundColor: 'rgba(244, 67, 54, 0.04)' },
+  taskCardToday: { backgroundColor: 'rgba(33, 150, 243, 0.04)' },
+  taskCardCompleted: { backgroundColor: 'rgba(76, 175, 80, 0.04)' },
+  taskCardAccentBase: { width: 4, alignSelf: 'stretch', borderTopLeftRadius: 12, borderBottomLeftRadius: 12 },
+  taskCardAccentOverdue: { backgroundColor: Colors.error },
+  taskCardAccentToday: { backgroundColor: Colors.primary },
+  taskCardAccentUpcoming: { backgroundColor: Colors.lightGray },
+  taskCardContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  taskCardContentCompleted: { opacity: 0.55 },
   taskCardEmoji: { fontSize: 20, marginHorizontal: 6 },
 
   // 체크박스
@@ -1681,10 +1688,10 @@ const styles = StyleSheet.create({
 
   // 우선순위 pill
   priorityPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: Colors.veryLightGray, flexShrink: 0 },
-  priorityPillUrgent: { backgroundColor: Colors.error + '30' },
-  priorityPillHigh: { backgroundColor: Colors.error + '20' },
-  priorityPillMedium: { backgroundColor: Colors.warning + '20' },
-  priorityPillLow: { backgroundColor: Colors.success + '20' },
+  priorityPillUrgent: { backgroundColor: 'rgba(244, 67, 54, 0.19)' },
+  priorityPillHigh: { backgroundColor: 'rgba(244, 67, 54, 0.13)' },
+  priorityPillMedium: { backgroundColor: 'rgba(255, 152, 0, 0.13)' },
+  priorityPillLow: { backgroundColor: 'rgba(76, 175, 80, 0.13)' },
   priorityPillText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   priorityPillTextUrgent: { color: Colors.error, fontWeight: '700' as const },
   priorityPillTextHigh: { color: Colors.error },
@@ -1692,11 +1699,11 @@ const styles = StyleSheet.create({
   priorityPillTextLow: { color: Colors.success },
 
   // task 칩
-  taskChipOverdue: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: Colors.error + '18' },
+  taskChipOverdue: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: 'rgba(244, 67, 54, 0.09)' },
   taskChipTextOverdue: { fontSize: 11, fontWeight: '600', color: Colors.error },
-  taskChipToday: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: Colors.primary + '18' },
+  taskChipToday: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: 'rgba(33, 150, 243, 0.09)' },
   taskChipTextToday: { fontSize: 11, fontWeight: '600', color: Colors.primary },
-  taskChipCompleted: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: Colors.success + '18' },
+  taskChipCompleted: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: 'rgba(76, 175, 80, 0.09)' },
   taskChipTextCompleted: { fontSize: 11, fontWeight: '600', color: Colors.success },
   taskChipUpcoming: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: Colors.veryLightGray },
   taskChipTextUpcoming: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
