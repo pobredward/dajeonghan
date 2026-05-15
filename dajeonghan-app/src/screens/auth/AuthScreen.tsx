@@ -26,7 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
-import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '@env';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '@env';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,6 +49,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
   });
 
   useEffect(() => {
