@@ -12,20 +12,25 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Typography, Spacing } from '@/constants';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '@/constants';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
+import { TemplateLayoutPreview } from '@/components/TemplateLayoutPreview';
 import { TemplateMarketplaceService } from '@/services/templateMarketplaceService';
 import { TemplateSharingService } from '@/services/templateSharingService';
 import { getHouseLayout } from '@/services/houseService';
+import { getPublicProfile } from '@/services/profileService';
 import { HouseLayout, Furniture } from '@/types/house.types';
 import { TemplateCategory } from '@/types/template.types';
 import { useAuth } from '@/contexts/AuthContext';
 import { TEMPLATE_CATEGORIES } from '@/constants/TemplateCategories';
 
 type Step = 1 | 2 | 3;
+
+const STEP_LABELS = ['배치도 확인', '업무 선택', '정보 입력'];
 
 export const CreateFullTemplateScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -35,10 +40,8 @@ export const CreateFullTemplateScreen: React.FC = () => {
   const [layout, setLayout] = useState<HouseLayout | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(true);
 
-  // Step 2: 포함할 가구 선택 (기본 전체 선택)
   const [selectedFurnitureIds, setSelectedFurnitureIds] = useState<Set<string>>(new Set());
 
-  // Step 3: 메타 정보
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TemplateCategory>('custom');
@@ -94,9 +97,19 @@ export const CreateFullTemplateScreen: React.FC = () => {
 
     setCreating(true);
     try {
+      // Auth.displayName 대신 Firestore PublicProfile 우선 사용
+      const firestoreProfile = await getPublicProfile(userId).catch(() => null);
+      const resolvedName =
+        firestoreProfile?.displayName ||
+        user.displayName ||
+        firestoreProfile?.username ||
+        '이름 미설정';
+      const resolvedAvatar =
+        firestoreProfile?.photoURL || user.photoURL || undefined;
+
       const templateId = await TemplateMarketplaceService.createFullTemplate(userId, {
-        creatorName: user.displayName || '익명',
-        creatorAvatar: user.photoURL ?? undefined,
+        creatorName: resolvedName,
+        creatorAvatar: resolvedAvatar,
         name: name.trim(),
         description: description.trim(),
         tags: tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
@@ -108,8 +121,8 @@ export const CreateFullTemplateScreen: React.FC = () => {
       const { url, text } = await TemplateSharingService.generateShareLink(templateId);
 
       Alert.alert(
-        '템플릿 생성 완료! 🎉',
-        '이제 다른 사람들과 공유할 수 있습니다.',
+        '템플릿 공유 완료! 🎉',
+        '마켓플레이스에 등록되었습니다.',
         [
           {
             text: '공유하기',
@@ -133,6 +146,7 @@ export const CreateFullTemplateScreen: React.FC = () => {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>배치도 불러오는 중...</Text>
       </View>
     );
   }
@@ -142,111 +156,187 @@ export const CreateFullTemplateScreen: React.FC = () => {
       <View style={styles.center}>
         <Text style={styles.emptyIcon}>🏠</Text>
         <Text style={styles.emptyTitle}>배치도가 없습니다</Text>
-        <Text style={styles.emptyDesc}>먼저 내 집 탭에서 배치도를 만들어주세요.</Text>
+        <Text style={styles.emptyDesc}>
+          먼저 내 집 탭에서 배치도를 만들어주세요.
+        </Text>
+        <View style={styles.emptyCTA}>
+          <Button
+            title="뒤로 가기"
+            onPress={() => navigation.goBack()}
+            variant="outline"
+            size="medium"
+          />
+        </View>
       </View>
     );
   }
 
+  // SharedHouseLayout으로 변환 (TemplateLayoutPreview용)
+  const sharedLayout = {
+    layoutType: layout.layoutType,
+    canvasSize: layout.canvasSize,
+    character: layout.character,
+    rooms: layout.rooms.map(r => ({
+      type: r.type,
+      name: r.name,
+      position: r.position,
+      size: r.size,
+      color: r.color,
+      furnitures: r.furnitures
+        .filter(f => selectedFurnitureIds.has(f.id))
+        .map(f => ({
+          type: f.type,
+          name: f.name,
+          emoji: f.emoji,
+          position: f.position,
+          size: f.size,
+          rotation: f.rotation,
+          tasks: [],
+        })),
+    })),
+  };
+
+  const selectedTaskCount = layout.rooms.reduce(
+    (sum, r) =>
+      sum + r.furnitures
+        .filter(f => selectedFurnitureIds.has(f.id))
+        .reduce((s, f) => s + f.linkedTaskIds.length, 0),
+    0
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={80}
     >
       {/* 단계 표시 */}
       <View style={styles.stepBar}>
-        {([1, 2, 3] as Step[]).map(s => (
-          <View key={s} style={styles.stepItem}>
-            <View style={[styles.stepCircle, step >= s && styles.stepCircleActive]}>
-              <Text style={[styles.stepNum, step >= s && styles.stepNumActive]}>{s}</Text>
-            </View>
-            <Text style={[styles.stepLabel, step >= s && styles.stepLabelActive]}>
-              {s === 1 ? '미리보기' : s === 2 ? '업무 선택' : '정보 입력'}
-            </Text>
-            {s < 3 && <View style={[styles.stepLine, step > s && styles.stepLineActive]} />}
-          </View>
-        ))}
+        {([1, 2, 3] as Step[]).map((s, i) => {
+          const done = step > s;
+          const active = step === s;
+          return (
+            <React.Fragment key={s}>
+              <View style={styles.stepItem}>
+                <View style={[
+                  styles.stepCircle,
+                  active && styles.stepCircleActive,
+                  done && styles.stepCircleDone,
+                ]}>
+                  {done
+                    ? <Text style={styles.stepCheck}>✓</Text>
+                    : <Text style={[styles.stepNum, (active || done) && styles.stepNumActive]}>{s}</Text>
+                  }
+                </View>
+                <Text style={[
+                  styles.stepLabel,
+                  (active || done) && styles.stepLabelActive,
+                ]}>
+                  {STEP_LABELS[i]}
+                </Text>
+              </View>
+              {s < 3 && (
+                <View style={[styles.stepLine, step > s && styles.stepLineActive]} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
-        {/* ── Step 1: 배치도 미리보기 ── */}
+        {/* ── Step 1: 배치도 2D 미리보기 ── */}
         {step === 1 && (
           <>
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>내 배치도 미리보기</Text>
               <Text style={styles.sectionDesc}>
-                현재 내 집의 구조입니다. 이 배치도를 템플릿에 포함합니다.
+                현재 내 집의 구조입니다. 다음 단계에서 포함할 가구를 선택할 수 있습니다.
               </Text>
-              {layout.rooms.map((room, rIdx) => (
-                <View key={rIdx} style={styles.roomRow}>
-                  <Text style={styles.roomName}>{room.name}</Text>
-                  <View style={styles.furnitureRow}>
-                    {room.furnitures.map((f, fIdx) => (
-                      <Text key={fIdx} style={styles.furnitureEmoji}>{f.emoji}</Text>
-                    ))}
-                    {room.furnitures.length === 0 && (
-                      <Text style={styles.noFurniture}>가구 없음</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
+              <TemplateLayoutPreview
+                houseLayout={sharedLayout as any}
+                containerHeight={260}
+              />
             </Card>
-            <Button title="다음 단계 →" onPress={() => setStep(2)} fullWidth />
+            <View style={styles.navRow}>
+              <Button
+                title="다음 단계 →"
+                onPress={() => setStep(2)}
+                fullWidth
+              />
+            </View>
           </>
         )}
 
-        {/* ── Step 2: 포함할 업무 선택 ── */}
+        {/* ── Step 2: 포함할 가구 선택 ── */}
         {step === 2 && (
           <>
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>포함할 가구 선택</Text>
               <Text style={styles.sectionDesc}>
-                템플릿에 포함할 가구와 업무를 선택하세요. 선택된 가구의 모든 업무가 함께 포함됩니다.
+                템플릿에 포함할 가구와 업무를 선택하세요.
               </Text>
 
-              <TouchableOpacity
-                style={styles.selectAllBtn}
-                onPress={() => {
-                  if (selectedFurnitureIds.size === allFurnitures.length) {
-                    setSelectedFurnitureIds(new Set());
-                  } else {
-                    setSelectedFurnitureIds(new Set(allFurnitures.map(f => f.furniture.id)));
-                  }
-                }}
-              >
-                <Text style={styles.selectAllText}>
-                  {selectedFurnitureIds.size === allFurnitures.length ? '전체 해제' : '전체 선택'}
-                </Text>
-              </TouchableOpacity>
-
-              {allFurnitures.map(({ roomName, furniture }) => (
+              <View style={styles.selectAllRow}>
                 <TouchableOpacity
-                  key={furniture.id}
-                  style={styles.furnitureCheckRow}
-                  onPress={() => toggleFurniture(furniture.id)}
+                  style={styles.selectAllBtn}
+                  onPress={() => {
+                    if (selectedFurnitureIds.size === allFurnitures.length) {
+                      setSelectedFurnitureIds(new Set());
+                    } else {
+                      setSelectedFurnitureIds(new Set(allFurnitures.map(f => f.furniture.id)));
+                    }
+                  }}
                 >
-                  <View style={[styles.checkbox, selectedFurnitureIds.has(furniture.id) && styles.checkboxChecked]}>
-                    {selectedFurnitureIds.has(furniture.id) && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </View>
-                  <Text style={styles.furnitureCheckEmoji}>{furniture.emoji}</Text>
-                  <View style={styles.furnitureCheckInfo}>
-                    <Text style={styles.furnitureCheckName}>{furniture.name}</Text>
-                    <Text style={styles.furnitureCheckRoom}>{roomName} · 업무 {furniture.linkedTaskIds.length}개</Text>
-                  </View>
+                  <Text style={styles.selectAllText}>
+                    {selectedFurnitureIds.size === allFurnitures.length ? '전체 해제' : '전체 선택'}
+                  </Text>
                 </TouchableOpacity>
-              ))}
+                <Text style={styles.selectedCount}>
+                  {selectedFurnitureIds.size}/{allFurnitures.length}개 선택
+                </Text>
+              </View>
+
+              {allFurnitures.map(({ roomName, furniture }) => {
+                const checked = selectedFurnitureIds.has(furniture.id);
+                return (
+                  <TouchableOpacity
+                    key={furniture.id}
+                    style={[styles.furnitureCheckRow, checked && styles.furnitureCheckRowActive]}
+                    onPress={() => toggleFurniture(furniture.id)}
+                  >
+                    <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                      {checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.furnitureCheckEmoji}>{furniture.emoji}</Text>
+                    <View style={styles.furnitureCheckInfo}>
+                      <Text style={styles.furnitureCheckName}>{furniture.name}</Text>
+                      <Text style={styles.furnitureCheckRoom}>
+                        {roomName} · 업무 {furniture.linkedTaskIds.length}개
+                      </Text>
+                    </View>
+                    {furniture.linkedTaskIds.length > 0 && (
+                      <View style={styles.taskCountBadge}>
+                        <Text style={styles.taskCountBadgeText}>{furniture.linkedTaskIds.length}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </Card>
 
             <View style={styles.navRow}>
-              <Button title="← 이전" onPress={() => setStep(1)} variant="outline" />
-              <Button
-                title="다음 단계 →"
-                onPress={() => setStep(3)}
-                disabled={selectedFurnitureIds.size === 0}
-              />
+              <View style={{ flex: 1 }}>
+                <Button title="← 이전" onPress={() => setStep(1)} variant="outline" fullWidth />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="다음 단계 →"
+                  onPress={() => setStep(3)}
+                  disabled={selectedFurnitureIds.size === 0}
+                  fullWidth
+                />
+              </View>
             </View>
           </>
         )}
@@ -280,20 +370,27 @@ export const CreateFullTemplateScreen: React.FC = () => {
               />
 
               <Text style={styles.label}>카테고리</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                {TEMPLATE_CATEGORIES.map(cat => (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={TEMPLATE_CATEGORIES as any[]}
+                keyExtractor={item => item.id}
+                contentContainerStyle={{ gap: Spacing.xs, paddingVertical: Spacing.sm }}
+                renderItem={({ item }) => (
                   <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.categoryChip, category === cat.id && styles.categoryChipActive]}
-                    onPress={() => setCategory(cat.id)}
+                    style={[styles.categoryChip, category === item.id && styles.categoryChipActive]}
+                    onPress={() => setCategory(item.id)}
                   >
-                    <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
-                    <Text style={[styles.categoryChipText, category === cat.id && styles.categoryChipTextActive]}>
-                      {cat.name}
+                    <Text style={styles.categoryChipIcon}>{item.icon}</Text>
+                    <Text style={[
+                      styles.categoryChipText,
+                      category === item.id && styles.categoryChipTextActive,
+                    ]}>
+                      {item.name}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                )}
+              />
 
               <Text style={styles.label}>태그 (쉼표로 구분)</Text>
               <TextInput
@@ -307,7 +404,7 @@ export const CreateFullTemplateScreen: React.FC = () => {
               <View style={styles.switchRow}>
                 <View style={styles.switchLabel}>
                   <Text style={styles.label}>공개 템플릿</Text>
-                  <Text style={styles.switchDesc}>다른 사람들이 이 템플릿을 찾을 수 있습니다</Text>
+                  <Text style={styles.switchDesc}>다른 사용자가 이 템플릿을 찾을 수 있습니다</Text>
                 </View>
                 <Switch
                   value={isPublic}
@@ -321,33 +418,27 @@ export const CreateFullTemplateScreen: React.FC = () => {
             {/* 요약 */}
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>업로드 요약</Text>
-              <Text style={styles.summaryItem}>
-                🏠 방 {layout.rooms.length}개 · 가구 {selectedFurnitureIds.size}개
-              </Text>
-              <Text style={styles.summaryItem}>
-                📝 업무 {
-                  layout.rooms.reduce(
-                    (sum, r) =>
-                      sum + r.furnitures
-                        .filter(f => selectedFurnitureIds.has(f.id))
-                        .reduce((s, f) => s + f.linkedTaskIds.length, 0),
-                    0
-                  )
-                }개 포함
-              </Text>
-              <Text style={styles.summaryItem}>
-                {isPublic ? '🌍 공개' : '🔒 비공개'}
-              </Text>
+              <View style={styles.summaryGrid}>
+                <SummaryItem icon="🏠" value={`방 ${layout.rooms.length}개`} />
+                <SummaryItem icon="🪑" value={`가구 ${selectedFurnitureIds.size}개`} />
+                <SummaryItem icon="📝" value={`업무 ${selectedTaskCount}개`} />
+                <SummaryItem icon={isPublic ? '🌍' : '🔒'} value={isPublic ? '공개' : '비공개'} />
+              </View>
             </Card>
 
             <View style={styles.navRow}>
-              <Button title="← 이전" onPress={() => setStep(2)} variant="outline" />
-              <Button
-                title={creating ? '생성 중...' : '템플릿 공유하기 🚀'}
-                onPress={handleCreate}
-                disabled={creating || !name.trim()}
-                loading={creating}
-              />
+              <View style={{ flex: 1 }}>
+                <Button title="← 이전" onPress={() => setStep(2)} variant="outline" fullWidth />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="공유하기 🚀"
+                  onPress={handleCreate}
+                  disabled={creating || !name.trim()}
+                  loading={creating}
+                  fullWidth
+                />
+              </View>
             </View>
           </>
         )}
@@ -358,127 +449,182 @@ export const CreateFullTemplateScreen: React.FC = () => {
   );
 };
 
+const SummaryItem: React.FC<{ icon: string; value: string }> = ({ icon, value }) => (
+  <View style={styles.summaryItem}>
+    <Text style={styles.summaryIcon}>{icon}</Text>
+    <Text style={styles.summaryValue}>{value}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: Spacing.md },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  emptyIcon: { fontSize: 64, marginBottom: Spacing.md },
-  emptyTitle: { ...Typography.h3, marginBottom: Spacing.sm },
-  emptyDesc: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
-
-  stepBar: {
-    flexDirection: 'row',
+  center: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  loadingText: { ...Typography.body, color: Colors.textSecondary },
+  emptyIcon: { fontSize: 64, marginBottom: Spacing.sm },
+  emptyTitle: { ...Typography.h3, textAlign: 'center' },
+  emptyDesc: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
+  emptyCTA: { marginTop: Spacing.lg },
+
+  // 단계 표시
+  stepBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.lightGray,
+    borderBottomColor: Colors.veryLightGray,
   },
-  stepItem: { flexDirection: 'row', alignItems: 'center' },
+  stepItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   stepCircle: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.lightGray,
-    justifyContent: 'center',
+    backgroundColor: Colors.veryLightGray,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   stepCircleActive: { backgroundColor: Colors.primary },
-  stepNum: { ...Typography.caption, fontWeight: '700', color: Colors.textSecondary },
+  stepCircleDone: { backgroundColor: Colors.secondary },
+  stepNum: { ...Typography.caption, fontWeight: '700', color: Colors.gray },
   stepNumActive: { color: Colors.white },
-  stepLabel: { ...Typography.caption, color: Colors.textSecondary, marginLeft: 6 },
+  stepCheck: { fontSize: 13, fontWeight: '700', color: Colors.white },
+  stepLabel: { ...Typography.caption, color: Colors.textSecondary },
   stepLabelActive: { color: Colors.primary, fontWeight: '600' },
-  stepLine: { width: 24, height: 2, backgroundColor: Colors.lightGray, marginHorizontal: 6 },
-  stepLineActive: { backgroundColor: Colors.primary },
+  stepLine: { flex: 1, height: 2, backgroundColor: Colors.veryLightGray, marginHorizontal: 4 },
+  stepLineActive: { backgroundColor: Colors.secondary },
 
   card: { marginBottom: Spacing.md },
   sectionTitle: { ...Typography.h3, marginBottom: Spacing.xs },
   sectionDesc: { ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.md },
 
-  roomRow: {
+  selectAllRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.veryLightGray,
+    marginBottom: Spacing.sm,
   },
-  roomName: { ...Typography.label, width: 64, color: Colors.textSecondary },
-  furnitureRow: { flexDirection: 'row', flexWrap: 'wrap', flex: 1 },
-  furnitureEmoji: { fontSize: 20, marginRight: 4 },
-  noFurniture: { ...Typography.caption, color: Colors.textSecondary },
-
-  selectAllBtn: { alignSelf: 'flex-end', marginBottom: Spacing.sm },
-  selectAllText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+  selectAllBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primaryLight,
+  },
+  selectAllText: { ...Typography.caption, color: Colors.primary, fontWeight: '700' },
+  selectedCount: { ...Typography.caption, color: Colors.textSecondary },
 
   furnitureCheckRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: Colors.veryLightGray,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+  },
+  furnitureCheckRowActive: {
+    backgroundColor: Colors.primaryLight + '55',
   },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 5,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: Colors.lightGray,
-    marginRight: Spacing.sm,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   checkmark: { color: Colors.white, fontSize: 13, fontWeight: '700' },
-  furnitureCheckEmoji: { fontSize: 22, marginRight: Spacing.sm },
+  furnitureCheckEmoji: { fontSize: 22, flexShrink: 0 },
   furnitureCheckInfo: { flex: 1 },
   furnitureCheckName: { ...Typography.label },
   furnitureCheckRoom: { ...Typography.caption, color: Colors.textSecondary },
+  taskCountBadge: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.full,
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  taskCountBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.white },
 
   label: { ...Typography.label, marginTop: Spacing.md, marginBottom: Spacing.xs },
   input: {
     ...Typography.body,
     borderWidth: 1,
-    borderColor: Colors.lightGray,
-    borderRadius: 8,
+    borderColor: Colors.veryLightGray,
+    borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     backgroundColor: Colors.white,
     color: Colors.textPrimary,
   },
   textarea: { height: 80, textAlignVertical: 'top' },
 
-  categoryScroll: { marginVertical: Spacing.sm },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.lightGray,
-    marginRight: Spacing.xs,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.veryLightGray,
     backgroundColor: Colors.white,
+    gap: 4,
+    ...Shadows.small,
   },
-  categoryChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  categoryChipIcon: { fontSize: 16, marginRight: 4 },
-  categoryChipText: { ...Typography.caption, color: Colors.textSecondary },
-  categoryChipTextActive: { color: Colors.primary, fontWeight: '600' },
+  categoryChipActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  categoryChipIcon: { fontSize: 16 },
+  categoryChipText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: '500' },
+  categoryChipTextActive: { color: Colors.primary, fontWeight: '700' },
 
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.veryLightGray,
   },
   switchLabel: { flex: 1, marginRight: Spacing.md },
-  switchDesc: { ...Typography.caption, color: Colors.textSecondary },
+  switchDesc: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
 
-  summaryItem: { ...Typography.body, marginBottom: Spacing.xs },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+  },
+  summaryIcon: { fontSize: 18 },
+  summaryValue: { ...Typography.label, color: Colors.textPrimary },
 
   navRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },

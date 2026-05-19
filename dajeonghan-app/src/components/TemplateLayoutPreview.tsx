@@ -1,36 +1,42 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ScrollView } from 'react-native';
-import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
+import Svg, { Rect, G, Text as SvgText, Circle } from 'react-native-svg';
 import { SharedHouseLayout, SharedRoom, SharedFurniture } from '@/types/template.types';
-import { Colors, Spacing, Typography } from '@/constants';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants';
 
 interface Props {
   houseLayout: SharedHouseLayout;
-  /** 컨테이너 너비 (지정 없으면 canvasSize 기준으로 auto-fit) */
   containerWidth?: number;
+  containerHeight?: number;
 }
 
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 1.5;
 const ZOOM_STEP = 0.1;
 
-function calcAutoScale(canvasW: number, canvasH: number, containerW: number): number {
+function calcAutoScale(canvasW: number, containerW: number): number {
+  if (containerW <= 0) return 1;
   const padding = 32;
-  const avail = containerW - padding;
-  const scale = avail / canvasW;
+  const scale = (containerW - padding) / canvasW;
   return Math.max(Math.min(scale, 1), MIN_SCALE);
 }
 
-export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerWidth }) => {
+export const TemplateLayoutPreview: React.FC<Props> = ({
+  houseLayout,
+  containerWidth,
+  containerHeight = 300,
+}) => {
   const { canvasSize, rooms, character } = houseLayout;
 
-  const [containerW, setContainerW] = useState(containerWidth ?? 0);
-  const autoScale = containerW > 0
-    ? calcAutoScale(canvasSize.width, canvasSize.height, containerW)
-    : 1;
-  const [scale, setScale] = useState<number | null>(null);
-  const currentScale = scale ?? autoScale;
+  const [measuredW, setMeasuredW] = useState(containerWidth ?? 0);
+  const resolvedW = containerWidth ?? measuredW;
+  const autoScale = calcAutoScale(canvasSize.width, resolvedW);
+  const [manualScale, setManualScale] = useState<number | null>(null);
+  const currentScale = manualScale ?? autoScale;
+
+  // 가구 이름 툴팁
+  const [tooltip, setTooltip] = useState<string | null>(null);
 
   const scaledW = canvasSize.width * currentScale;
   const scaledH = canvasSize.height * currentScale;
@@ -38,8 +44,6 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
   const renderFurniture = (room: SharedRoom, f: SharedFurniture, fIdx: number) => {
     const absX = room.position.x + f.position.x;
     const absY = room.position.y + f.position.y;
-    const cx = absX + f.size.width / 2;
-    const cy = absY + f.size.height / 2;
     const taskCount = f.tasks.length;
 
     return (
@@ -50,24 +54,24 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
           width={f.size.width}
           height={f.size.height}
           fill={Colors.surface}
-          stroke={Colors.primary}
-          strokeWidth={1.5}
+          stroke={taskCount > 0 ? Colors.primary : Colors.lightGray}
+          strokeWidth={taskCount > 0 ? 2 : 1.5}
           rx={6}
           opacity={0.92}
         />
         {taskCount > 0 && (
           <>
             <Circle
-              cx={absX + f.size.width - 8}
-              cy={absY + 8}
-              r={8}
+              cx={absX + f.size.width - 9}
+              cy={absY + 9}
+              r={9}
               fill={Colors.primary}
             />
             <SvgText
-              x={absX + f.size.width - 8}
-              y={absY + 12}
+              x={absX + f.size.width - 9}
+              y={absY + 13}
               fontSize="9"
-              fill="white"
+              fill={Colors.textInverse}
               textAnchor="middle"
               fontWeight="bold"
             >
@@ -105,54 +109,47 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
     </G>
   );
 
-  const renderCharacter = () => {
-    if (!character) return null;
-    const { x, y } = character.position;
-    return (
-      <G>
-        <Circle
-          cx={x}
-          cy={y}
-          r={28}
-          fill={Colors.surface}
-          stroke={Colors.primary}
-          strokeWidth={2}
-          opacity={0.9}
-        />
-      </G>
-    );
-  };
-
   return (
     <View
       style={styles.wrapper}
       onLayout={e => {
         const w = e.nativeEvent.layout.width;
-        if (w > 0 && !containerWidth) setContainerW(w);
+        if (w > 0 && !containerWidth) setMeasuredW(w);
       }}
     >
       {/* 줌 컨트롤 */}
       <View style={styles.zoomBar}>
-        <TouchableOpacity
-          style={[styles.zoomBtn, currentScale <= MIN_SCALE && styles.zoomBtnDisabled]}
-          onPress={() => setScale(s => Math.max(MIN_SCALE, Math.round(((s ?? autoScale) - ZOOM_STEP) * 10) / 10))}
-          disabled={currentScale <= MIN_SCALE}
-        >
-          <Text style={styles.zoomBtnText}>−</Text>
-        </TouchableOpacity>
-        <Text style={styles.zoomLabel}>{Math.round(currentScale * 100)}%</Text>
-        <TouchableOpacity
-          style={[styles.zoomBtn, currentScale >= MAX_SCALE && styles.zoomBtnDisabled]}
-          onPress={() => setScale(s => Math.min(MAX_SCALE, Math.round(((s ?? autoScale) + ZOOM_STEP) * 10) / 10))}
-          disabled={currentScale >= MAX_SCALE}
-        >
-          <Text style={styles.zoomBtnText}>+</Text>
-        </TouchableOpacity>
+        <Text style={styles.zoomHint}>핀치 또는 버튼으로 확대</Text>
+        <View style={styles.zoomBtns}>
+          <TouchableOpacity
+            style={[styles.zoomBtn, currentScale <= MIN_SCALE && styles.zoomBtnDisabled]}
+            onPress={() =>
+              setManualScale(s =>
+                Math.max(MIN_SCALE, Math.round(((s ?? autoScale) - ZOOM_STEP) * 10) / 10)
+              )
+            }
+            disabled={currentScale <= MIN_SCALE}
+          >
+            <Text style={styles.zoomBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.zoomLabel}>{Math.round(currentScale * 100)}%</Text>
+          <TouchableOpacity
+            style={[styles.zoomBtn, currentScale >= MAX_SCALE && styles.zoomBtnDisabled]}
+            onPress={() =>
+              setManualScale(s =>
+                Math.min(MAX_SCALE, Math.round(((s ?? autoScale) + ZOOM_STEP) * 10) / 10)
+              )
+            }
+            disabled={currentScale >= MAX_SCALE}
+          >
+            <Text style={styles.zoomBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 양방향 스크롤 캔버스 */}
+      {/* 캔버스 */}
       <ScrollView
-        style={styles.scrollOuter}
+        style={[styles.scrollOuter, { maxHeight: containerHeight }]}
         contentContainerStyle={styles.scrollOuterContent}
         showsVerticalScrollIndicator={false}
       >
@@ -177,30 +174,39 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
               >
                 {/* 바닥 */}
                 <Rect
-                  x={0} y={0}
+                  x={0}
+                  y={0}
                   width={canvasSize.width}
                   height={canvasSize.height}
-                  fill="#F5F5DC"
+                  fill={Colors.accentLight}
                   stroke={Colors.lightGray}
                   strokeWidth={2}
                 />
                 {rooms.map((room, rIdx) => renderRoom(room, rIdx))}
-                {renderCharacter()}
               </Svg>
 
               {/* 가구 이모지 레이어 */}
               {rooms.map((room, rIdx) =>
                 room.furnitures.map((f, fIdx) => {
-                  const absX = room.position.x + f.position.x + f.size.width / 2;
-                  const absY = room.position.y + f.position.y + f.size.height / 2;
+                  const absX = room.position.x + f.position.x;
+                  const absY = room.position.y + f.position.y;
+                  const emojiLeft = absX + f.size.width / 2 - 10;
+                  const emojiTop = absY + f.size.height / 2 - 12;
                   return (
-                    <View
+                    <TouchableOpacity
                       key={`emoji-${rIdx}-${fIdx}`}
-                      style={[styles.emojiLabel, { left: absX - 14, top: absY - 14 }]}
-                      pointerEvents="none"
+                      style={[styles.emojiLabel, { left: emojiLeft, top: emojiTop }]}
+                      onPress={() =>
+                        setTooltip(t =>
+                          t === `${rIdx}-${fIdx}`
+                            ? null
+                            : `${rIdx}-${fIdx}`
+                        )
+                      }
+                      activeOpacity={0.7}
                     >
                       <Text style={styles.emojiText}>{f.emoji}</Text>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}
@@ -208,7 +214,13 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
               {/* 캐릭터 이모지 */}
               {character && (
                 <View
-                  style={[styles.emojiLabel, { left: character.position.x - 18, top: character.position.y - 18 }]}
+                  style={[
+                    styles.emojiLabel,
+                    {
+                      left: character.position.x - 14,
+                      top: character.position.y - 16,
+                    },
+                  ]}
                   pointerEvents="none"
                 >
                   <Text style={styles.emojiCharacter}>{character.emoji}</Text>
@@ -219,13 +231,34 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
         </ScrollView>
       </ScrollView>
 
-      {/* 범례 */}
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
-          <Text style={styles.legendText}>가구 (숫자 = 업무 수)</Text>
+      {/* 가구 툴팁 */}
+      {tooltip !== null && (() => {
+        const [rIdx, fIdx] = tooltip.split('-').map(Number);
+        const f = rooms[rIdx]?.furnitures[fIdx];
+        if (!f) return null;
+        return (
+          <TouchableOpacity style={styles.tooltip} onPress={() => setTooltip(null)}>
+            <Text style={styles.tooltipText}>
+              {f.emoji} {f.name}
+              {f.tasks.length > 0 ? ` · 업무 ${f.tasks.length}개` : ''}
+            </Text>
+          </TouchableOpacity>
+        );
+      })()}
+
+      {/* 방 색상 범례 */}
+      {rooms.length > 0 && (
+        <View style={styles.legend}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {rooms.map((room, i) => (
+              <View key={i} style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: room.color }]} />
+                <Text style={styles.legendText}>{room.name}</Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -233,20 +266,29 @@ export const TemplateLayoutPreview: React.FC<Props> = ({ houseLayout, containerW
 const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.lightGray,
+    borderColor: Colors.veryLightGray,
+    ...Shadows.small,
   },
   zoomBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.veryLightGray,
+  },
+  zoomHint: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  zoomBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   zoomBtn: {
@@ -258,35 +300,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   zoomBtnDisabled: { backgroundColor: Colors.lightGray },
-  zoomBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700', lineHeight: 18 },
+  zoomBtnText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   zoomLabel: {
     ...Typography.caption,
-    color: Colors.textPrimary,
     fontWeight: '600',
-    minWidth: 40,
+    color: Colors.textPrimary,
+    minWidth: 36,
     textAlign: 'center',
   },
-  scrollOuter: { maxHeight: 340 },
-  scrollOuterContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 12 },
-  scrollInnerContent: { flexGrow: 0, padding: 8 },
+  scrollOuter: {},
+  scrollOuterContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.sm,
+  },
+  scrollInnerContent: {
+    flexGrow: 0,
+    padding: Spacing.xs,
+  },
   emojiLabel: {
     position: 'absolute',
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emojiText: { fontSize: 20 },
-  emojiCharacter: { fontSize: 24 },
+  emojiText: { fontSize: 18 },
+  emojiCharacter: { fontSize: 22 },
+  tooltip: {
+    backgroundColor: Colors.darkGray,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    margin: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'center',
+  },
+  tooltipText: {
+    ...Typography.caption,
+    color: Colors.white,
+  },
   legend: {
-    flexDirection: 'row',
-    padding: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.veryLightGray,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 5 },
-  legendText: { ...Typography.caption, color: Colors.textSecondary },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  legendColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+    borderWidth: 1,
+    borderColor: Colors.lightGray,
+  },
+  legendText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
 });
