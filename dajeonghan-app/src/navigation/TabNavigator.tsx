@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants';
 import { CalendarScreen } from '@/screens/calendar/CalendarScreen';
 import { HouseNavigator } from './HouseNavigator';
+import { TemplateNavigator } from './TemplateNavigator';
 import { MyInfoNavigator } from './MyInfoNavigator';
 
 export type TabParamList = {
   Calendar: undefined;
   HouseMap: undefined;
+  Template: undefined;
   MyInfo: undefined;
 };
 
@@ -60,6 +62,15 @@ export const TabNavigator: React.FC = () => {
         options={{
           title: '내 집',
           tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>🏠</Text>,
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Template"
+        component={TemplateNavigator}
+        options={{
+          title: '템플릿',
+          tabBarIcon: ({ size }) => <Text style={{ fontSize: size }}>📋</Text>,
           headerShown: false,
         }}
       />
