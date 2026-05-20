@@ -8,7 +8,6 @@ import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants'
 interface Props {
   houseLayout: SharedHouseLayout;
   containerWidth?: number;
-  containerHeight?: number;
 }
 
 const MIN_SCALE = 0.3;
@@ -25,7 +24,6 @@ function calcAutoScale(canvasW: number, containerW: number): number {
 export const TemplateLayoutPreview: React.FC<Props> = ({
   houseLayout,
   containerWidth,
-  containerHeight = 300,
 }) => {
   const { canvasSize, rooms, character } = houseLayout;
 
@@ -119,7 +117,7 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
     >
       {/* 줌 컨트롤 */}
       <View style={styles.zoomBar}>
-        <Text style={styles.zoomHint}>핀치 또는 버튼으로 확대</Text>
+        <Text style={styles.zoomHint}>버튼을 눌러 확대</Text>
         <View style={styles.zoomBtns}>
           <TouchableOpacity
             style={[styles.zoomBtn, currentScale <= MIN_SCALE && styles.zoomBtnDisabled]}
@@ -148,11 +146,7 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
       </View>
 
       {/* 캔버스 */}
-      <ScrollView
-        style={[styles.scrollOuter, { maxHeight: containerHeight }]}
-        contentContainerStyle={styles.scrollOuterContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.scrollOuterContent}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -229,7 +223,7 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
             </View>
           </View>
         </ScrollView>
-      </ScrollView>
+      </View>
 
       {/* 가구 툴팁 */}
       {tooltip !== null && (() => {
@@ -313,7 +307,6 @@ const styles = StyleSheet.create({
     minWidth: 36,
     textAlign: 'center',
   },
-  scrollOuter: {},
   scrollOuterContent: {
     flexGrow: 1,
     alignItems: 'center',

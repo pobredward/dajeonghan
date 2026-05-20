@@ -21,7 +21,6 @@ import { ko } from 'date-fns/locale';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '@/constants';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
-import { ReviewList } from '@/components/ReviewList';
 import { TemplateLayoutPreview } from '@/components/TemplateLayoutPreview';
 import { TemplateMarketplaceService } from '@/services/templateMarketplaceService';
 import { TemplateCommentService } from '@/services/templateCommentService';
@@ -237,11 +236,6 @@ export const TemplateDetailScreen: React.FC = () => {
           <View style={styles.categoryBanner}>
             <Text style={styles.categoryBannerIcon}>{getCategoryIcon(template.category)}</Text>
             <Text style={styles.categoryBannerName}>{getCategoryName(template.category)}</Text>
-            {template.houseLayout && (
-              <View style={styles.layoutBadge}>
-                <Text style={styles.layoutBadgeText}>배치도 포함</Text>
-              </View>
-            )}
           </View>
 
           <Text style={styles.title}>{template.name}</Text>
@@ -283,12 +277,6 @@ export const TemplateDetailScreen: React.FC = () => {
             <StatColumn value={template.commentCount ?? 0} label="댓글" icon="💬" />
             <View style={styles.statDivider} />
             <StatColumn value={totalTasks} label="업무 수" icon="📝" />
-            {template.averageRating > 0 && (
-              <>
-                <View style={styles.statDivider} />
-                <StatColumn value={template.averageRating.toFixed(1)} label="평점" icon="⭐" />
-              </>
-            )}
           </View>
 
           {/* 태그 */}
@@ -326,7 +314,7 @@ export const TemplateDetailScreen: React.FC = () => {
         {template.houseLayout && (
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>배치도</Text>
-            <TemplateLayoutPreview houseLayout={template.houseLayout} containerHeight={280} />
+            <TemplateLayoutPreview houseLayout={template.houseLayout} />
           </Card>
         )}
 
@@ -385,14 +373,6 @@ export const TemplateDetailScreen: React.FC = () => {
             ))}
           </Card>
         ) : null}
-
-        {/* 리뷰 */}
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>
-            리뷰{template.averageRating > 0 ? ` ⭐ ${template.averageRating.toFixed(1)}` : ''}
-          </Text>
-          <ReviewList templateId={templateId} />
-        </Card>
 
         {/* 댓글 */}
         <Card style={styles.card}>

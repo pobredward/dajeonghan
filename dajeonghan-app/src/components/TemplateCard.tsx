@@ -67,17 +67,48 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPres
           <Text style={styles.categoryBadgeText}>{getCategoryName(template.category)}</Text>
         </View>
 
-        {/* 업무 수 하이라이트 */}
-        <View style={[styles.taskBadge, { backgroundColor: theme.mid }]}>
-          <Text style={[styles.taskBadgeCount, { color: theme.text }]}>{totalTasks}</Text>
-          <Text style={[styles.taskBadgeLabel, { color: theme.accent }]}>업무</Text>
+        {/* 방 + 업무 수 하이라이트 */}
+        <View style={styles.countBadgeGroup}>
+          {roomCount > 0 && (
+            <View style={[styles.countBadge, { backgroundColor: theme.mid }]}>
+              <Text style={[styles.countBadgeNum, { color: theme.text }]}>{roomCount}</Text>
+              <Text style={[styles.countBadgeLabel, { color: theme.accent }]}>방</Text>
+            </View>
+          )}
+          <View style={[styles.countBadge, { backgroundColor: theme.mid }]}>
+            <Text style={[styles.countBadgeNum, { color: theme.text }]}>{totalTasks}</Text>
+            <Text style={[styles.countBadgeLabel, { color: theme.accent }]}>업무</Text>
+          </View>
         </View>
       </View>
 
       {/* ── 본문 ── */}
       <View style={styles.body}>
-        {/* 제목 + 설명 */}
-        <Text style={styles.title} numberOfLines={1}>{template.name}</Text>
+        {/* 제목 + 작성자 인라인 */}
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>{template.name}</Text>
+          <TouchableOpacity
+            style={styles.creatorInline}
+            onPress={onCreatorPress ? handleCreatorPress : undefined}
+            activeOpacity={onCreatorPress ? 0.6 : 1}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            {template.creatorAvatar ? (
+              <Image
+                source={{ uri: template.creatorAvatar }}
+                style={[styles.avatarSmall, { borderColor: theme.accent + '55' }]}
+              />
+            ) : (
+              <View style={[styles.avatarSmallFallback, { backgroundColor: theme.mid, borderColor: theme.accent + '55' }]}>
+                <Text style={[styles.avatarSmallInitial, { color: theme.accent }]}>
+                  {getInitial(template.creatorName)}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.creatorNameInline} numberOfLines={1}>{template.creatorName}</Text>
+          </TouchableOpacity>
+        </View>
+
         {!!template.description && (
           <Text style={styles.description} numberOfLines={2}>{template.description}</Text>
         )}
@@ -98,12 +129,6 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPres
           <StatItem icon="❤️" value={template.likeCount} label="좋아요" />
           <View style={styles.statsDivider} />
           <StatItem icon="⬇️" value={template.usageCount} label="다운로드" />
-          {roomCount > 0 && (
-            <>
-              <View style={styles.statsDivider} />
-              <StatItem icon="🏠" value={roomCount} label="방" />
-            </>
-          )}
           {template.averageRating > 0 && (
             <>
               <View style={styles.statsDivider} />
@@ -118,41 +143,6 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPres
           )}
         </View>
       </View>
-
-      {/* ── 하단 구분선 ── */}
-      <View style={styles.footerDivider} />
-
-      {/* ── 작성자 footer ── */}
-      <TouchableOpacity
-        style={styles.footer}
-        onPress={onCreatorPress ? handleCreatorPress : undefined}
-        activeOpacity={onCreatorPress ? 0.6 : 1}
-      >
-        {/* 프로필 이미지 or 이니셜 아바타 */}
-        {template.creatorAvatar ? (
-          <Image
-            source={{ uri: template.creatorAvatar }}
-            style={[styles.avatar, { borderColor: theme.accent + '55' }]}
-          />
-        ) : (
-          <View style={[styles.avatarFallback, { backgroundColor: theme.light, borderColor: theme.accent + '55' }]}>
-            <Text style={[styles.avatarInitial, { color: theme.accent }]}>
-              {getInitial(template.creatorName)}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.creatorInfo}>
-          <Text style={styles.creatorBy}>작성자</Text>
-          <Text style={styles.creatorName} numberOfLines={1}>{template.creatorName}</Text>
-        </View>
-
-        {!!onCreatorPress && (
-          <View style={[styles.profileBtn, { backgroundColor: theme.light }]}>
-            <Text style={[styles.profileBtnText, { color: theme.accent }]}>프로필 보기</Text>
-          </View>
-        )}
-      </TouchableOpacity>
 
       {/* ── 하단 액센트 바 ── */}
       <View style={[styles.accentBar, { backgroundColor: theme.accent }]} />
@@ -226,19 +216,23 @@ const styles = StyleSheet.create({
     color: Colors.white,
     letterSpacing: 0.2,
   },
-  taskBadge: {
+  countBadgeGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  countBadge: {
     alignItems: 'center',
     borderRadius: BorderRadius.md,
     paddingHorizontal: 10,
     paddingVertical: 4,
     minWidth: 44,
   },
-  taskBadgeCount: {
+  countBadgeNum: {
     fontSize: 17,
     fontWeight: '800',
     lineHeight: 21,
   },
-  taskBadgeLabel: {
+  countBadgeLabel: {
     fontSize: 9,
     fontWeight: '600',
     letterSpacing: 0.5,
@@ -251,12 +245,50 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 10,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    marginBottom: 4,
+  },
   title: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
     lineHeight: 22,
-    marginBottom: 4,
+    flex: 1,
+  },
+  creatorInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+  },
+  avatarSmall: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  avatarSmallFallback: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSmallInitial: {
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 12,
+  },
+  creatorNameInline: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    maxWidth: 72,
   },
   description: {
     ...Typography.bodySmall,
@@ -296,67 +328,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 20,
     backgroundColor: Colors.veryLightGray,
-  },
-
-  // ── 구분선 ──
-  footerDivider: {
-    height: 1,
-    backgroundColor: Colors.veryLightGray,
-    marginHorizontal: Spacing.md,
-  },
-
-  // ── 작성자 footer ──
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  avatarFallback: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 17,
-  },
-  creatorInfo: {
-    flex: 1,
-  },
-  creatorBy: {
-    fontSize: 9,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-    lineHeight: 12,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  creatorName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    lineHeight: 17,
-  },
-  profileBtn: {
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  profileBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
 
   // ── 하단 액센트 바 ──

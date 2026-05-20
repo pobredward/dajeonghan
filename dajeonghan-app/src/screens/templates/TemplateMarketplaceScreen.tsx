@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -54,6 +55,9 @@ export const TemplateMarketplaceScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchActive, setSearchActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortDropdownVisible, setSortDropdownVisible] = useState(false);
+  const [dropdownLayout, setDropdownLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const sortBtnRef = useRef<TouchableOpacity>(null);
 
   const handleCreatorPress = useCallback((creatorId: string, creatorName: string) => {
     navigation.navigate('UserProfile', { userId: creatorId, displayName: creatorName });
@@ -123,8 +127,16 @@ export const TemplateMarketplaceScreen: React.FC = () => {
 
   const handleSortChange = (key: SortKey) => {
     setSort(key);
+    setSortDropdownVisible(false);
     setSearchActive(false);
     setSearchQuery('');
+  };
+
+  const openSortDropdown = () => {
+    sortBtnRef.current?.measure((_fx, _fy, width, height, px, py) => {
+      setDropdownLayout({ x: px, y: py + height, width, height });
+      setSortDropdownVisible(true);
+    });
   };
 
   const renderSkeleton = () => (
@@ -135,49 +147,75 @@ export const TemplateMarketplaceScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* 검색바 */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchRow}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="이름 또는 태그로 검색..."
-            placeholderTextColor={Colors.textSecondary}
-            returnKeyType="search"
-            onSubmitEditing={handleSearch}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={handleClearSearch} style={styles.clearBtn}>
-              <Text style={styles.clearBtnText}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* 정렬 토글 + 검색 결과 배지 */}
+      {/* 정렬 드롭다운 */}
       <View style={styles.toolBar}>
-        {searchActive ? (
+        {false ? (
           <Text style={styles.searchResultText}>
             검색 결과 <Text style={styles.searchResultCount}>{templates.length}</Text>개
           </Text>
         ) : (
-          <View style={styles.sortToggle}>
-            {SORT_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.sortBtn, sort === opt.key && styles.sortBtnActive]}
-                onPress={() => handleSortChange(opt.key)}
-              >
-                <Text style={[styles.sortBtnText, sort === opt.key && styles.sortBtnTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.toolBarRight}>
+            <TouchableOpacity
+              ref={sortBtnRef}
+              style={styles.sortDropdownBtn}
+              onPress={openSortDropdown}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sortDropdownBtnText}>
+                {SORT_OPTIONS.find(o => o.key === sort)?.label ?? '정렬'}
+              </Text>
+              <Text style={styles.sortDropdownArrow}>
+                {sortDropdownVisible ? '▲' : '▼'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
+
+      {/* 정렬 드롭다운 모달 */}
+      <Modal
+        visible={sortDropdownVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSortDropdownVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setSortDropdownVisible(false)}
+        >
+          <View
+            style={[
+              styles.dropdownMenu,
+              { top: dropdownLayout.y, right: 16 },
+            ]}
+          >
+            {SORT_OPTIONS.map((opt, idx) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[
+                  styles.dropdownItem,
+                  sort === opt.key && styles.dropdownItemActive,
+                  idx < SORT_OPTIONS.length - 1 && styles.dropdownItemBorder,
+                ]}
+                onPress={() => handleSortChange(opt.key)}
+              >
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    sort === opt.key && styles.dropdownItemTextActive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                {sort === opt.key && (
+                  <Text style={styles.dropdownItemCheck}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* 에러 메시지 */}
       {error && (
@@ -290,35 +328,78 @@ const styles = StyleSheet.create({
   toolBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.veryLightGray,
   },
-  sortToggle: {
+  toolBarRight: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    alignItems: 'center',
   },
-  sortBtn: {
+  sortDropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
     borderWidth: 1.5,
-    borderColor: Colors.veryLightGray,
-    backgroundColor: Colors.white,
-  },
-  sortBtnActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryLight,
   },
-  sortBtnText: {
+  sortDropdownBtnText: {
     ...Typography.caption,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  sortBtnTextActive: {
     color: Colors.primary,
+  },
+  sortDropdownArrow: {
+    fontSize: 9,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    minWidth: 140,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.medium,
+    borderWidth: 1,
+    borderColor: Colors.veryLightGray,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+  },
+  dropdownItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.veryLightGray,
+  },
+  dropdownItemActive: {
+    backgroundColor: Colors.primaryLight,
+  },
+  dropdownItemText: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+  },
+  dropdownItemTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  dropdownItemCheck: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   searchResultText: {
     ...Typography.caption,
