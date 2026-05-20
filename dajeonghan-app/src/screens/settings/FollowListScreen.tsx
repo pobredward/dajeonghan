@@ -15,7 +15,6 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFollowers, getFollowing, unfollowUser } from '@/services/followService';
-import { UserProfileModal } from './UserProfileModal';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import type { MyInfoStackParamList } from '@/navigation/MyInfoNavigator';
 import type { PublicProfile } from '@/types/user.types';
@@ -76,8 +75,6 @@ export const FollowListScreen: React.FC<Props> = ({ navigation, route }) => {
   const [following, setFollowing] = useState<PublicProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterQuery, setFilterQuery] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -133,8 +130,11 @@ export const FollowListScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const openProfile = (profile: PublicProfile) => {
-    setSelectedProfile(profile);
-    setModalVisible(true);
+    navigation.navigate('UserProfile', {
+      userId: profile.userId,
+      displayName: profile.displayName,
+      photoURL: profile.photoURL,
+    });
   };
 
   const followingIds = new Set(following.map((p) => p.userId));
@@ -254,16 +254,6 @@ export const FollowListScreen: React.FC<Props> = ({ navigation, route }) => {
         />
       )}
 
-      <UserProfileModal
-        visible={modalVisible}
-        profile={selectedProfile}
-        onClose={() => setModalVisible(false)}
-        onFollowChange={(targetUid, isNowFollowing) => {
-          if (!isNowFollowing) {
-            setFollowing((prev) => prev.filter((p) => p.userId !== targetUid));
-          }
-        }}
-      />
     </SafeAreaView>
   );
 };

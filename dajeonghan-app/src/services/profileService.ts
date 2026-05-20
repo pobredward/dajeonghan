@@ -72,6 +72,8 @@ export const getPublicProfile = async (uid: string): Promise<PublicProfile | nul
     displayName: data.displayName,
     photoURL: data.photoURL,
     bio: data.bio,
+    followersCount: data.followersCount ?? 0,
+    followingCount: data.followingCount ?? 0,
   };
 };
 

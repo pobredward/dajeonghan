@@ -24,14 +24,11 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { ReviewList } from '@/components/ReviewList';
 import { TemplateLayoutPreview } from '@/components/TemplateLayoutPreview';
-import { UserProfileModal } from '@/screens/settings/UserProfileModal';
 import { TemplateMarketplaceService } from '@/services/templateMarketplaceService';
 import { TemplateCommentService } from '@/services/templateCommentService';
 import { FullTemplateApplyService, ApplyMode } from '@/services/fullTemplateApplyService';
 import { TemplateSharingService } from '@/services/templateSharingService';
-import { getPublicProfile } from '@/services/profileService';
 import { SharedTemplate, TemplateComment } from '@/types/template.types';
-import { PublicProfile } from '@/types/user.types';
 import { useAuth } from '@/contexts/AuthContext';
 import { TemplateStackParamList } from '@/navigation/TemplateNavigator';
 import { getCategoryIcon, getCategoryName } from '@/constants/TemplateCategories';
@@ -53,9 +50,6 @@ export const TemplateDetailScreen: React.FC = () => {
   const [applying, setApplying] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(true);
 
-  // 작성자 프로필 모달
-  const [creatorProfile, setCreatorProfile] = useState<PublicProfile | null>(null);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [loadingCreator, setLoadingCreator] = useState(false);
 
   // 좋아요 spring 애니메이션
@@ -111,25 +105,14 @@ export const TemplateDetailScreen: React.FC = () => {
     }
   };
 
-  const handleCreatorPress = async () => {
+  const handleCreatorPress = () => {
     if (!template) return;
-    setLoadingCreator(true);
-    try {
-      const profile = await getPublicProfile(template.creatorId);
-      // 프로필이 없더라도 최소 정보로 구성해서 모달 열기
-      setCreatorProfile(
-        profile ?? {
-          userId: template.creatorId,
-          displayName: template.creatorName,
-          photoURL: template.creatorAvatar,
-        }
-      );
-      setProfileModalVisible(true);
-    } catch {
-      Alert.alert('오류', '프로필을 불러오지 못했습니다.');
-    } finally {
-      setLoadingCreator(false);
-    }
+    setLoadingCreator(false);
+    (navigation as any).push('UserProfile', {
+      userId: template.creatorId,
+      displayName: template.creatorName,
+      photoURL: template.creatorAvatar,
+    });
   };
 
   const handleShare = async () => {
@@ -540,12 +523,6 @@ export const TemplateDetailScreen: React.FC = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* 작성자 프로필 모달 */}
-      <UserProfileModal
-        visible={profileModalVisible}
-        profile={creatorProfile}
-        onClose={() => setProfileModalVisible(false)}
-      />
     </KeyboardAvoidingView>
   );
 };

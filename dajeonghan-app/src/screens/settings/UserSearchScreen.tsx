@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { searchUsersByUsername } from '@/services/profileService';
-import { UserProfileModal } from './UserProfileModal';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants';
 import type { MyInfoStackParamList } from '@/navigation/MyInfoNavigator';
 import type { PublicProfile } from '@/types/user.types';
@@ -24,13 +23,11 @@ interface Props {
   navigation: NavigationProp;
 }
 
-export const UserSearchScreen: React.FC<Props> = () => {
+export const UserSearchScreen: React.FC<Props> = ({ navigation }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PublicProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
   const handleSearch = async () => {
     const trimmed = query.trim().replace(/^@+/, '');
@@ -47,8 +44,11 @@ export const UserSearchScreen: React.FC<Props> = () => {
   };
 
   const openProfile = (profile: PublicProfile) => {
-    setSelectedProfile(profile);
-    setModalVisible(true);
+    navigation.navigate('UserProfile', {
+      userId: profile.userId,
+      displayName: profile.displayName,
+      photoURL: profile.photoURL,
+    });
   };
 
   const renderItem = ({ item }: { item: PublicProfile }) => {
@@ -134,11 +134,6 @@ export const UserSearchScreen: React.FC<Props> = () => {
         />
       )}
 
-      <UserProfileModal
-        visible={modalVisible}
-        profile={selectedProfile}
-        onClose={() => setModalVisible(false)}
-      />
     </SafeAreaView>
   );
 };

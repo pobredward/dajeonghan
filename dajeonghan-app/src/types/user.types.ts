@@ -111,6 +111,8 @@ export interface PublicProfile {
   displayName?: string;
   photoURL?: string;
   bio?: string;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 /**

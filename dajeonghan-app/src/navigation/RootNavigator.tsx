@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import * as Linking from 'expo-linking';
 import { OnboardingFlow } from '@/screens/onboarding/OnboardingFlow';
@@ -9,10 +9,8 @@ import { AuthNavigator } from './AuthNavigator';
 import { TermsOfServiceScreen } from '@/screens/legal/TermsOfServiceScreen';
 import { PrivacyPolicyScreen } from '@/screens/legal/PrivacyPolicyScreen';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserProfileModal } from '@/screens/settings/UserProfileModal';
 import { getPublicProfileByUsername } from '@/services/profileService';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
-import type { PublicProfile } from '@/types/user.types';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -46,11 +44,9 @@ const NavigatorContent: React.FC = () => {
     cancelGuestOnboarding,
     checkOnboardingStatus,
   } = useAuth();
+  const navigation = useNavigation<any>();
 
   useNotificationListener();
-
-  const [deepLinkProfile, setDeepLinkProfile] = useState<PublicProfile | null>(null);
-  const [deepLinkModalVisible, setDeepLinkModalVisible] = useState(false);
 
   const handleUserDeepLink = async (url: string) => {
     const username = parseUserDeepLink(url);
@@ -58,8 +54,13 @@ const NavigatorContent: React.FC = () => {
     try {
       const profile = await getPublicProfileByUsername(username);
       if (profile) {
-        setDeepLinkProfile(profile);
-        setDeepLinkModalVisible(true);
+        navigation.navigate('Main', {
+          screen: 'MyInfo',
+          params: {
+            screen: 'UserProfile',
+            params: { userId: profile.userId, displayName: profile.displayName },
+          },
+        });
       }
     } catch {
       // 프로필 로드 실패 시 무시
@@ -92,18 +93,12 @@ const NavigatorContent: React.FC = () => {
   const shouldShowOnboarding = (user && !isOnboarded) || isGuestOnboarding;
 
   return (
-    <>
-      <UserProfileModal
-        visible={deepLinkModalVisible}
-        profile={deepLinkProfile}
-        onClose={() => setDeepLinkModalVisible(false)}
-      />
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
-        }}
-      >
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+      }}
+    >
         {!user && !isGuestOnboarding ? (
           // 비로그인 + 게스트 온보딩도 아님 → 로그인 화면
           <Stack.Screen
@@ -167,8 +162,7 @@ const NavigatorContent: React.FC = () => {
             options={{ animationEnabled: false }}
           />
         )}
-      </Stack.Navigator>
-    </>
+    </Stack.Navigator>
   );
 };
 

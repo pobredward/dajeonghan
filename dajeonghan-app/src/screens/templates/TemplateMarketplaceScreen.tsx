@@ -14,11 +14,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '@/constants';
 import { FAB } from '@/components/FAB';
 import { TemplateCard } from '@/components/TemplateCard';
-import { UserProfileModal } from '@/screens/settings/UserProfileModal';
 import { TemplateMarketplaceService } from '@/services/templateMarketplaceService';
-import { getPublicProfile } from '@/services/profileService';
 import { SharedTemplate, TemplateSortOption } from '@/types/template.types';
-import { PublicProfile } from '@/types/user.types';
 import { useAuth } from '@/contexts/AuthContext';
 import { TemplateStackParamList } from '@/navigation/TemplateNavigator';
 import { Button } from '@/components/Button';
@@ -58,19 +55,9 @@ export const TemplateMarketplaceScreen: React.FC = () => {
   const [searchActive, setSearchActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 작성자 프로필 모달
-  const [creatorProfile, setCreatorProfile] = useState<PublicProfile | null>(null);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
-
-  const handleCreatorPress = useCallback(async (creatorId: string, creatorName: string) => {
-    try {
-      const profile = await getPublicProfile(creatorId);
-      setCreatorProfile(profile ?? { userId: creatorId, displayName: creatorName });
-    } catch {
-      setCreatorProfile({ userId: creatorId, displayName: creatorName });
-    }
-    setProfileModalVisible(true);
-  }, []);
+  const handleCreatorPress = useCallback((creatorId: string, creatorName: string) => {
+    navigation.navigate('UserProfile', { userId: creatorId, displayName: creatorName });
+  }, [navigation]);
 
   const fetchTemplates = useCallback(async () => {
     setError(null);
@@ -256,12 +243,6 @@ export const TemplateMarketplaceScreen: React.FC = () => {
         onPress={() => navigation.navigate('CreateFullTemplate')}
       />
 
-      {/* 작성자 프로필 모달 */}
-      <UserProfileModal
-        visible={profileModalVisible}
-        profile={creatorProfile}
-        onClose={() => setProfileModalVisible(false)}
-      />
     </View>
   );
 };

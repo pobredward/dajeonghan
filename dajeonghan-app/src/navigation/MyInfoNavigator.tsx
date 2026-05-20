@@ -6,6 +6,7 @@ import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { EditProfileScreen } from '@/screens/settings/EditProfileScreen';
 import { FollowListScreen } from '@/screens/settings/FollowListScreen';
 import { UserSearchScreen } from '@/screens/settings/UserSearchScreen';
+import { UserProfileScreen, UserProfileScreenParams } from '@/screens/settings/UserProfileScreen';
 import { AppSettingsScreen } from '@/screens/settings/AppSettingsScreen';
 import { AppInfoScreen } from '@/screens/settings/AppInfoScreen';
 import { AccountManagementScreen } from '@/screens/settings/AccountManagementScreen';
@@ -17,6 +18,7 @@ export type MyInfoStackParamList = {
   EditProfile: undefined;
   FollowList: { tab: 'followers' | 'following' };
   UserSearch: undefined;
+  UserProfile: UserProfileScreenParams;
   AppSettings: undefined;
   AppInfo: undefined;
   AccountManagement: undefined;
@@ -70,6 +72,22 @@ export const MyInfoNavigator: React.FC = () => {
         component={UserSearchScreen}
         options={{ title: '사용자 검색' }}
       />
+      <Stack.Screen
+        name="UserProfile"
+        options={{ title: '프로필' }}
+      >
+        {(props) => (
+          <UserProfileScreen
+            {...props}
+            onNavigateToTemplate={(templateId) =>
+              (props.navigation as any).navigate('Template', {
+                screen: 'TemplateDetail',
+                params: { templateId },
+              })
+            }
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen
         name="AppSettings"
         component={AppSettingsScreen}

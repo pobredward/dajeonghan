@@ -6,11 +6,13 @@ import { Colors } from '@/constants';
 import { TemplateMarketplaceScreen } from '@/screens/templates/TemplateMarketplaceScreen';
 import { TemplateDetailScreen } from '@/screens/templates/TemplateDetailScreen';
 import { CreateFullTemplateScreen } from '@/screens/templates/CreateFullTemplateScreen';
+import { UserProfileScreen, UserProfileScreenParams } from '@/screens/settings/UserProfileScreen';
 
 export type TemplateStackParamList = {
   TemplateMarketplace: undefined;
   TemplateDetail: { templateId: string };
   CreateFullTemplate: undefined;
+  UserProfile: UserProfileScreenParams;
 };
 
 const Stack = createStackNavigator<TemplateStackParamList>();
@@ -53,6 +55,19 @@ export const TemplateNavigator: React.FC = () => {
         component={CreateFullTemplateScreen}
         options={{ title: '템플릿 만들기' }}
       />
+      <Stack.Screen
+        name="UserProfile"
+        options={{ title: '프로필' }}
+      >
+        {(props) => (
+          <UserProfileScreen
+            {...props}
+            onNavigateToTemplate={(templateId) =>
+              props.navigation.push('TemplateDetail', { templateId })
+            }
+          />
+        )}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };
