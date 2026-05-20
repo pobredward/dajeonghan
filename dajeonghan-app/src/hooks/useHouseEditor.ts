@@ -103,6 +103,7 @@ function getFurnitureName(type: FurnitureType): string {
     car: '차량',
     baby_station: '아기 용품',
     personal_care: '퍼스널케어',
+    cleaning: '청소 도구',
   };
   return names[type] ?? type;
 }

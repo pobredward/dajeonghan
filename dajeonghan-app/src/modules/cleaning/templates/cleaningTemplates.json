@@ -31,7 +31,8 @@
       "difficulty": 2,
       "estimatedMinutes": 20,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -67,7 +68,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -77,7 +79,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -87,7 +90,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -97,7 +101,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "거울 닦기",
@@ -144,7 +149,8 @@
       "difficulty": 3,
       "estimatedMinutes": 30,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -180,7 +186,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -190,7 +197,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -200,7 +208,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "couple_no_kid": [
@@ -235,7 +244,8 @@
       "difficulty": 3,
       "estimatedMinutes": 30,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -271,7 +281,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -281,7 +292,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -291,7 +303,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "욕실 청소",
@@ -313,7 +326,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "family_with_kid": [
@@ -348,7 +362,8 @@
       "difficulty": 3,
       "estimatedMinutes": 30,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "아이 장난감 세척",
@@ -358,7 +373,8 @@
       "difficulty": 2,
       "estimatedMinutes": 20,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -406,7 +422,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -416,7 +433,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -426,7 +444,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "family_school_kid": [
@@ -461,7 +480,8 @@
       "difficulty": 3,
       "estimatedMinutes": 40,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -497,7 +517,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -507,7 +528,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -517,7 +539,8 @@
       "difficulty": 2,
       "estimatedMinutes": 20,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -527,7 +550,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "pet_owner": [
@@ -539,7 +563,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "pet"
     },
     {
       "name": "화장실 청소",
@@ -572,7 +597,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "pet"
     },
     {
       "name": "침구·소파 털 제거",
@@ -619,7 +645,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -629,7 +656,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "공기청정기 필터 점검",
@@ -639,7 +667,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -649,7 +678,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "freelancer_homebody": [
@@ -684,7 +714,8 @@
       "difficulty": 2,
       "estimatedMinutes": 20,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "책상 및 작업 공간 정리",
@@ -732,7 +763,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -742,7 +774,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "공기청정기 필터 점검",
@@ -752,7 +785,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -762,7 +796,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -772,7 +807,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "senior_couple": [
@@ -819,7 +855,8 @@
       "difficulty": 3,
       "estimatedMinutes": 35,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "침구 세탁",
@@ -843,7 +880,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": true,
-      "priority": "high"
+      "priority": "high",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "쓰레기 분리수거",
@@ -853,7 +891,8 @@
       "difficulty": 1,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -863,7 +902,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -873,7 +913,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": false,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -883,7 +924,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ],
   "student_20s": [
@@ -920,7 +962,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "주방 싱크대 청소",
@@ -942,7 +985,8 @@
       "difficulty": 3,
       "estimatedMinutes": 30,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "냉장고 정리",
@@ -964,7 +1008,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -974,7 +1019,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "먼지 닦기",
@@ -984,7 +1030,8 @@
       "difficulty": 2,
       "estimatedMinutes": 15,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "거울 닦기",
@@ -1045,7 +1092,8 @@
       "difficulty": 4,
       "estimatedMinutes": 40,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "환기",
@@ -1055,7 +1103,8 @@
       "difficulty": 1,
       "estimatedMinutes": 5,
       "healthPriority": true,
-      "priority": "low"
+      "priority": "low",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "쓰레기 분리수거",
@@ -1065,7 +1114,8 @@
       "difficulty": 2,
       "estimatedMinutes": 10,
       "healthPriority": false,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     },
     {
       "name": "칫솔 교체",
@@ -1075,7 +1125,8 @@
       "difficulty": 1,
       "estimatedMinutes": 2,
       "healthPriority": true,
-      "priority": "medium"
+      "priority": "medium",
+      "linkedFurnitureType": "cleaning"
     }
   ]
 }

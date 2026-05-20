@@ -46,7 +46,8 @@ export type FurnitureType =
   | 'medicine_cabinet' // 약장
   | 'car'            // 차량
   | 'baby_station'   // 아기 용품 공간
-  | 'personal_care'; // 퍼스널케어 (헬스·왁싱·마사지 등 외부 서비스)
+  | 'personal_care'  // 퍼스널케어 (헬스·왁싱·마사지 등 외부 서비스)
+  | 'cleaning';      // 청소 도구 (바닥 청소·환기·분리수거 등 가구 미귀속 청소 Task)
 
 /**
  * 가구별 특화 메타데이터
@@ -271,6 +272,7 @@ export const FURNITURE_DEFAULTS: Record<FurnitureType, {
   car: { emoji: '🚗', defaultSize: { width: 50, height: 50 }, category: 'utility' },
   baby_station: { emoji: '👶', defaultSize: { width: 50, height: 50 }, category: 'living' },
   personal_care: { emoji: '🪄', defaultSize: { width: 50, height: 50 }, category: 'living' },
+  cleaning: { emoji: '🧹', defaultSize: { width: 50, height: 50 }, category: 'utility' },
 };
 
 /**
@@ -379,6 +381,14 @@ export const createDefaultFurnitureMetadata = (furnitureType: FurnitureType): Fu
       return {
         type: 'personal_care',
         careItems: [],
+      };
+
+    case 'cleaning':
+      return {
+        type: 'cleaning_furniture',
+        cleaningFrequency: 7,
+        cleaningSupplies: [],
+        difficulty: 'easy',
       };
     
     default:

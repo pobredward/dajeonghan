@@ -17,7 +17,7 @@ import { Colors, Typography, Spacing } from '@/constants';
 import { HouseLayout, Room, Furniture, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
 import { Task } from '@/types/task.types';
 import { getHouseLayout, saveHouseLayout, removeFurniture } from '@/services/houseService';
-import { getTasks } from '@/services/firestoreService';
+import { getTasks, updateTask } from '@/services/firestoreService';
 import { useAuth } from '@/contexts/AuthContext';
 import { PulseEffect } from '@/components/AnimationEffects';
 import { HouseStackParamList } from '@/navigation/HouseNavigator';
@@ -141,6 +141,28 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     setIsSaving(true);
     try {
       await saveHouseLayout(editor.layout);
+
+      // cleaning 가구가 새로 추가된 경우, furnitureId가 없는 home 도메인 Task를 자동 연동
+      const cleaningFurniture = editor.layout.rooms
+        .flatMap(r => r.furnitures)
+        .find(f => f.type === 'cleaning');
+      if (cleaningFurniture) {
+        const prevCleaningExists = viewLayout?.rooms
+          .flatMap(r => r.furnitures)
+          .some(f => f.type === 'cleaning');
+        if (!prevCleaningExists) {
+          const allTasks = await getTasks(userId, { filter: { status: 'pending' } });
+          const unlinkedHomeTasks = allTasks.filter(
+            (t: Task) => t.domain === 'home' && !t.furnitureId
+          );
+          await Promise.all(
+            unlinkedHomeTasks.map((t: Task) =>
+              updateTask(userId, t.id, { furnitureId: cleaningFurniture.id })
+            )
+          );
+        }
+      }
+
       setViewLayout(editor.layout);
       setIsEditMode(false);
     } catch (error) {
@@ -620,7 +642,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       { name: '거실', types: ['sofa', 'tv', 'table', 'plant'] as FurnitureType[] },
       { name: '서재', types: ['desk', 'chair', 'bookshelf'] as FurnitureType[] },
       { name: '생활 관리', types: ['pet', 'medicine_cabinet', 'car', 'baby_station'] as FurnitureType[] },
-      { name: '기타', types: ['washing_machine'] as FurnitureType[] },
+      { name: '기타', types: ['washing_machine', 'cleaning'] as FurnitureType[] },
     ];
     return (
       <Modal visible={editor.showFurnitureMenu} animationType="none" transparent onRequestClose={() => editor.setShowFurnitureMenu(false)}>

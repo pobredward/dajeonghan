@@ -805,6 +805,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
       car: '차량',
       baby_station: '아기 용품',
       personal_care: '퍼스널케어',
+      cleaning: '청소 도구',
     };
     return names[type] ?? type;
   };
@@ -983,7 +984,7 @@ export const HouseEditorScreen: React.FC<Props> = ({ initialLayout: propsLayout,
       { name: '거실', types: ['sofa', 'tv', 'table', 'plant'] as FurnitureType[] },
       { name: '서재', types: ['desk', 'chair', 'bookshelf'] as FurnitureType[] },
       { name: '생활 관리', types: ['pet', 'medicine_cabinet', 'car', 'baby_station'] as FurnitureType[] },
-      { name: '기타', types: ['washing_machine'] as FurnitureType[] },
+      { name: '기타', types: ['washing_machine', 'cleaning'] as FurnitureType[] },
     ];
 
     return (

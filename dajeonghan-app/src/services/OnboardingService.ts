@@ -157,9 +157,14 @@ export class OnboardingService {
       updatedAt: new Date(),
     };
 
-    if (extraFurnitures) {
-      this.appendExtraFurnitures(layout, extraFurnitures);
-    }
+    this.appendExtraFurnitures(layout, extraFurnitures ?? {
+      hasPet: false,
+      hasMedicine: false,
+      hasCar: false,
+      hasInfant: false,
+      hasSelfCare: false,
+      hasPlant: false,
+    });
 
     await saveHouseLayout(layout);
     console.log(`✅ 집 레이아웃 저장 완료 (${layoutType}, 가구 ${layout.rooms.reduce((acc, r) => acc + r.furnitures.length, 0)}개)`);
@@ -202,6 +207,8 @@ export class OnboardingService {
       console.log(`🏠 신규 가구 추가: ${type} → ${targetRoom.type ?? targetRoom.id}`);
     };
 
+    // 청소 도구 가구는 항상 추가 (가구 미귀속 청소 Task 연동용)
+    makeFurniture('cleaning', getLivingRoom());
     if (config.hasPet) makeFurniture('pet', getLivingRoom());
     if (config.hasMedicine) makeFurniture('medicine_cabinet', getBathroomRoom());
     if (config.hasCar) makeFurniture('car', getLivingRoom());
