@@ -75,6 +75,9 @@ export const HouseSetupFlow: React.FC = () => {
       const existingLayout = await getHouseLayout(userId);
       if (existingLayout) {
         setLayout(existingLayout);
+      } else {
+        setLayout(null);
+        setStep('select_layout');
       }
     } catch (error) {
       console.error('Failed to refresh house layout:', error);
