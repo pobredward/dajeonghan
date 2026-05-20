@@ -11,6 +11,7 @@ import {
   signInAnonymously,
   signInWithCredential,
   linkWithCredential,
+  reauthenticateWithCredential,
   unlink,
   EmailAuthProvider,
   GoogleAuthProvider,
@@ -20,6 +21,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   User,
+  AuthCredential,
 } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -388,11 +390,64 @@ export const onAuthStateChanged = (callback: (user: User | null) => void) => {
 // ============================================================================
 
 /**
+ * 이메일 credential 생성
+ */
+export const buildEmailCredential = (email: string, password: string): AuthCredential => {
+  return EmailAuthProvider.credential(email, password);
+};
+
+/**
+ * Google credential 생성
+ */
+export const buildGoogleCredential = (idToken: string): AuthCredential => {
+  return GoogleAuthProvider.credential(idToken);
+};
+
+/**
+ * Apple credential 생성
+ */
+export const buildAppleCredential = (idToken: string, rawNonce: string): AuthCredential => {
+  const provider = new OAuthProvider('apple.com');
+  return provider.credential({ idToken, rawNonce });
+};
+
+/**
+ * 재인증 수행
+ *
+ * 민감한 작업(계정 삭제 등) 전에 반드시 호출해야 합니다.
+ * credential은 buildEmailCredential / buildGoogleCredential / buildAppleCredential로 생성합니다.
+ */
+export const reauthenticate = async (credential: AuthCredential): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('로그인된 사용자가 없습니다.');
+
+  try {
+    await reauthenticateWithCredential(currentUser, credential);
+    console.log('✅ 재인증 성공');
+  } catch (error: any) {
+    console.error('❌ 재인증 실패:', error);
+
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      throw new Error('비밀번호가 올바르지 않습니다.');
+    }
+    if (error.code === 'auth/user-mismatch') {
+      throw new Error('현재 로그인된 계정과 다른 계정으로 인증하려 했습니다.');
+    }
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error('시도 횟수 초과. 잠시 후 다시 시도해주세요.');
+    }
+
+    throw new Error(`재인증 실패: ${error.message}`);
+  }
+};
+
+/**
  * 계정 삭제
- * 
+ *
+ * 반드시 reauthenticate()를 먼저 호출한 뒤 이 함수를 실행하세요.
  * 1. Firestore 사용자 데이터 삭제
  * 2. Firebase Auth 계정 삭제
- * 
+ *
  * 주의: 하위 컬렉션은 Cloud Functions로 정리하는 것이 더 안전합니다.
  */
 export const deleteAccount = async (): Promise<void> => {
@@ -414,11 +469,11 @@ export const deleteAccount = async (): Promise<void> => {
     console.log('✅ 계정 삭제 성공');
   } catch (error: any) {
     console.error('❌ 계정 삭제 실패:', error);
-    
+
     if (error.code === 'auth/requires-recent-login') {
-      throw new Error('보안을 위해 다시 로그인해주세요.');
+      throw new Error('보안 세션이 만료되었습니다. 재인증 후 다시 시도해주세요.');
     }
-    
+
     throw new Error(`계정 삭제 실패: ${error.message}`);
   }
 };
@@ -505,6 +560,12 @@ export const AuthService = {
   getCurrentUser,
   getCurrentUserId,
   onAuthStateChanged,
+
+  // 재인증 (계정 삭제 전 필수)
+  buildEmailCredential,
+  buildGoogleCredential,
+  buildAppleCredential,
+  reauthenticate,
 
   // 계정 삭제
   deleteAccount,
