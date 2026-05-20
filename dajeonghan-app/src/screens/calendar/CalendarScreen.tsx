@@ -231,7 +231,6 @@ export const CalendarScreen: React.FC = () => {
   const yearRef = useRef(currentYear);
   const monthRef = useRef(currentMonth);
   const initialDateRef = useRef(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
-  const emojiMapLoaded = useRef(false);
 
   useEffect(() => { yearRef.current = currentYear; }, [currentYear]);
   useEffect(() => { monthRef.current = currentMonth; }, [currentMonth]);
@@ -249,7 +248,6 @@ export const CalendarScreen: React.FC = () => {
         });
       });
       setFurnitureEmojiMap(map);
-      emojiMapLoaded.current = true;
     } catch (e) {
       console.error('[CalendarScreen] 가구 이모지 맵 로드 실패:', e);
     }
@@ -260,7 +258,8 @@ export const CalendarScreen: React.FC = () => {
   // 월 전환은 Firestore 호출 없이 allTasks 클라이언트 필터링으로 즉시 처리
   useFocusEffect(
     useCallback(() => {
-      if (!emojiMapLoaded.current) loadFurnitureEmojiMap();
+      // 레이아웃은 외부(내 집 관리)에서 언제든 바뀔 수 있으므로 포커스마다 재로드
+      loadFurnitureEmojiMap();
       const elapsed = Date.now() - lastFetchedAt.current;
       if (isFirstLoad.current) {
         isFirstLoad.current = false;
@@ -580,7 +579,6 @@ export const CalendarScreen: React.FC = () => {
 
   const onRefresh = useCallback(async () => {
     startRefreshing();
-    emojiMapLoaded.current = false;
     await Promise.all([
       loadAll(),
       loadFurnitureEmojiMap(),

@@ -151,8 +151,10 @@ export class OnboardingService {
 
     const layout: HouseLayout = {
       ...template,
-      id: 'main',
+      id: `layout_${Date.now()}`,
       userId,
+      name: '내 집',
+      isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -513,6 +515,44 @@ export class OnboardingService {
 
     // 최대 6개, 시간 오름차순으로 정렬
     return selected.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes).slice(0, 6);
+  }
+
+  /**
+   * 마켓플레이스 템플릿으로 온보딩 시 사용하는 최소 프로필 생성.
+   * 페르소나·질문 없이 온보딩 완료 처리를 위한 기본값만 채운다.
+   */
+  static createMinimalProfile(userId: string): UserProfile {
+    const now = new Date();
+    return {
+      id: Crypto.randomUUID(),
+      userId,
+      persona: 'custom' as PersonaType,
+      environment: {
+        hasWasher: true,
+        hasDryer: false,
+        usesCoinLaundry: false,
+        cookingFrequency: 'sometimes',
+        hasPet: false,
+        householdSize: 1,
+        hasInfant: false,
+        hasCar: false,
+        hasPlant: false,
+        selfCareItems: [],
+      },
+      notificationMode: 'digest',
+      digestTimes: ['09:00', '20:00'],
+      onboardingCompleted: false,
+      onboardingDate: now,
+      onboardingResponse: {
+        version: ONBOARDING_VERSION,
+        timestamp: now,
+        rawAnswers: { source: 'marketplace' },
+        questionFlowId: 'marketplace',
+      },
+      profileVersion: PROFILE_VERSION,
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 
   /**

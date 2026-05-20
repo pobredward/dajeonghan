@@ -169,6 +169,11 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         {/* 메뉴 */}
         <View style={styles.menuSection}>
           <MenuRow
+            title="내 집 관리"
+            onPress={() => navigation.navigate('MyLayoutList')}
+          />
+          <View style={styles.menuDivider} />
+          <MenuRow
             title="앱 설정"
             onPress={() => navigation.navigate('AppSettings')}
           />

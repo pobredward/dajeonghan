@@ -11,6 +11,8 @@ import {
   query,
   where,
   getDocs,
+  orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import {
@@ -31,26 +33,110 @@ import {
 } from './firestoreService';
 import { FurnitureTaskService } from './furnitureTaskService';
 
+// Firestore 경로 헬퍼
+const layoutsCol = (userId: string) =>
+  collection(db, `users/${userId}/houseLayouts`);
+const layoutDoc = (userId: string, layoutId: string) =>
+  doc(db, `users/${userId}/houseLayouts/${layoutId}`);
+
 /**
- * 집 레이아웃 저장
+ * 집 레이아웃 저장 (upsert)
+ * - 신규: layout.id가 없으면 자동 생성
+ * - 기존: layout.id 기준 덮어쓰기
  */
 export const saveHouseLayout = async (layout: HouseLayout): Promise<void> => {
-  const layoutRef = doc(db, `users/${layout.userId}/houseLayout/main`);
-  const firestoreLayout = convertDatesToTimestamps(layout);
-  await setDoc(layoutRef, firestoreLayout);
+  const id = layout.id || `layout_${Date.now()}`;
+  const ref = layoutDoc(layout.userId, id);
+  const firestoreLayout = convertDatesToTimestamps({ ...layout, id });
+  await setDoc(ref, firestoreLayout);
 };
 
 /**
- * 집 레이아웃 조회
+ * 활성 집 레이아웃 조회 (isActive: true 인 것)
  */
 export const getHouseLayout = async (userId: string): Promise<HouseLayout | null> => {
-  const layoutRef = doc(db, `users/${userId}/houseLayout/main`);
-  const layoutSnap = await getDoc(layoutRef);
+  const q = query(layoutsCol(userId), where('isActive', '==', true));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const docSnap = snap.docs[0];
+  return convertTimestampsToDates<HouseLayout>({ id: docSnap.id, ...docSnap.data() });
+};
 
-  if (!layoutSnap.exists()) return null;
+/**
+ * 전체 집 레이아웃 목록 조회 (최신순)
+ */
+export const getHouseLayouts = async (userId: string): Promise<HouseLayout[]> => {
+  const q = query(layoutsCol(userId), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d =>
+    convertTimestampsToDates<HouseLayout>({ id: d.id, ...d.data() })
+  );
+};
 
-  const data = layoutSnap.data();
-  return convertTimestampsToDates<HouseLayout>({ id: layoutSnap.id, ...data });
+/**
+ * 활성 레이아웃 전환
+ * - 기존 active → false, 새 것 → true (배치 write)
+ */
+export const switchActiveLayout = async (
+  userId: string,
+  newLayoutId: string
+): Promise<void> => {
+  const layouts = await getHouseLayouts(userId);
+  const batch = writeBatch(db);
+
+  for (const l of layouts) {
+    if (l.isActive && l.id !== newLayoutId) {
+      batch.update(layoutDoc(userId, l.id), {
+        isActive: false,
+        updatedAt: dateToTimestamp(new Date()),
+      });
+    }
+  }
+  batch.update(layoutDoc(userId, newLayoutId), {
+    isActive: true,
+    updatedAt: dateToTimestamp(new Date()),
+  });
+
+  await batch.commit();
+};
+
+/**
+ * 새 레이아웃으로 저장 (isActive: true 설정 + 기존 active 해제)
+ */
+export const saveHouseLayoutAsNew = async (
+  layout: Omit<HouseLayout, 'id'>,
+  name: string,
+  sourceTemplateId?: string
+): Promise<string> => {
+  const newId = `layout_${Date.now()}`;
+  const newLayout: HouseLayout = {
+    ...layout,
+    id: newId,
+    name,
+    isActive: true,
+    ...(sourceTemplateId ? { sourceTemplateId } : {}),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // 기존 active 해제
+  const existing = await getHouseLayout(layout.userId);
+  const batch = writeBatch(db);
+
+  if (existing) {
+    batch.update(layoutDoc(layout.userId, existing.id), {
+      isActive: false,
+      updatedAt: dateToTimestamp(new Date()),
+    });
+  }
+
+  batch.set(
+    layoutDoc(layout.userId, newId),
+    convertDatesToTimestamps(newLayout)
+  );
+
+  await batch.commit();
+  return newId;
 };
 
 /**
@@ -60,12 +146,14 @@ export const updateHouseLayout = async (
   userId: string,
   updates: Partial<HouseLayout>
 ): Promise<void> => {
-  const layoutRef = doc(db, `users/${userId}/houseLayout/main`);
+  const active = await getHouseLayout(userId);
+  if (!active) return;
+  const ref = layoutDoc(userId, active.id);
   const firestoreUpdates = {
     ...convertDatesToTimestamps(updates),
     updatedAt: dateToTimestamp(new Date()),
   };
-  await updateDoc(layoutRef, firestoreUpdates);
+  await updateDoc(ref, firestoreUpdates);
 };
 
 /**
@@ -252,6 +340,8 @@ export const createStudioTemplate = (): HouseLayoutCreateInput => {
 
   return {
     userId: '',
+    name: '원룸',
+    isActive: true,
     layoutType: 'studio',
     totalRooms: 2,
     canvasSize: { width: 500, height: 750 },
@@ -330,6 +420,8 @@ export const createTwoRoomTemplate = (): HouseLayoutCreateInput => {
 
   return {
     userId: '',
+    name: '투룸',
+    isActive: true,
     layoutType: 'two_room',
     totalRooms: 3,
     canvasSize: { width: 620, height: 720 },
@@ -430,6 +522,8 @@ export const createThreeRoomTemplate = (): HouseLayoutCreateInput => {
 
   return {
     userId: '',
+    name: '쓰리룸',
+    isActive: true,
     layoutType: 'three_room',
     totalRooms: 5,
     canvasSize: { width: 750, height: 830 },
@@ -559,6 +653,8 @@ export const createFourRoomTemplate = (): HouseLayoutCreateInput => {
 
   return {
     userId: '',
+    name: '포룸',
+    isActive: true,
     layoutType: 'four_room',
     totalRooms: 6,
     canvasSize: { width: 860, height: 870 },

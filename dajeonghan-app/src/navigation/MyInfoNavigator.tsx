@@ -10,6 +10,7 @@ import { UserProfileScreen, UserProfileScreenParams } from '@/screens/settings/U
 import { AppSettingsScreen } from '@/screens/settings/AppSettingsScreen';
 import { AppInfoScreen } from '@/screens/settings/AppInfoScreen';
 import { AccountManagementScreen } from '@/screens/settings/AccountManagementScreen';
+import { MyLayoutListScreen } from '@/screens/settings/MyLayoutListScreen';
 import { PrivacyPolicyScreen, TermsOfServiceScreen, DeleteAccountScreen } from '@/screens/legal';
 import { Colors } from '@/constants';
 
@@ -22,6 +23,7 @@ export type MyInfoStackParamList = {
   AppSettings: undefined;
   AppInfo: undefined;
   AccountManagement: undefined;
+  MyLayoutList: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   DeleteAccount: undefined;
@@ -102,6 +104,11 @@ export const MyInfoNavigator: React.FC = () => {
         name="AccountManagement"
         component={AccountManagementScreen}
         options={{ title: '계정 관리' }}
+      />
+      <Stack.Screen
+        name="MyLayoutList"
+        component={MyLayoutListScreen}
+        options={{ title: '내 집 관리' }}
       />
       <Stack.Screen
         name="PrivacyPolicy"

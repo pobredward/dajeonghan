@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   Animated,
   Image,
 } from 'react-native';
@@ -26,7 +25,7 @@ import { ReviewList } from '@/components/ReviewList';
 import { TemplateLayoutPreview } from '@/components/TemplateLayoutPreview';
 import { TemplateMarketplaceService } from '@/services/templateMarketplaceService';
 import { TemplateCommentService } from '@/services/templateCommentService';
-import { FullTemplateApplyService, ApplyMode } from '@/services/fullTemplateApplyService';
+import { FullTemplateApplyService } from '@/services/fullTemplateApplyService';
 import { TemplateSharingService } from '@/services/templateSharingService';
 import { SharedTemplate, TemplateComment } from '@/types/template.types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +45,6 @@ export const TemplateDetailScreen: React.FC = () => {
   const [comments, setComments] = useState<TemplateComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [applyModalVisible, setApplyModalVisible] = useState(false);
   const [applying, setApplying] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(true);
 
@@ -171,21 +169,31 @@ export const TemplateDetailScreen: React.FC = () => {
     ]);
   };
 
-  // Modal에서 바로 적용 (이중 확인 제거)
-  const handleApply = async (mode: ApplyMode) => {
-    if (!userId) return;
-    setApplyModalVisible(false);
-    setApplying(true);
-    try {
-      await FullTemplateApplyService.applyFullTemplate(templateId, userId, mode);
-      Alert.alert('적용 완료! 🎉', '템플릿이 내 집에 적용되었습니다.', [
-        { text: '확인', onPress: () => navigation.goBack() },
-      ]);
-    } catch {
-      Alert.alert('오류', '적용 중 문제가 발생했습니다.');
-    } finally {
-      setApplying(false);
-    }
+  const handleApplyPress = () => {
+    if (!userId || !template) return;
+    Alert.alert(
+      '내 집에 적용하기',
+      `현재 레이아웃은 "내정보 > 내 집 관리"에 보관됩니다.\n"${template.name}" 템플릿을 적용할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '적용하기',
+          onPress: async () => {
+            setApplying(true);
+            try {
+              await FullTemplateApplyService.applyFullTemplate(templateId, userId);
+              Alert.alert('적용 완료! 🎉', '템플릿이 내 집에 적용되었습니다.', [
+                { text: '확인', onPress: () => navigation.goBack() },
+              ]);
+            } catch {
+              Alert.alert('오류', '적용 중 문제가 발생했습니다.');
+            } finally {
+              setApplying(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loadingTemplate) {
@@ -213,7 +221,7 @@ export const TemplateDetailScreen: React.FC = () => {
       )
     : template.tasks.length;
 
-  const canApply = !!template.houseLayout || template.tasks.length > 0;
+  const canApply = !!template.houseLayout;
 
   return (
     <KeyboardAvoidingView
@@ -453,75 +461,15 @@ export const TemplateDetailScreen: React.FC = () => {
       <View style={styles.applyBar}>
         <Button
           title={applying ? '적용 중...' : '내 집에 적용하기'}
-          onPress={() => setApplyModalVisible(true)}
+          onPress={handleApplyPress}
           disabled={applying || !canApply}
           fullWidth
           loading={applying}
         />
         {!canApply && (
-          <Text style={styles.applyNote}>이 템플릿은 적용할 수 없습니다.</Text>
+          <Text style={styles.applyNote}>배치도가 포함된 템플릿만 적용할 수 있습니다.</Text>
         )}
       </View>
-
-      {/* 적용 방식 모달 (이중 확인 제거 — 경고 인라인) */}
-      <Modal
-        visible={applyModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setApplyModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setApplyModalVisible(false)}
-        >
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>적용 방식 선택</Text>
-            <Text style={styles.modalDesc}>현재 내 집에 어떻게 적용할까요?</Text>
-
-            {/* 병합 */}
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => handleApply('merge')}
-            >
-              <View style={[styles.modalOptionIcon, { backgroundColor: Colors.primaryLight }]}>
-                <Text style={styles.modalOptionIconText}>➕</Text>
-              </View>
-              <View style={styles.modalOptionContent}>
-                <Text style={styles.modalOptionTitle}>병합</Text>
-                <Text style={styles.modalOptionDesc}>
-                  기존 집 유지 + 이 템플릿의 방과 업무 추가
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 교체 */}
-            <TouchableOpacity
-              style={[styles.modalOption, styles.modalOptionDanger]}
-              onPress={() => handleApply('replace')}
-            >
-              <View style={[styles.modalOptionIcon, { backgroundColor: '#FFEBEE' }]}>
-                <Text style={styles.modalOptionIconText}>🔄</Text>
-              </View>
-              <View style={styles.modalOptionContent}>
-                <Text style={[styles.modalOptionTitle, { color: Colors.error }]}>교체</Text>
-                <Text style={styles.modalOptionDesc}>
-                  기존 배치도와 모든 업무 삭제 후 새로 적용
-                </Text>
-                <Text style={styles.modalOptionWarn}>⚠️ 이 작업은 되돌릴 수 없습니다</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.modalCancel}
-              onPress={() => setApplyModalVisible(false)}
-            >
-              <Text style={styles.modalCancelText}>취소</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
     </KeyboardAvoidingView>
   );
@@ -772,69 +720,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.lightGray,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalTitle: { ...Typography.h3, marginBottom: Spacing.xs, textAlign: 'center' },
-  modalDesc: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.background,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.veryLightGray,
-  },
-  modalOptionDanger: {
-    borderColor: Colors.error + '33',
-  },
-  modalOptionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  modalOptionIconText: { fontSize: 22 },
-  modalOptionContent: { flex: 1 },
-  modalOptionTitle: { ...Typography.label, marginBottom: 2, color: Colors.textPrimary },
-  modalOptionDesc: { ...Typography.caption, color: Colors.textSecondary },
-  modalOptionWarn: {
-    ...Typography.caption,
-    color: Colors.error,
-    fontWeight: '600',
-    marginTop: 3,
-  },
-  modalCancel: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.xs,
-  },
-  modalCancelText: { ...Typography.label, color: Colors.textSecondary },
 });

@@ -89,6 +89,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     id: '', userId: '', layoutType: 'custom', totalRooms: 0,
     canvasSize: { width: 600, height: 600 }, rooms: [],
     character: { position: { x: 50, y: 50 }, emoji: '🧑' },
+    name: '', isActive: false,
     createdAt: new Date(), updatedAt: new Date(),
   };
   const editor = useHouseEditor(viewLayout ?? DUMMY_LAYOUT);
@@ -220,13 +221,12 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     }
   }, [userId, propsLayout]);
 
-  // 화면 포커스 시 task 카운트 로드
+  // 화면 포커스 시 레이아웃 + task 카운트 재로드
   useFocusEffect(
     React.useCallback(() => {
-      if (userId && viewLayout) {
-        loadTaskCounts();
-      }
-    }, [userId, viewLayout])
+      if (!userId || propsLayout || isEditMode) return;
+      loadHouseLayout(true);
+    }, [userId, propsLayout, isEditMode])
   );
 
   const loadTaskCounts = async () => {
@@ -299,7 +299,9 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       
       if (existingLayout) {
         setViewLayout(existingLayout);
+        loadTaskCounts();
       } else {
+        setViewLayout(null);
         navigation.navigate('HouseLayoutSelection');
       }
     } catch (error) {

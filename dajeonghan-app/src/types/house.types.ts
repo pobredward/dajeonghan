@@ -206,6 +206,12 @@ export interface HouseLayout extends UserOwnedEntity {
     };
     emoji: string;
   };
+  /** 현재 활성 레이아웃 여부 (사용자당 1개만 true) */
+  isActive: boolean;
+  /** 레이아웃 이름 (사용자 지정 또는 템플릿 이름) */
+  name: string;
+  /** 마켓플레이스 템플릿에서 적용된 경우 원본 템플릿 ID */
+  sourceTemplateId?: string;
 }
 
 /**

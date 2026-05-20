@@ -3,11 +3,14 @@ import { StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { TermsAgreementScreen } from './TermsAgreementScreen';
+import { OnboardingChoiceScreen } from './OnboardingChoiceScreen';
+import { OnboardingMarketplacePickerScreen } from './OnboardingMarketplacePickerScreen';
 import { PersonaSelectionScreen } from './PersonaSelectionScreen';
 import { QuestionScreen } from './QuestionScreen';
 import { FirstTasksScreen } from './FirstTasksScreen';
 import { HouseLayoutSelectionScreen } from '@/screens/house/HouseLayoutSelectionScreen';
 import { OnboardingService, OnboardingAnswers, ExtraFurnitureConfig } from '@/services/OnboardingService';
+import { FullTemplateApplyService } from '@/services/fullTemplateApplyService';
 import { PersonaType } from '@/types/user.types';
 import { HouseLayout } from '@/types/house.types';
 import { Task } from '@/types/task.types';
@@ -32,7 +35,7 @@ export const OnboardingFlow: React.FC<Props> = ({
   onComplete,
   navigation,
 }) => {
-  const [step, setStep] = useState<'terms' | 'layout' | 'persona' | 'questions' | 'tasks'>('terms');
+  const [step, setStep] = useState<'terms' | 'choice' | 'layout' | 'persona' | 'questions' | 'tasks' | 'marketplace'>('terms');
   const [selectedLayoutType, setSelectedLayoutType] = useState<HouseLayout['layoutType']>('studio');
   const [selectedPersona, setSelectedPersona] = useState<PersonaType | null>(null);
   const [answers, setAnswers] = useState<OnboardingAnswers>({});
@@ -55,7 +58,43 @@ export const OnboardingFlow: React.FC<Props> = ({
   };
 
   const handleTermsAccept = () => {
+    setStep('choice');
+  };
+
+  const handleChoiceDirectSetup = () => {
     setStep('layout');
+  };
+
+  const handleChoiceMarketplace = () => {
+    setStep('marketplace');
+  };
+
+  const handleChoiceBack = () => {
+    setStep('terms');
+  };
+
+  const handleMarketplaceBack = () => {
+    setStep('choice');
+  };
+
+  const handleMarketplaceApply = async (templateId: string) => {
+    let finalUserId = userId;
+
+    if (isGuestOnboarding) {
+      console.log('👤 게스트 온보딩(마켓플레이스) → 익명 계정 생성');
+      const anonymousUser = await signInAnonymouslyAsync();
+      finalUserId = anonymousUser.uid;
+    }
+
+    const minimalProfile = OnboardingService.createMinimalProfile(finalUserId);
+    const completedProfile = OnboardingService.markOnboardingCompleted(minimalProfile);
+    await saveUserProfile(completedProfile);
+    console.log('✅ 최소 프로필 저장 완료');
+
+    await FullTemplateApplyService.applyFullTemplate(templateId, finalUserId);
+    console.log('✅ 마켓플레이스 템플릿 적용 완료');
+
+    onComplete();
   };
 
   const handleLayoutSelect = async (layoutType: HouseLayout['layoutType']) => {
@@ -64,7 +103,7 @@ export const OnboardingFlow: React.FC<Props> = ({
   };
 
   const handleLayoutBack = () => {
-    setStep('terms');
+    setStep('choice');
   };
 
   const handlePersonaBack = () => {
@@ -211,6 +250,19 @@ export const OnboardingFlow: React.FC<Props> = ({
           onAccept={handleTermsAccept}
           onBack={handleTermsBack}
           navigation={navigation}
+        />
+      )}
+      {step === 'choice' && (
+        <OnboardingChoiceScreen
+          onDirectSetup={handleChoiceDirectSetup}
+          onMarketplace={handleChoiceMarketplace}
+          onBack={handleChoiceBack}
+        />
+      )}
+      {step === 'marketplace' && (
+        <OnboardingMarketplacePickerScreen
+          onApply={handleMarketplaceApply}
+          onBack={handleMarketplaceBack}
         />
       )}
       {step === 'layout' && (
