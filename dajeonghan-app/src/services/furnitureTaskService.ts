@@ -91,6 +91,7 @@ export class FurnitureTaskService {
       description?: string;
       domain: TaskDomain;
       customization: TaskCustomization;
+      templateItemId?: string;
     }
   ): Promise<{ taskId: string }> {
     try {
@@ -114,6 +115,7 @@ export class FurnitureTaskService {
             : [0.5],
         },
         completionHistory: [],
+        ...(taskData.templateItemId && { templateItemId: taskData.templateItemId }),
       };
 
       const taskRef = await addDoc(

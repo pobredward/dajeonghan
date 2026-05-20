@@ -158,6 +158,7 @@ export class FullTemplateApplyService {
               title: templateTask.title,
               description: templateTask.description,
               domain: templateTask.domain,
+              templateItemId: templateTask.templateItemId,
               customization: {
                 recurrenceType: templateTask.recurrence.unit === 'day'
                   ? 'daily'
