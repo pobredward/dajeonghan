@@ -514,15 +514,17 @@ export const CalendarScreen: React.FC = () => {
   );
 
   // 현재 월에 해당하는 태스크를 allTasks에서 즉시 필터링 (Firestore 호출 없음)
-  // nextDue가 이미 이후 달로 이동한 반복 Task도 포함하기 위해 종료일을 3개월 뒤로 확장
+  // 반복 Task는 nextDue가 과거/현재/미래 어디에 있어도 달 범위 내에 발생일이 생길 수 있으므로
+  // nextDue 하한선 조건 없이 포함한다. 발생일 계산은 expandTaskOccurrences가 담당.
+  // 단 nextDue가 달 종료일로부터 너무 미래(3개월 초과)인 Task는 해당 달과 무관하므로 제외.
   const monthTasks = useMemo(() => {
-    const { start } = getMonthRange(currentYear, currentMonth);
     const extendedEnd = new Date(currentYear, currentMonth + 2, 0, 23, 59, 59, 999);
     return allTasks.filter(task => {
       const nextDue = task.recurrence?.nextDue;
       if (!nextDue) return false;
       const nextDueMs = new Date(nextDue).getTime();
-      return nextDueMs >= start.getTime() && nextDueMs <= extendedEnd.getTime();
+      // nextDue가 3개월 뒤 초과이면 해당 달에 역산 발생일이 없으므로 제외
+      return nextDueMs <= extendedEnd.getTime();
     });
   }, [allTasks, currentYear, currentMonth]);
 

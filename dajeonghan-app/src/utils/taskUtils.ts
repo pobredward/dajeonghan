@@ -182,10 +182,11 @@ export function expandTaskOccurrences(
     const interval = task.recurrence.interval || 1;
     const unit = task.recurrence.unit || 'day';
 
-    // nextDue를 startDate(= 사용자가 지정한 시작일)의 역할로 사용합니다.
-    // createdAt을 하한선으로 쓰면 과거 startDate로 생성된 Task가 달력에서 차단되므로,
-    // nextDue를 역산하여 도달하는 가장 이른 발생일 자체를 하한선으로 사용합니다.
-    const effectiveStart = msStart;
+    // Task 생성일(createdAt) 이전에는 발생일을 표시하지 않는다.
+    // createdAt이 없으면 nextDue를 하한선으로 fallback한다.
+    const createdAtMs = task.createdAt ? new Date(task.createdAt).setHours(0, 0, 0, 0) : null;
+    const taskFloor = createdAtMs ?? new Date(task.recurrence.nextDue).setHours(0, 0, 0, 0);
+    const effectiveStart = Math.max(msStart, taskFloor);
 
     // nextDue에서 interval씩 빼며 effectiveStart 이전으로 이동 → 달 내 첫 번째 발생 기준점을 구함
     let anchor = new Date(task.recurrence.nextDue);
