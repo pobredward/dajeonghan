@@ -16,8 +16,24 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { RouteProp } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ko } from 'date-fns/locale';
+
+function safeFormat(value: any, fmt: string): string {
+  try {
+    let date: Date;
+    if (typeof value?.toDate === 'function') {
+      date = value.toDate();
+    } else if (value instanceof Date) {
+      date = value;
+    } else {
+      date = new Date(value);
+    }
+    return isValid(date) ? format(date, fmt, { locale: ko }) : '';
+  } catch {
+    return '';
+  }
+}
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '@/constants';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
@@ -214,11 +230,11 @@ export const TemplateDetailScreen: React.FC = () => {
   }
 
   const totalTasks = template.houseLayout
-    ? template.houseLayout.rooms.reduce(
-        (sum, r) => sum + r.furnitures.reduce((s, f) => s + f.tasks.length, 0),
+    ? (template.houseLayout.rooms ?? []).reduce(
+        (sum, r) => sum + (r.furnitures ?? []).reduce((s, f) => s + (f.tasks?.length ?? 0), 0),
         0
       )
-    : template.tasks.length;
+    : (template.tasks?.length ?? 0);
 
   const canApply = !!template.houseLayout;
 
@@ -280,9 +296,9 @@ export const TemplateDetailScreen: React.FC = () => {
           </View>
 
           {/* 태그 */}
-          {template.tags.length > 0 && (
+          {(template.tags?.length ?? 0) > 0 && (
             <View style={styles.tags}>
-              {template.tags.map((tag, i) => (
+              {(template.tags ?? []).map((tag, i) => (
                 <View key={i} style={styles.tag}>
                   <Text style={styles.tagText}>#{tag}</Text>
                 </View>
@@ -320,11 +336,11 @@ export const TemplateDetailScreen: React.FC = () => {
 
         {/* 업무 목록 */}
         {template.houseLayout ? (
-          template.houseLayout.rooms.some(r => r.furnitures.some(f => f.tasks.length > 0)) && (
+          (template.houseLayout.rooms ?? []).some(r => (r.furnitures ?? []).some(f => (f.tasks?.length ?? 0) > 0)) && (
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>포함된 업무</Text>
-              {template.houseLayout.rooms.map((room, rIdx) =>
-                room.furnitures.map((f, fIdx) =>
+              {(template.houseLayout.rooms ?? []).map((room, rIdx) =>
+                (room.furnitures ?? []).map((f, fIdx) =>
                   f.tasks.length > 0 ? (
                     <View key={`${rIdx}-${fIdx}`} style={styles.furnitureTaskGroup}>
                       <Text style={styles.furnitureGroupTitle}>
@@ -352,10 +368,10 @@ export const TemplateDetailScreen: React.FC = () => {
               )}
             </Card>
           )
-        ) : template.tasks.length > 0 ? (
+        ) : (template.tasks?.length ?? 0) > 0 ? (
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>포함된 업무</Text>
-            {template.tasks.map((task, tIdx) => (
+            {(template.tasks ?? []).map((task, tIdx) => (
               <View key={tIdx} style={styles.taskItem}>
                 <View style={styles.taskDot} />
                 <View style={styles.taskInfo}>
@@ -419,7 +435,7 @@ export const TemplateDetailScreen: React.FC = () => {
                   <View style={styles.commentHeader}>
                     <Text style={styles.commentAuthor}>{c.userName}</Text>
                     <Text style={styles.commentDate}>
-                      {format(c.createdAt, 'MM.dd HH:mm', { locale: ko })}
+                      {safeFormat(c.createdAt, 'MM.dd HH:mm')}
                     </Text>
                     {c.userId === userId && (
                       <TouchableOpacity onPress={() => handleDeleteComment(c.id)}>

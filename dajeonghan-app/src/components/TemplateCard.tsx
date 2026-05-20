@@ -35,16 +35,16 @@ function getInitial(name: string): string {
 
 function getTotalTaskCount(template: SharedTemplate): number {
   if (template.houseLayout) {
-    return template.houseLayout.rooms.reduce(
-      (sum, room) => sum + room.furnitures.reduce((s, f) => s + f.tasks.length, 0),
+    return (template.houseLayout.rooms ?? []).reduce(
+      (sum, room) => sum + (room.furnitures ?? []).reduce((s, f) => s + (f.tasks?.length ?? 0), 0),
       0
     );
   }
-  return template.tasks.length;
+  return template.tasks?.length ?? 0;
 }
 
 function getRoomCount(template: SharedTemplate): number {
-  return template.houseLayout?.rooms.length ?? 0;
+  return template.houseLayout?.rooms?.length ?? 0;
 }
 
 export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPress }) => {
@@ -114,9 +114,9 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPres
         )}
 
         {/* 태그 */}
-        {template.tags.length > 0 && (
+        {(template.tags?.length ?? 0) > 0 && (
           <View style={styles.tags}>
-            {template.tags.slice(0, 4).map((tag, i) => (
+            {(template.tags ?? []).slice(0, 4).map((tag, i) => (
               <View key={i} style={[styles.tagChip, { borderColor: theme.accent + '44' }]}>
                 <Text style={[styles.tagText, { color: theme.accent }]}>#{tag}</Text>
               </View>
@@ -135,7 +135,7 @@ export const TemplateCard: React.FC<Props> = ({ template, onPress, onCreatorPres
               <StatItem icon="⭐" value={template.averageRating.toFixed(1)} label="평점" />
             </>
           )}
-          {(template.commentCount ?? 0) > 0 && (
+          {((template.commentCount ?? 0) > 0) && (
             <>
               <View style={styles.statsDivider} />
               <StatItem icon="💬" value={template.commentCount} label="댓글" />

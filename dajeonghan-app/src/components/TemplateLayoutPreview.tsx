@@ -25,19 +25,24 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
   houseLayout,
   containerWidth,
 }) => {
-  const { canvasSize, rooms, character } = houseLayout;
+  const { canvasSize, rooms: rawRooms, character } = houseLayout;
+  const rooms = rawRooms ?? [];
+
+  // canvasSize 방어: 누락되거나 0일 경우 기본값으로 폴백
+  const safeCanvasW = canvasSize?.width > 0 ? canvasSize.width : 600;
+  const safeCanvasH = canvasSize?.height > 0 ? canvasSize.height : 400;
 
   const [measuredW, setMeasuredW] = useState(containerWidth ?? 0);
   const resolvedW = containerWidth ?? measuredW;
-  const autoScale = calcAutoScale(canvasSize.width, resolvedW);
+  const autoScale = calcAutoScale(safeCanvasW, resolvedW);
   const [manualScale, setManualScale] = useState<number | null>(null);
   const currentScale = manualScale ?? autoScale;
 
   // 가구 이름 툴팁
   const [tooltip, setTooltip] = useState<string | null>(null);
 
-  const scaledW = canvasSize.width * currentScale;
-  const scaledH = canvasSize.height * currentScale;
+  const scaledW = safeCanvasW * currentScale;
+  const scaledH = safeCanvasH * currentScale;
 
   const renderFurniture = (room: SharedRoom, f: SharedFurniture, fIdx: number) => {
     const absX = room.position.x + f.position.x;
@@ -162,9 +167,9 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
               }}
             >
               <Svg
-                width={canvasSize.width}
-                height={canvasSize.height}
-                viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+                width={safeCanvasW}
+                height={safeCanvasH}
+                viewBox={`0 0 ${safeCanvasW} ${safeCanvasH}`}
               >
                 {/* 바닥 */}
                 <Rect

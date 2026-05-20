@@ -134,7 +134,11 @@ export const TemplateMarketplaceScreen: React.FC = () => {
 
   const openSortDropdown = () => {
     sortBtnRef.current?.measure((_fx, _fy, width, height, px, py) => {
-      setDropdownLayout({ x: px, y: py + height, width, height });
+      // Android에서 measure() 콜백 값이 NaN/0으로 올 수 있어 방어
+      const safeY = Number.isFinite(py) && py > 0 ? py + height : 60;
+      const safeX = Number.isFinite(px) ? px : 0;
+      const safeW = Number.isFinite(width) && width > 0 ? width : 100;
+      setDropdownLayout({ x: safeX, y: safeY, width: safeW, height: height || 36 });
       setSortDropdownVisible(true);
     });
   };
