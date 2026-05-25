@@ -9,12 +9,14 @@
 
 import { UserProfile, PersonaType, UserEnvironment, NotificationMode, OnboardingResponse, SelfCareItem, PetType } from '@/types/user.types';
 import { Task } from '@/types/task.types';
+import { TaskDomain } from '@/types/common.types';
 import { HouseLayout, FurnitureType, FURNITURE_DEFAULTS, createDefaultFurnitureMetadata } from '@/types/house.types';
 import { TaskTemplateItem } from '@/types/furnitureTaskTemplate.types';
 import { CleaningService } from '@/modules/cleaning/CleaningService';
 import { getLayoutTemplate, saveHouseLayout } from '@/services/houseService';
 import { getOnboardingTemplates } from '@/data/furnitureTaskTemplates';
 import * as Crypto from 'expo-crypto';
+import { addDays } from 'date-fns';
 import personas from '@/templates/personas.json';
 import cleaningTemplatesData from '@/modules/cleaning/templates/cleaningTemplates.json';
 import { CleaningTemplateItem } from '@/modules/cleaning/types';
@@ -393,7 +395,7 @@ export class OnboardingService {
     }
 
     console.log(`✅ 초기 Task 생성 완료 (총 ${allTasks.length}개)`);
-    return allTasks;
+    return this.distributeInitialNextDues(allTasks);
   }
 
   /**
@@ -410,15 +412,10 @@ export class OnboardingService {
     return templates.map((template) => {
       const ob = template.onboarding!;
       const taskId = Crypto.randomUUID();
-      const nextDueDate = new Date(now);
 
-      if (ob.unit === 'day') {
-        nextDueDate.setDate(nextDueDate.getDate() + ob.interval);
-      } else if (ob.unit === 'week') {
-        nextDueDate.setDate(nextDueDate.getDate() + ob.interval * 7);
-      } else if (ob.unit === 'month') {
-        nextDueDate.setMonth(nextDueDate.getMonth() + ob.interval);
-      }
+      // 첫 nextDue는 오늘 자정으로 설정 — 온보딩 직후부터 가구 탭에 "오늘 할 일"로 표시되도록
+      const nextDueDate = new Date(now);
+      nextDueDate.setHours(0, 0, 0, 0);
 
       const metadata: Record<string, any> = {};
       if (ob.linkedFurnitureType) {
@@ -472,7 +469,7 @@ export class OnboardingService {
     const categories: Record<string, Task[]> = {};
 
     for (const task of tasks) {
-      const category = (task as any).type ?? 'cleaning';
+      const category = task.domain ?? 'home';
       const label = this.getCategoryLabel(category);
       if (!categories[label]) categories[label] = [];
       categories[label].push(task);
@@ -483,13 +480,75 @@ export class OnboardingService {
 
   static getCategoryLabel(type: string): string {
     const map: Record<string, string> = {
-      cleaning: '청소',
+      home: '청소',
       medicine: '약·영양제',
       self_care: '자기관리',
       food: '식품 관리',
-      self_development: '자기계발',
+      growth: '자기계발',
+      pet: '반려동물',
+      car: '차량',
+      family: '가족·영아',
     };
     return map[type] ?? '기타';
+  }
+
+  /**
+   * 온보딩 초기 Task의 nextDue를 interval에 비례해 이번 주~한 달에 걸쳐 분산합니다.
+   *
+   * 분산 창(spreadWindow) 공식:
+   *   interval(일 환산) ≤ 2   → 0일 (오늄 즉시)
+   *   3 ~ 14일                → floor(intervalDays / 2)  (최대 7일)
+   *   15 ~ 45일               → 14일
+   *   46일 이상               → 30일
+   *
+   * urgent/high 우선순위는 분산 창 앞 50% 이내에 배정합니다.
+   * car·medicine 도메인은 평일에만 배정 (토→월, 일→월 이동).
+   * 동일 Task ID 기반 결정론적 해시로 재온보딩 시 일관성을 유지합니다.
+   */
+  static distributeInitialNextDues(tasks: Task[]): Task[] {
+    const WEEKDAY_ONLY_DOMAINS: TaskDomain[] = ['car', 'medicine'];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return tasks.map((task) => {
+      const intervalDays =
+        task.recurrence.unit === 'week'
+          ? task.recurrence.interval * 7
+          : task.recurrence.unit === 'month'
+          ? task.recurrence.interval * 30
+          : task.recurrence.interval;
+
+      let spreadWindow: number;
+      if (intervalDays <= 2) spreadWindow = 0;
+      else if (intervalDays <= 14) spreadWindow = Math.floor(intervalDays / 2);
+      else if (intervalDays <= 45) spreadWindow = 14;
+      else spreadWindow = 30;
+
+      const effectiveWindow =
+        task.priority === 'urgent' || task.priority === 'high'
+          ? Math.floor(spreadWindow * 0.5)
+          : spreadWindow;
+
+      const hash = task.id
+        .split('')
+        .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const offsetDays =
+        effectiveWindow === 0 ? 0 : hash % (effectiveWindow + 1);
+
+      let nextDue = addDays(today, offsetDays);
+
+      if (WEEKDAY_ONLY_DOMAINS.includes(task.domain as TaskDomain)) {
+        const dow = nextDue.getDay();
+        if (dow === 0) nextDue = addDays(nextDue, 1);
+        if (dow === 6) nextDue = addDays(nextDue, 2);
+      }
+
+      return {
+        ...task,
+        recurrence: { ...task.recurrence, nextDue },
+      };
+    });
   }
 
   /**
@@ -498,7 +557,7 @@ export class OnboardingService {
   static generateFirstDayTasks(tasks: Task[]): Task[] {
     const categoryMap: Record<string, Task[]> = {};
     for (const task of tasks) {
-      const type = (task as any).type ?? 'cleaning';
+      const type = task.domain ?? 'home';
       if (!categoryMap[type]) categoryMap[type] = [];
       categoryMap[type].push(task);
     }

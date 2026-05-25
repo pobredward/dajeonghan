@@ -216,6 +216,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
     if (propsLayout) {
       setViewLayout(propsLayout);
       setLoading(false);
+      loadTaskCounts();
     } else {
       loadHouseLayout(true);
     }
@@ -224,8 +225,13 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
   // 화면 포커스 시 레이아웃 + task 카운트 재로드
   useFocusEffect(
     React.useCallback(() => {
-      if (!userId || propsLayout || isEditMode) return;
-      loadHouseLayout(true);
+      if (!userId || isEditMode) return;
+      if (propsLayout) {
+        // propsLayout 모드에서는 레이아웃 재로딩 없이 Task 카운트만 갱신
+        loadTaskCounts();
+      } else {
+        loadHouseLayout(true);
+      }
     }, [userId, propsLayout, isEditMode])
   );
 
@@ -299,7 +305,7 @@ export const HouseMapScreen: React.FC<HouseMapScreenProps> = ({ layout: propsLay
       
       if (existingLayout) {
         setViewLayout(existingLayout);
-        loadTaskCounts();
+        await loadTaskCounts();
       } else {
         setViewLayout(null);
         navigation.navigate('HouseLayoutSelection');

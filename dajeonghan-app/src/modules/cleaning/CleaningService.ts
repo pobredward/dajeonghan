@@ -72,15 +72,9 @@ export class CleaningService {
     const now = new Date();
     const taskId = Crypto.randomUUID();
     
-    // interval에 따라 nextDue 계산
+    // 첫 nextDue는 오늘 자정으로 설정 — 온보딩 직후부터 가구 탭에 "오늘 할 일"로 표시되도록
     let nextDueDate = new Date(now);
-    if (template.unit === 'day') {
-      nextDueDate.setDate(nextDueDate.getDate() + template.interval);
-    } else if (template.unit === 'week') {
-      nextDueDate.setDate(nextDueDate.getDate() + template.interval * 7);
-    } else if (template.unit === 'month') {
-      nextDueDate.setMonth(nextDueDate.getMonth() + template.interval);
-    }
+    nextDueDate.setHours(0, 0, 0, 0);
     
     const metadata: CleaningMetadata = {
       room: template.room,
