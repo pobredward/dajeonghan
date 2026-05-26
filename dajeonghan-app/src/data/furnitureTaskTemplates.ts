@@ -2079,6 +2079,18 @@ export const FURNITURE_TASK_TEMPLATES: FurnitureTaskTemplate[] = [
         whyNeeded: '막힌 필터는 공기청정기 효율을 50% 이상 떨어뜨리고 오히려 오염된 공기를 순환시킵니다.',
         howTo: '1. 전원을 끄고 필터 패널을 엽니다.\n2. 필터 오염 정도를 확인합니다.\n3. 프리필터는 물세척 후 완전히 건조합니다.\n4. HEPA 필터는 교체 주기에 맞게 새것으로 교체합니다.',
       },
+      {
+        id: 'cleaning_bath_mat_wash',
+        title: '욕실 미끄럼 방지 매트 세척',
+        description: '2주마다 욕실 미끄럼 방지 매트를 세척하여 곰팡이와 세균을 제거합니다.',
+        domain: 'home',
+        actionType: 'cleaning',
+        defaultRecurrence: { type: 'weekly', interval: 2 },
+        estimatedMinutes: 10,
+        priority: 'high',
+        whyNeeded: '욕실 매트는 항상 습한 환경에 노출되어 곰팡이와 세균이 번식하기 쉽습니다. 특히 노인·어린이는 미끄러짐 사고 위험이 있으므로 정기적인 세척으로 위생과 안전을 동시에 지킵니다.',
+        howTo: '1. 매트를 욕실 바닥에서 들어냅니다.\n2. 샤워기로 물을 충분히 뿌린 뒤 브러시로 앞뒤를 문질러 닦습니다.\n3. 중성 세제나 욕실 클리너를 이용해 곰팡이 부위를 집중 세척합니다.\n4. 맑은 물로 잔여 세제를 깨끗이 헹굽니다.\n5. 햇볕이나 통풍이 잘 되는 곳에서 완전히 건조 후 다시 깔아둡니다.',
+      },
     ],
   },
 ];

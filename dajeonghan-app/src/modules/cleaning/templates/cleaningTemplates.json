@@ -9,7 +9,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 싱크대 청소",
@@ -32,7 +33,8 @@
       "estimatedMinutes": 20,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "침구 세탁",
@@ -46,7 +48,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -69,7 +72,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -80,7 +84,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "먼지 닦기",
@@ -91,7 +96,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "칫솔 교체",
@@ -102,7 +108,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     },
     {
       "name": "거울 닦기",
@@ -127,7 +134,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 청소",
@@ -150,7 +158,8 @@
       "estimatedMinutes": 30,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "침구 세탁",
@@ -164,7 +173,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -187,7 +197,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -198,7 +209,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "칫솔 교체",
@@ -209,7 +221,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "couple_no_kid": [
@@ -222,7 +235,8 @@
       "estimatedMinutes": 25,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 청소",
@@ -245,7 +259,8 @@
       "estimatedMinutes": 30,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "침구 세탁",
@@ -259,7 +274,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -282,7 +298,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -293,7 +310,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "먼지 닦기",
@@ -304,7 +322,8 @@
       "estimatedMinutes": 15,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "욕실 청소",
@@ -327,7 +346,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "family_with_kid": [
@@ -340,7 +360,8 @@
       "estimatedMinutes": 25,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 청소 및 소독",
@@ -363,7 +384,8 @@
       "estimatedMinutes": 30,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "아이 장난감 세척",
@@ -374,7 +396,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "baby_toy_clean"
     },
     {
       "name": "침구 세탁",
@@ -388,7 +411,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "욕조 청소 및 소독",
@@ -423,7 +447,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -434,7 +459,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "칫솔 교체",
@@ -445,7 +471,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "family_school_kid": [
@@ -458,7 +485,8 @@
       "estimatedMinutes": 25,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 청소",
@@ -481,7 +509,8 @@
       "estimatedMinutes": 40,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "침구 세탁",
@@ -495,7 +524,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -518,7 +548,8 @@
       "estimatedMinutes": 15,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -529,7 +560,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "먼지 닦기",
@@ -540,7 +572,8 @@
       "estimatedMinutes": 20,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "칫솔 교체",
@@ -551,7 +584,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "pet_owner": [
@@ -564,7 +598,8 @@
       "estimatedMinutes": 15,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "화장실 청소",
@@ -575,7 +610,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 싱크대 청소",
@@ -598,7 +634,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "pet"
+      "linkedFurnitureType": "pet",
+      "templateItemId": "pet_food_water"
     },
     {
       "name": "침구·소파 털 제거",
@@ -609,7 +646,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "sofa"
+      "linkedFurnitureType": "sofa",
+      "templateItemId": "sofa_vacuum"
     },
     {
       "name": "침구 세탁",
@@ -623,7 +661,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -646,7 +685,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -657,7 +697,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "공기청정기 필터 점검",
@@ -668,7 +709,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_air_filter"
     },
     {
       "name": "칫솔 교체",
@@ -679,7 +721,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "freelancer_homebody": [
@@ -692,7 +735,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 싱크대 청소",
@@ -715,7 +759,8 @@
       "estimatedMinutes": 20,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "책상 및 작업 공간 정리",
@@ -741,7 +786,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "냉장고 정리",
@@ -764,7 +810,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -775,7 +822,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "공기청정기 필터 점검",
@@ -786,7 +834,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_air_filter"
     },
     {
       "name": "먼지 닦기",
@@ -797,7 +846,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "칫솔 교체",
@@ -808,7 +858,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "senior_couple": [
@@ -821,7 +872,8 @@
       "estimatedMinutes": 25,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "주방 청소",
@@ -856,7 +908,8 @@
       "estimatedMinutes": 35,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "침구 세탁",
@@ -870,7 +923,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "욕실 미끄럼 방지 매트 세척",
@@ -881,7 +935,8 @@
       "estimatedMinutes": 10,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_bath_mat_wash"
     },
     {
       "name": "쓰레기 분리수거",
@@ -892,7 +947,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -903,7 +959,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "먼지 닦기",
@@ -914,7 +971,8 @@
       "estimatedMinutes": 15,
       "healthPriority": false,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "칫솔 교체",
@@ -925,7 +983,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ],
   "student_20s": [
@@ -938,7 +997,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "침구 세탁",
@@ -952,7 +1012,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "칫솔 교체",
@@ -963,7 +1024,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     },
     {
       "name": "주방 싱크대 청소",
@@ -986,7 +1048,8 @@
       "estimatedMinutes": 30,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "냉장고 정리",
@@ -1009,7 +1072,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "환기",
@@ -1020,7 +1084,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "먼지 닦기",
@@ -1031,7 +1096,8 @@
       "estimatedMinutes": 15,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_dust_wipe"
     },
     {
       "name": "거울 닦기",
@@ -1056,7 +1122,8 @@
       "estimatedMinutes": 20,
       "healthPriority": true,
       "priority": "high",
-      "linkedFurnitureType": "toilet"
+      "linkedFurnitureType": "toilet",
+      "templateItemId": "toilet_bowl_clean"
     },
     {
       "name": "침구 세탁",
@@ -1070,7 +1137,8 @@
       "requiresTools": [
         "세탁기"
       ],
-      "linkedFurnitureType": "washing_machine"
+      "linkedFurnitureType": "washing_machine",
+      "templateItemId": "bed_sheet_wash"
     },
     {
       "name": "주방 청소",
@@ -1093,7 +1161,8 @@
       "estimatedMinutes": 40,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_floor"
     },
     {
       "name": "환기",
@@ -1104,7 +1173,8 @@
       "estimatedMinutes": 5,
       "healthPriority": true,
       "priority": "low",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_ventilation"
     },
     {
       "name": "쓰레기 분리수거",
@@ -1115,7 +1185,8 @@
       "estimatedMinutes": 10,
       "healthPriority": false,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_garbage"
     },
     {
       "name": "칫솔 교체",
@@ -1126,7 +1197,8 @@
       "estimatedMinutes": 2,
       "healthPriority": true,
       "priority": "medium",
-      "linkedFurnitureType": "cleaning"
+      "linkedFurnitureType": "cleaning",
+      "templateItemId": "cleaning_toothbrush"
     }
   ]
 }
