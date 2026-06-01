@@ -119,12 +119,12 @@ export const OnboardingMarketplacePickerScreen: React.FC<Props> = ({
 
   const getTotalTasks = (template: SharedTemplate): number => {
     if (template.houseLayout) {
-      return template.houseLayout.rooms.reduce(
-        (sum, room) => sum + room.furnitures.reduce((s, f) => s + f.tasks.length, 0),
+      return (template.houseLayout.rooms ?? []).reduce(
+        (sum, room) => sum + (room.furnitures ?? []).reduce((s, f) => s + (f.tasks?.length ?? 0), 0),
         0
       );
     }
-    return template.tasks.length;
+    return template.tasks?.length ?? 0;
   };
 
   return (
@@ -284,9 +284,9 @@ export const OnboardingMarketplacePickerScreen: React.FC<Props> = ({
                 )}
 
                 {/* 태그 */}
-                {selectedTemplate.tags.length > 0 && (
+                {(selectedTemplate.tags?.length ?? 0) > 0 && (
                   <View style={modalStyles.tags}>
-                    {selectedTemplate.tags.map((tag, i) => (
+                    {(selectedTemplate.tags ?? []).map((tag, i) => (
                       <View key={i} style={modalStyles.tagChip}>
                         <Text style={modalStyles.tagText}>#{tag}</Text>
                       </View>

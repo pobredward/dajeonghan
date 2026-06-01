@@ -341,12 +341,12 @@ export const TemplateDetailScreen: React.FC = () => {
               <Text style={styles.sectionTitle}>포함된 업무</Text>
               {(template.houseLayout.rooms ?? []).map((room, rIdx) =>
                 (room.furnitures ?? []).map((f, fIdx) =>
-                  f.tasks.length > 0 ? (
+                  (f.tasks?.length ?? 0) > 0 ? (
                     <View key={`${rIdx}-${fIdx}`} style={styles.furnitureTaskGroup}>
                       <Text style={styles.furnitureGroupTitle}>
                         {f.emoji} {f.name}
                       </Text>
-                      {f.tasks.map((task, tIdx) => (
+                      {(f.tasks ?? []).map((task, tIdx) => (
                         <View key={tIdx} style={styles.taskItem}>
                           <View style={styles.taskDot} />
                           <View style={styles.taskInfo}>

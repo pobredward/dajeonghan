@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.onmindlab.dajeonghan",
+      "sha256_cert_fingerprints": [
+        "AC:7C:26:69:5B:FE:A3:54:C0:77:7D:3E:26:BA:5B:DF:35:83:3F:73:83:92:17:2C:50:5F:6D:5C:91:0F:44:24"
+      ]
+    }
+  }
+]

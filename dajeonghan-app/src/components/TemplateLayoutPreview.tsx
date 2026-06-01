@@ -47,7 +47,7 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
   const renderFurniture = (room: SharedRoom, f: SharedFurniture, fIdx: number) => {
     const absX = room.position.x + f.position.x;
     const absY = room.position.y + f.position.y;
-    const taskCount = f.tasks.length;
+    const taskCount = f.tasks?.length ?? 0;
 
     return (
       <G key={`f-${fIdx}`}>
@@ -162,8 +162,8 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
               style={{
                 position: 'absolute',
                 transform: [{ scale: currentScale }],
-                left: -(canvasSize.width * (1 - currentScale)) / 2,
-                top: -(canvasSize.height * (1 - currentScale)) / 2,
+                left: -(safeCanvasW * (1 - currentScale)) / 2,
+                top: -(safeCanvasH * (1 - currentScale)) / 2,
               }}
             >
               <Svg
@@ -175,8 +175,8 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
                 <Rect
                   x={0}
                   y={0}
-                  width={canvasSize.width}
-                  height={canvasSize.height}
+                  width={safeCanvasW}
+                  height={safeCanvasH}
                   fill={Colors.accentLight}
                   stroke={Colors.lightGray}
                   strokeWidth={2}
@@ -239,7 +239,7 @@ export const TemplateLayoutPreview: React.FC<Props> = ({
           <TouchableOpacity style={styles.tooltip} onPress={() => setTooltip(null)}>
             <Text style={styles.tooltipText}>
               {f.emoji} {f.name}
-              {f.tasks.length > 0 ? ` · 업무 ${f.tasks.length}개` : ''}
+              {(f.tasks?.length ?? 0) > 0 ? ` · 업무 ${f.tasks?.length ?? 0}개` : ''}
             </Text>
           </TouchableOpacity>
         );

@@ -11,6 +11,7 @@ import { Task } from '../types/task.types';
 import { UserProfile } from '../types/user.types';
 import * as Notifications from 'expo-notifications';
 import { differenceInHours } from 'date-fns';
+import Constants from 'expo-constants';
 
 /**
  * 알림 설정 (앱 시작 시 호출)
@@ -298,7 +299,12 @@ export class NotificationOrchestrator {
    */
   static async getPushToken(): Promise<string | null> {
     try {
-      const token = await Notifications.getExpoPushTokenAsync();
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId;
+      const token = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
       return token.data;
     } catch (error) {
       console.error('푸시 토큰 가져오기 실패:', error);
