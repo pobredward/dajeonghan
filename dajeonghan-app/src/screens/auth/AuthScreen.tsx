@@ -46,11 +46,13 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const passwordRef = useRef<TextInput>(null);
 
   // Google OAuth (expo-auth-session)
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-  });
+  // androidClientId가 없으면 useAuthRequest가 즉시 에러를 던지므로 방어 처리
+  const googleAuthConfig: Google.GoogleAuthRequestConfig = {
+    webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
+    ...(GOOGLE_ANDROID_CLIENT_ID ? { androidClientId: GOOGLE_ANDROID_CLIENT_ID } : {}),
+  };
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest(googleAuthConfig);
 
   useEffect(() => {
     if (!googleResponse) return;
